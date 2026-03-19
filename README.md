@@ -353,6 +353,45 @@ cd frontend && npm install && npm run dev
 npx hardhat run scripts/deploy.ts --network bscTestnet
 ```
 
+### 8. Launch Runbook (Mainnet)
+
+```bash
+cp .env.example .env
+```
+
+Set required values in `.env`:
+
+- `PRIVATE_KEY`
+- `BSCSCAN_API_KEY`
+- `BSC_MAINNET_RPC` (recommended dedicated RPC)
+
+Optional launch parameters (defaults already set):
+
+- `REGISTRATION_FEE_BNB`
+- `MAX_AGENTS`
+- `PROTOCOL_FEE_BPS`
+- `MIN_DEPOSIT_BNB`
+- `INITIAL_AGENT_*`
+
+Rehearse on testnet with production-like settings:
+
+```bash
+npm run deploy:testnet
+npm run verify:deployment:testnet
+```
+
+Mainnet deploy is guard-railed and requires explicit opt-in:
+
+```bash
+ALLOW_MAINNET_DEPLOY=true npm run deploy:mainnet
+npm run verify:deployment:mainnet
+```
+
+Deployment artifacts are written to both:
+
+- `deployment.bscMainnet.json` (or network-specific equivalent)
+- `deployment.json` (latest deployment)
+
 ---
 
 ## ⛓️ Smart Contracts

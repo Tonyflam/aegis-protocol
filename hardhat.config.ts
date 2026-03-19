@@ -4,8 +4,21 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000001";
+function normalizePrivateKey(value?: string): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "your_private_key_here") return undefined;
+  const prefixed = trimmed.startsWith("0x") ? trimmed : `0x${trimmed}`;
+  return /^0x[0-9a-fA-F]{64}$/.test(prefixed) ? prefixed : undefined;
+}
+
+const PRIVATE_KEY = normalizePrivateKey(process.env.PRIVATE_KEY);
 const BSCSCAN_API_KEY = process.env.BSCSCAN_API_KEY || "";
+const BSC_TESTNET_RPC = process.env.BSC_TESTNET_RPC || "https://data-seed-prebsc-1-s1.binance.org:8545";
+const BSC_MAINNET_RPC = process.env.BSC_MAINNET_RPC || "https://bsc-dataseed1.binance.org";
+const OPBNB_TESTNET_RPC = process.env.OPBNB_TESTNET_RPC || "https://opbnb-testnet-rpc.bnbchain.org";
+const OPBNB_MAINNET_RPC = process.env.OPBNB_MAINNET_RPC || "https://opbnb-mainnet-rpc.bnbchain.org";
+const accounts = PRIVATE_KEY ? [PRIVATE_KEY] : [];
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -23,27 +36,27 @@ const config: HardhatUserConfig = {
       chainId: 31337,
     },
     bscTestnet: {
-      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      url: BSC_TESTNET_RPC,
       chainId: 97,
-      accounts: [PRIVATE_KEY],
+      accounts,
       gasPrice: 10000000000,
     },
     bscMainnet: {
-      url: "https://bsc-dataseed1.binance.org",
+      url: BSC_MAINNET_RPC,
       chainId: 56,
-      accounts: [PRIVATE_KEY],
+      accounts,
       gasPrice: 3000000000,
     },
     opBNBTestnet: {
-      url: "https://opbnb-testnet-rpc.bnbchain.org",
+      url: OPBNB_TESTNET_RPC,
       chainId: 5611,
-      accounts: [PRIVATE_KEY],
+      accounts,
       gasPrice: 1000000000,
     },
     opBNB: {
-      url: "https://opbnb-mainnet-rpc.bnbchain.org",
+      url: OPBNB_MAINNET_RPC,
       chainId: 204,
-      accounts: [PRIVATE_KEY],
+      accounts,
       gasPrice: 1000000000,
     },
   },
