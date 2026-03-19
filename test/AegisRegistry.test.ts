@@ -379,4 +379,111 @@ describe("AegisRegistry", function () {
       ).to.be.revertedWith("Agent does not exist");
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Phase 2: TokenGate Holder Badge Tests
+  // ═══════════════════════════════════════════════════════════════
+
+  describe("Holder Badge Integration", function () {
+    const BRONZE = ethers.parseEther("10000");
+    const GOLD   = ethers.parseEther("1000000");
+    const TOTAL  = ethers.parseEther("1000000000");
+
+    async function deployWithTokenGateFixture() {
+      const base = await deployRegistryFixture();
+      const { registry, owner, operator1 } = base;
+
+      // Deploy mock $UNIQ
+      const Token = await ethers.getContractFactory("MockERC20");
+      const uniq = await Token.deploy("Uniq Minds", "UNIQ", TOTAL);
+
+      // Deploy TokenGate
+      const Gate = await ethers.getContractFactory("AegisTokenGate");
+      const gate = await Gate.deploy(await uniq.getAddress());
+
+      // Wire TokenGate into Registry
+      await registry.setTokenGate(await gate.getAddress());
+
+      // Register an agent for operator1
+      await registry.connect(operator1).registerAgent(
+        "Test Agent", "ipfs://test", 0,
+        { value: REGISTRATION_FEE }
+      );
+
+      return { ...base, uniq, gate };
+    }
+
+    it("should return false for isUNIQHolder when no TokenGate set", async function () {
+      const { registry, operator1 } = await loadFixture(deployRegistryFixture);
+
+      await registry.connect(operator1).registerAgent(
+        "Test", "ipfs://test", 0, { value: REGISTRATION_FEE }
+      );
+
+      expect(await registry.isUNIQHolder(0)).to.be.false;
+    });
+
+    it("should return true for isUNIQHolder when operator holds tokens", async function () {
+      const { registry, uniq, owner, operator1 } = await loadFixture(deployWithTokenGateFixture);
+      await uniq.transfer(operator1.address, BRONZE);
+      expect(await registry.isUNIQHolder(0)).to.be.true;
+    });
+
+    it("should return false for isUNIQHolder when operator has no tokens", async function () {
+      const { registry, operator1 } = await loadFixture(deployWithTokenGateFixture);
+      expect(await registry.isUNIQHolder(0)).to.be.false;
+    });
+
+    it("should refresh holder badge to correct tier", async function () {
+      const { registry, uniq, owner, operator1 } = await loadFixture(deployWithTokenGateFixture);
+
+      await uniq.transfer(operator1.address, GOLD);
+      await registry.refreshHolderBadge(0);
+
+      expect(await registry.getHolderBadge(0)).to.equal(3); // Gold
+    });
+
+    it("should emit HolderBadgeUpdated on refresh", async function () {
+      const { registry, uniq, owner, operator1 } = await loadFixture(deployWithTokenGateFixture);
+
+      await uniq.transfer(operator1.address, BRONZE);
+
+      await expect(
+        registry.refreshHolderBadge(0)
+      ).to.emit(registry, "HolderBadgeUpdated");
+    });
+
+    it("should update badge when holder sells tokens", async function () {
+      const { registry, uniq, owner, operator1, operator2 } = await loadFixture(deployWithTokenGateFixture);
+
+      await uniq.transfer(operator1.address, GOLD);
+      await registry.refreshHolderBadge(0);
+      expect(await registry.getHolderBadge(0)).to.equal(3); // Gold
+
+      // Sell most tokens
+      await uniq.connect(operator1).transfer(operator2.address, ethers.parseEther("999000"));
+      await registry.refreshHolderBadge(0);
+      expect(await registry.getHolderBadge(0)).to.equal(0); // None (1K left)
+    });
+
+    it("should revert refreshHolderBadge when no TokenGate set", async function () {
+      const { registry, operator1 } = await loadFixture(deployRegistryFixture);
+
+      await registry.connect(operator1).registerAgent(
+        "Test", "ipfs://test", 0, { value: REGISTRATION_FEE }
+      );
+
+      await expect(
+        registry.refreshHolderBadge(0)
+      ).to.be.revertedWith("TokenGate not set");
+    });
+
+    it("should emit TokenGateUpdated event on set", async function () {
+      const { registry, gate } = await loadFixture(deployWithTokenGateFixture);
+
+      await expect(
+        registry.setTokenGate(await gate.getAddress())
+      ).to.emit(registry, "TokenGateUpdated");
+    });
+  });
 });

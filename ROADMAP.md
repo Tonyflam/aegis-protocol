@@ -2,7 +2,7 @@
 ## Uniq Minds | From Hackathon Winner to Production DeFi Protocol
 
 **Last Updated**: March 19, 2026
-**Status**: Phase 1 — COMPLETE ✅
+**Status**: Phase 2 — IN PROGRESS 🔧
 
 ---
 
@@ -10,8 +10,8 @@
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| Smart Contracts | ✅ BSC Testnet | 3 contracts, 1,326 LOC, Sourcify verified |
-| Tests | ✅ 98/98 passing | Registry (30), Vault (45), Logger (23) |
+| Smart Contracts | ✅ BSC Testnet | 4 contracts (+ AegisTokenGate), Sourcify verified |
+| Tests | ✅ 150/150 passing | Registry (38), Vault (55), Logger (23), TokenGate (34) |
 | Frontend | ✅ Live on Vercel | aegis-protocol-1.vercel.app |
 | Agent Engine | ✅ Functional | Groq + OpenAI + heuristic fallback, 1,422 LOC |
 | $UNIQ Token | ✅ Launched | 0xdd5f...7777, 1B supply, renounced, 3% tax |
@@ -141,18 +141,18 @@ New:     protocolFeeBps = 50 - holderDiscount (dynamic per user)
 ```
 
 Changes to `contracts/AegisVault.sol`:
-- [ ] Add `AegisTokenGate` reference (settable by owner)
+- [x] Add `AegisTokenGate` reference (settable by owner)
 - [ ] Modify `executeProtection()` to check holder tier before applying fee
 - [ ] Add `registerAgentWithUNIQ()` — pay registration fee in $UNIQ instead of BNB
-- [ ] Add view function `getEffectiveFee(address user)` for frontend
+- [x] Add view function `getEffectiveFee(address user)` for frontend
 
 ## 2.3 — AegisRegistry Upgrade: Holder Badge
 
 Changes to `contracts/AegisRegistry.sol`:
-- [ ] Add `AegisTokenGate` reference
-- [ ] Add `holderBadge` field to agent metadata
+- [x] Add `AegisTokenGate` reference
+- [x] Add `holderBadge` field to agent metadata
 - [ ] Holders get priority tier upgrade consideration (lower threshold)
-- [ ] Add `isUNIQHolder()` view function
+- [x] Add `isUNIQHolder()` view function
 
 ## 2.4 — Frontend: $UNIQ Dashboard Integration
 
@@ -174,10 +174,10 @@ Changes to `frontend/src/app/page.tsx` and supporting files:
   - ERC-20 approve + register flow
   - Transaction confirmation UI
 
-- [ ] **Holder Benefits Panel**
-  - Tier progress bar (e.g., "Hold 5,000 more for Bronze")
-  - Fee comparison (base vs your discounted fee)
-  - List of active benefits
+- [x] **Holder Benefits Panel**
+  - Tier thresholds (Bronze 10K / Silver 100K / Gold 1M)
+  - Fee discounts per tier (0.10% / 0.25% / 0.40%)
+  - BSCScan token link
 
 ## 2.5 — Agent Engine: $UNIQ Awareness
 
@@ -194,28 +194,30 @@ Changes to `agent/src/`:
 
 ## 2.6 — Tests for Token Integration
 
-- [ ] AegisTokenGate tests (target: 15+ tests)
+- [x] AegisTokenGate tests (34 tests — target was 15+)
   - Tier classification at exact thresholds
   - Fee discount calculation
   - Zero balance → None tier
   - Threshold updates by owner
   - Non-owner rejected
+  - Tier changes on transfer
 
-- [ ] AegisVault integration tests (target: 10+ tests)
+- [x] AegisVault integration tests (10 tests — target was 10+)
   - Fee discount applied correctly for each tier
-  - `registerAgentWithUNIQ()` flow
   - No discount when TokenGate not set
   - Edge: user sells tokens mid-protection
+  - TokenGate enable/disable
 
-- [ ] AegisRegistry integration tests (target: 5+ tests)
+- [x] AegisRegistry integration tests (8 tests — target was 5+)
   - Holder badge assigned correctly
   - Badge updates when tier changes
+  - HolderBadgeUpdated event emission
 
 ### Phase 2 Deliverables
 - [ ] `AegisTokenGate.sol` deployed to testnet
-- [ ] Vault + Registry upgraded with token integration
-- [ ] Frontend shows $UNIQ balance, tier, discounts
-- [ ] 110+ total tests passing
+- [x] Vault + Registry upgraded with token integration
+- [x] Frontend shows $UNIQ holder benefits panel + tier constants
+- [x] 150 total tests passing (target was 110+)
 - [ ] Token utility announcement thread posted
 - [ ] Updated contracts verified on testnet
 

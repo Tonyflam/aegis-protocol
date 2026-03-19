@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+import "./AegisTokenGate.sol";
+
 /**
  * @title AegisRegistry
  * @author Aegis Protocol
@@ -84,6 +86,12 @@ contract AegisRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     /// @notice Maximum agents that can be registered
     uint256 public maxAgents;
 
+    /// @notice Optional TokenGate for $UNIQ holder features
+    AegisTokenGate public tokenGate;
+
+    /// @notice Holder badge per agent (set when operator is a $UNIQ holder)
+    mapping(uint256 => AegisTokenGate.HolderTier) public holderBadge;
+
     // ═══════════════════════════════════════════════════════════════
     //                        EVENTS
     // ═══════════════════════════════════════════════════════════════
@@ -128,6 +136,8 @@ contract AegisRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     );
 
     event VaultAuthorized(address indexed vault, bool authorized);
+    event TokenGateUpdated(address indexed tokenGate);
+    event HolderBadgeUpdated(uint256 indexed agentId, AegisTokenGate.HolderTier tier);
 
     // ═══════════════════════════════════════════════════════════════
     //                      MODIFIERS
@@ -372,6 +382,36 @@ contract AegisRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice Check if an agent's operator is a $UNIQ holder
+     * @param agentId Agent token ID
+     * @return True if the operator holds any $UNIQ
+     */
+    function isUNIQHolder(uint256 agentId) external view agentExists(agentId) returns (bool) {
+        if (address(tokenGate) == address(0)) return false;
+        return tokenGate.isHolder(agents[agentId].operator);
+    }
+
+    /**
+     * @notice Get the holder badge tier for an agent
+     * @param agentId Agent token ID
+     * @return tier The holder badge tier
+     */
+    function getHolderBadge(uint256 agentId) external view agentExists(agentId) returns (AegisTokenGate.HolderTier) {
+        return holderBadge[agentId];
+    }
+
+    /**
+     * @notice Refresh holder badge for an agent based on current $UNIQ balance
+     * @param agentId Agent token ID
+     */
+    function refreshHolderBadge(uint256 agentId) external agentExists(agentId) {
+        require(address(tokenGate) != address(0), "TokenGate not set");
+        AegisTokenGate.HolderTier tier = tokenGate.getHolderTier(agents[agentId].operator);
+        holderBadge[agentId] = tier;
+        emit HolderBadgeUpdated(agentId, tier);
+    }
+
+    /**
      * @notice ERC-721 token URI override
      */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
@@ -410,5 +450,14 @@ contract AegisRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
         require(balance > 0, "No fees to withdraw");
         (bool sent, ) = payable(owner()).call{value: balance}("");
         require(sent, "Withdrawal failed");
+    }
+
+    /**
+     * @notice Set the TokenGate contract for $UNIQ holder features
+     * @param _tokenGate TokenGate contract address (address(0) to disable)
+     */
+    function setTokenGate(address _tokenGate) external onlyOwner {
+        tokenGate = AegisTokenGate(_tokenGate);
+        emit TokenGateUpdated(_tokenGate);
     }
 }

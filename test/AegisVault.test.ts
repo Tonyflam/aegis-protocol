@@ -590,4 +590,104 @@ describe("AegisVault", function () {
       await vault.connect(user1).emergencyWithdraw();
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Phase 2: TokenGate Integration Tests
+  // ═══════════════════════════════════════════════════════════════
+
+  describe("TokenGate Integration", function () {
+    const BRONZE = ethers.parseEther("10000");
+    const SILVER = ethers.parseEther("100000");
+    const GOLD   = ethers.parseEther("1000000");
+    const TOTAL  = ethers.parseEther("1000000000");
+
+    async function deployWithTokenGateFixture() {
+      const base = await deployFullFixture();
+      const { vault, owner } = base;
+
+      // Deploy mock $UNIQ
+      const Token = await ethers.getContractFactory("MockERC20");
+      const uniq = await Token.deploy("Uniq Minds", "UNIQ", TOTAL);
+
+      // Deploy TokenGate
+      const Gate = await ethers.getContractFactory("AegisTokenGate");
+      const gate = await Gate.deploy(await uniq.getAddress());
+
+      // Wire TokenGate into Vault
+      await vault.setTokenGate(await gate.getAddress());
+
+      return { ...base, uniq, gate };
+    }
+
+    it("should return base fee when no TokenGate set", async function () {
+      const { vault, user1 } = await loadFixture(deployFullFixture);
+      expect(await vault.getEffectiveFee(user1.address)).to.equal(PROTOCOL_FEE_BPS);
+    });
+
+    it("should return base fee for non-holder with TokenGate set", async function () {
+      const { vault, user1 } = await loadFixture(deployWithTokenGateFixture);
+      expect(await vault.getEffectiveFee(user1.address)).to.equal(PROTOCOL_FEE_BPS);
+    });
+
+    it("should return discounted fee for bronze holder", async function () {
+      const { vault, uniq, owner, user1 } = await loadFixture(deployWithTokenGateFixture);
+      await uniq.transfer(user1.address, BRONZE);
+      expect(await vault.getEffectiveFee(user1.address)).to.equal(40); // 50 - 10
+    });
+
+    it("should return discounted fee for silver holder", async function () {
+      const { vault, uniq, owner, user1 } = await loadFixture(deployWithTokenGateFixture);
+      await uniq.transfer(user1.address, SILVER);
+      expect(await vault.getEffectiveFee(user1.address)).to.equal(25); // 50 - 25
+    });
+
+    it("should return discounted fee for gold holder", async function () {
+      const { vault, uniq, owner, user1 } = await loadFixture(deployWithTokenGateFixture);
+      await uniq.transfer(user1.address, GOLD);
+      expect(await vault.getEffectiveFee(user1.address)).to.equal(10); // 50 - 40
+    });
+
+    it("should allow owner to set TokenGate", async function () {
+      const { vault, owner, gate } = await loadFixture(deployWithTokenGateFixture);
+      expect(await vault.tokenGate()).to.equal(await gate.getAddress());
+    });
+
+    it("should emit TokenGateUpdated event", async function () {
+      const { vault, owner } = await loadFixture(deployFullFixture);
+
+      const Gate = await ethers.getContractFactory("AegisTokenGate");
+      const Token = await ethers.getContractFactory("MockERC20");
+      const uniq = await Token.deploy("Uniq", "UNIQ", TOTAL);
+      const gate = await Gate.deploy(await uniq.getAddress());
+
+      await expect(
+        vault.setTokenGate(await gate.getAddress())
+      ).to.emit(vault, "TokenGateUpdated");
+    });
+
+    it("should allow disabling TokenGate (set to zero address)", async function () {
+      const { vault, owner } = await loadFixture(deployWithTokenGateFixture);
+      await vault.setTokenGate(ethers.ZeroAddress);
+      expect(await vault.tokenGate()).to.equal(ethers.ZeroAddress);
+    });
+
+    it("should return base fee after TokenGate disabled", async function () {
+      const { vault, uniq, owner, user1 } = await loadFixture(deployWithTokenGateFixture);
+      await uniq.transfer(user1.address, GOLD);
+      expect(await vault.getEffectiveFee(user1.address)).to.equal(10); // discounted
+
+      await vault.setTokenGate(ethers.ZeroAddress);
+      expect(await vault.getEffectiveFee(user1.address)).to.equal(PROTOCOL_FEE_BPS); // back to base
+    });
+
+    it("should update fee dynamically when user sells tokens", async function () {
+      const { vault, uniq, owner, user1, user2 } = await loadFixture(deployWithTokenGateFixture);
+      await uniq.transfer(user1.address, GOLD);
+      expect(await vault.getEffectiveFee(user1.address)).to.equal(10); // Gold discount
+
+      // User sells most tokens
+      await uniq.connect(user1).transfer(user2.address, ethers.parseEther("990000"));
+      expect(await vault.getEffectiveFee(user1.address)).to.equal(40); // Bronze discount (10K left)
+    });
+  });
 });

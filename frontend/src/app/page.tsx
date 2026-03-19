@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useWallet } from "../lib/useWallet";
 import { useContractData, useContractWrite, usePublicContractData } from "../lib/useContracts";
-import { RISK_LEVELS, RISK_COLORS, AGENT_TIERS, CONTRACTS } from "../lib/constants";
+import { RISK_LEVELS, RISK_COLORS, AGENT_TIERS, CONTRACTS, HOLDER_TIERS, HOLDER_TIER_COLORS, HOLDER_TIER_THRESHOLDS } from "../lib/constants";
 import { useLiveMarketData } from "../lib/useLiveMarket";
 import AgentSimulation from "../components/AgentSimulation";
 import toast from "react-hot-toast";
@@ -919,6 +919,31 @@ function PositionsTab({ userPosition, isConnected, depositAmount, setDepositAmou
         <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Eye className="w-5 h-5 text-[#00e0ff]" /> Protected Positions
         </h4>
+
+        {/* $UNIQ Holder Tier Panel */}
+        {isConnected && (
+          <div className="mb-6 p-4 rounded-xl" style={{ background: "linear-gradient(135deg, rgba(255,215,0,0.05), rgba(0,224,255,0.05))" }}>
+            <div className="flex items-center justify-between mb-3">
+              <h5 className="text-sm font-semibold flex items-center gap-2">
+                💎 $UNIQ Holder Benefits
+              </h5>
+              <a href={`https://bscscan.com/token/${CONTRACTS.UNIQ_TOKEN}`} target="_blank" rel="noopener noreferrer"
+                className="text-xs text-[#00e0ff] hover:underline flex items-center gap-1">
+                View Token <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {(["Bronze", "Silver", "Gold"] as const).map((tier, i) => (
+                <div key={tier} className="p-3 rounded-lg text-center" style={{ background: "rgba(0,0,0,0.2)", borderLeft: `3px solid ${HOLDER_TIER_COLORS[i + 1]}` }}>
+                  <p className="text-xs font-semibold" style={{ color: HOLDER_TIER_COLORS[i + 1] }}>{tier}</p>
+                  <p className="text-xs text-gray-400 mt-1">{HOLDER_TIER_THRESHOLDS[tier].toLocaleString()} $UNIQ</p>
+                  <p className="text-xs text-gray-500">{i === 0 ? "0.10%" : i === 1 ? "0.25%" : "0.40%"} fee discount</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="text-center py-8">
           <Shield className="w-10 h-10 text-gray-600 mx-auto mb-3" />
           <p className="text-gray-400 text-sm">

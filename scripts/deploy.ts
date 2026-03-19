@@ -35,6 +35,21 @@ async function main() {
   const loggerAddress = await logger.getAddress();
   console.log("   DecisionLogger deployed to:", loggerAddress);
 
+  // ─── Deploy AegisTokenGate ────────────────────────────────
+  const uniqTokenAddress = process.env.UNIQ_TOKEN_ADDRESS || "";
+  let tokenGateAddress = "";
+
+  if (uniqTokenAddress) {
+    console.log("\n3b. Deploying AegisTokenGate...");
+    const Gate = await ethers.getContractFactory("AegisTokenGate");
+    const gate = await Gate.deploy(uniqTokenAddress);
+    await gate.waitForDeployment();
+    tokenGateAddress = await gate.getAddress();
+    console.log("   AegisTokenGate deployed to:", tokenGateAddress);
+  } else {
+    console.log("\n3b. Skipping AegisTokenGate (UNIQ_TOKEN_ADDRESS not set)");
+  }
+
   // ─── Configure Permissions ────────────────────────────────
   console.log("\n4. Configuring permissions...");
 
@@ -52,6 +67,17 @@ async function main() {
   const tx3 = await logger.setLoggerAuthorization(deployer.address, true);
   await tx3.wait();
   console.log("   ✓ Deployer authorized as logger in DecisionLogger");
+
+  // Wire TokenGate into Vault and Registry (if deployed)
+  if (tokenGateAddress) {
+    const tx4a = await vault.setTokenGate(tokenGateAddress);
+    await tx4a.wait();
+    console.log("   ✓ TokenGate wired into Vault");
+
+    const tx4b = await registry.setTokenGate(tokenGateAddress);
+    await tx4b.wait();
+    console.log("   ✓ TokenGate wired into Registry");
+  }
 
   // ─── Register Initial Agent ───────────────────────────────
   console.log("\n5. Registering initial Aegis Guardian Agent...");
@@ -74,6 +100,9 @@ async function main() {
   console.log(`  AegisRegistry:    ${registryAddress}`);
   console.log(`  AegisVault:       ${vaultAddress}`);
   console.log(`  DecisionLogger:   ${loggerAddress}`);
+  if (tokenGateAddress) {
+    console.log(`  AegisTokenGate:   ${tokenGateAddress}`);
+  }
   console.log("═".repeat(60));
 
   // Save deployment addresses
@@ -86,6 +115,7 @@ async function main() {
       AegisRegistry: registryAddress,
       AegisVault: vaultAddress,
       DecisionLogger: loggerAddress,
+      ...(tokenGateAddress ? { AegisTokenGate: tokenGateAddress } : {}),
     },
     configuration: {
       registrationFee: ethers.formatEther(registrationFee),

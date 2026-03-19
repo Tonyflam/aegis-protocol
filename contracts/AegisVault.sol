@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import "./AegisTokenGate.sol";
+
 /**
  * @title AegisVault
  * @author Aegis Protocol
@@ -41,6 +43,7 @@ contract AegisVault is Ownable, ReentrancyGuard {
     error TransferFailed();
     error InvalidOperator();
     error ActionDoesNotExist();
+    error InvalidTokenGate();
 
     // ═══════════════════════════════════════════════════════════════
     //                        STRUCTS
@@ -138,6 +141,9 @@ contract AegisVault is Ownable, ReentrancyGuard {
     /// @notice Authorized agent operators (operator address => authorized)
     mapping(address => bool) public authorizedOperators;
 
+    /// @notice Optional TokenGate for $UNIQ holder fee discounts
+    AegisTokenGate public tokenGate;
+
     // ═══════════════════════════════════════════════════════════════
     //                        EVENTS
     // ═══════════════════════════════════════════════════════════════
@@ -159,6 +165,7 @@ contract AegisVault is Ownable, ReentrancyGuard {
         bool successful
     );
     event EmergencyWithdrawal(address indexed user, uint256 bnbAmount);
+    event TokenGateUpdated(address indexed tokenGate);
 
     // ═══════════════════════════════════════════════════════════════
     //                      MODIFIERS
@@ -545,6 +552,16 @@ contract AegisVault is Ownable, ReentrancyGuard {
         return (totalBnbDeposited, totalActionsExecuted, totalValueProtected);
     }
 
+    /**
+     * @notice Get effective protocol fee for a user (base fee - holder discount)
+     * @param user Address to check
+     * @return effectiveFee Fee in basis points after any $UNIQ holder discount
+     */
+    function getEffectiveFee(address user) external view returns (uint256 effectiveFee) {
+        if (address(tokenGate) == address(0)) return protocolFeeBps;
+        return tokenGate.getEffectiveFee(user, protocolFeeBps);
+    }
+
     // ═══════════════════════════════════════════════════════════════
     //                   ADMIN FUNCTIONS
     // ═══════════════════════════════════════════════════════════════
@@ -577,6 +594,15 @@ contract AegisVault is Ownable, ReentrancyGuard {
      */
     function setMinDeposit(uint256 newMinDeposit) external onlyOwner {
         minDeposit = newMinDeposit;
+    }
+
+    /**
+     * @notice Set the TokenGate contract for $UNIQ holder discounts
+     * @param _tokenGate TokenGate contract address (address(0) to disable)
+     */
+    function setTokenGate(address _tokenGate) external onlyOwner {
+        tokenGate = AegisTokenGate(_tokenGate);
+        emit TokenGateUpdated(_tokenGate);
     }
 
     // ═══════════════════════════════════════════════════════════════
