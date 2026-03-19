@@ -213,4 +213,144 @@ describe("DecisionLogger", function () {
       ).to.be.revertedWith("Invalid logger");
     });
   });
+
+  describe("Edge Cases", function () {
+    it("should reject confidence above 10000", async function () {
+      const { decisionLogger, logger1, user1 } = await loadFixture(deployLoggerFixture);
+
+      await expect(
+        decisionLogger.connect(logger1).logDecision(
+          0, user1.address, 0, 0, 10001,
+          ethers.ZeroHash, ethers.ZeroHash, false, 0
+        )
+      ).to.be.revertedWith("Confidence out of range");
+    });
+
+    it("should accept max confidence of 10000", async function () {
+      const { decisionLogger, logger1, user1 } = await loadFixture(deployLoggerFixture);
+
+      await decisionLogger.connect(logger1).logDecision(
+        0, user1.address, 0, 0, 10000,
+        ethers.ZeroHash, ethers.ZeroHash, false, 0
+      );
+
+      const decision = await decisionLogger.getDecision(0);
+      expect(decision.confidence).to.equal(10000);
+    });
+
+    it("should reject getDecision for non-existent ID", async function () {
+      const { decisionLogger } = await loadFixture(deployLoggerFixture);
+
+      await expect(
+        decisionLogger.getDecision(999)
+      ).to.be.revertedWith("Decision does not exist");
+    });
+
+    it("should reject invalid liquidation risk in updateRiskSnapshot", async function () {
+      const { decisionLogger, logger1, user1 } = await loadFixture(deployLoggerFixture);
+
+      await expect(
+        decisionLogger.connect(logger1).updateRiskSnapshot(
+          user1.address, 0, 10001, 5000, 1000, 500, ethers.ZeroHash
+        )
+      ).to.be.revertedWith("Invalid liquidation risk");
+    });
+
+    it("should reject invalid volatility score in updateRiskSnapshot", async function () {
+      const { decisionLogger, logger1, user1 } = await loadFixture(deployLoggerFixture);
+
+      await expect(
+        decisionLogger.connect(logger1).updateRiskSnapshot(
+          user1.address, 0, 5000, 10001, 1000, 500, ethers.ZeroHash
+        )
+      ).to.be.revertedWith("Invalid volatility score");
+    });
+
+    it("should return empty arrays for user with no decisions", async function () {
+      const { decisionLogger, user1 } = await loadFixture(deployLoggerFixture);
+
+      const decisions = await decisionLogger.getUserDecisions(user1.address);
+      expect(decisions.length).to.equal(0);
+    });
+
+    it("should return empty risk history for user with no snapshots", async function () {
+      const { decisionLogger, user1 } = await loadFixture(deployLoggerFixture);
+
+      expect(await decisionLogger.getRiskHistoryCount(user1.address)).to.equal(0);
+      const history = await decisionLogger.getRiskHistory(user1.address);
+      expect(history.length).to.equal(0);
+    });
+
+    it("should handle getRecentDecisions when count exceeds total", async function () {
+      const { decisionLogger, logger1, user1 } = await loadFixture(deployLoggerFixture);
+
+      await decisionLogger.connect(logger1).logDecision(
+        0, user1.address, 0, 0, 5000,
+        ethers.ZeroHash, ethers.ZeroHash, false, 0
+      );
+
+      const recent = await decisionLogger.getRecentDecisions(100);
+      expect(recent.length).to.equal(1);
+    });
+
+    it("should log AllClear decision type", async function () {
+      const { decisionLogger, logger1, user1 } = await loadFixture(deployLoggerFixture);
+
+      await decisionLogger.connect(logger1).logDecision(
+        0, user1.address, 3, 0, 9500, // AllClear, No risk
+        ethers.ZeroHash, ethers.ZeroHash, false, 0
+      );
+
+      const decision = await decisionLogger.getDecision(0);
+      expect(decision.decisionType).to.equal(3); // AllClear
+      expect(decision.riskLevel).to.equal(0); // None
+    });
+
+    it("should log MarketAnalysis and PositionReview types", async function () {
+      const { decisionLogger, logger1, user1 } = await loadFixture(deployLoggerFixture);
+
+      await decisionLogger.connect(logger1).logDecision(
+        0, user1.address, 4, 2, 7000, // MarketAnalysis, Medium
+        ethers.ZeroHash, ethers.ZeroHash, false, 0
+      );
+      await decisionLogger.connect(logger1).logDecision(
+        0, user1.address, 5, 1, 8000, // PositionReview, Low
+        ethers.ZeroHash, ethers.ZeroHash, false, 0
+      );
+
+      expect((await decisionLogger.getDecision(0)).decisionType).to.equal(4);
+      expect((await decisionLogger.getDecision(1)).decisionType).to.equal(5);
+    });
+
+    it("should support multiple authorized loggers", async function () {
+      const { decisionLogger, logger1, logger2, user1 } = await loadFixture(deployLoggerFixture);
+
+      await decisionLogger.setLoggerAuthorization(logger2.address, true);
+
+      await decisionLogger.connect(logger1).logDecision(
+        0, user1.address, 0, 0, 5000, ethers.ZeroHash, ethers.ZeroHash, false, 0
+      );
+      await decisionLogger.connect(logger2).logDecision(
+        1, user1.address, 0, 1, 6000, ethers.ZeroHash, ethers.ZeroHash, false, 0
+      );
+
+      expect(await decisionLogger.getDecisionCount()).to.equal(2);
+    });
+
+    it("should track decisions across multiple agents", async function () {
+      const { decisionLogger, logger1, user1 } = await loadFixture(deployLoggerFixture);
+
+      await decisionLogger.connect(logger1).logDecision(
+        0, user1.address, 0, 0, 5000, ethers.ZeroHash, ethers.ZeroHash, false, 0
+      );
+      await decisionLogger.connect(logger1).logDecision(
+        1, user1.address, 0, 1, 6000, ethers.ZeroHash, ethers.ZeroHash, false, 0
+      );
+
+      const agent0 = await decisionLogger.getAgentDecisions(0);
+      const agent1 = await decisionLogger.getAgentDecisions(1);
+      expect(agent0.length).to.equal(1);
+      expect(agent1.length).to.equal(1);
+    });
+  });
 });

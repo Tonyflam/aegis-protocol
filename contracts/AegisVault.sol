@@ -19,6 +19,30 @@ contract AegisVault is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // ═══════════════════════════════════════════════════════════════
+    //                      CUSTOM ERRORS
+    // ═══════════════════════════════════════════════════════════════
+
+    error InvalidRegistry();
+    error FeeTooHigh();
+    error BelowMinDeposit();
+    error InvalidToken();
+    error ZeroAmount();
+    error DepositsPaused();
+    error NoActivePosition();
+    error InsufficientBalance();
+    error InsufficientTokenBalance();
+    error NoAgentAuthorized();
+    error NotAuthorizedOperator();
+    error SlippageTooHigh();
+    error StopLossTooHigh();
+    error AutoWithdrawNotAllowed();
+    error ExceedsMaxActionValue();
+    error PositionNotActive();
+    error TransferFailed();
+    error InvalidOperator();
+    error ActionDoesNotExist();
+
+    // ═══════════════════════════════════════════════════════════════
     //                        STRUCTS
     // ═══════════════════════════════════════════════════════════════
 
@@ -141,18 +165,18 @@ contract AegisVault is Ownable, ReentrancyGuard {
     // ═══════════════════════════════════════════════════════════════
 
     modifier onlyAuthorizedAgent(address user) {
-        require(positions[user].agentAuthorized, "No agent authorized");
-        require(authorizedOperators[msg.sender], "Not authorized operator");
+        if (!positions[user].agentAuthorized) revert NoAgentAuthorized();
+        if (!authorizedOperators[msg.sender]) revert NotAuthorizedOperator();
         _;
     }
 
     modifier whenDepositsActive() {
-        require(!depositsPaused, "Deposits paused");
+        if (depositsPaused) revert DepositsPaused();
         _;
     }
 
     modifier hasPosition() {
-        require(positions[msg.sender].isActive, "No active position");
+        if (!positions[msg.sender].isActive) revert NoActivePosition();
         _;
     }
 
@@ -165,8 +189,8 @@ contract AegisVault is Ownable, ReentrancyGuard {
         uint256 _protocolFeeBps,
         uint256 _minDeposit
     ) Ownable(msg.sender) {
-        require(_registryAddress != address(0), "Invalid registry");
-        require(_protocolFeeBps <= 500, "Fee too high"); // Max 5%
+        if (_registryAddress == address(0)) revert InvalidRegistry();
+        if (_protocolFeeBps > 500) revert FeeTooHigh();
 
         registryAddress = _registryAddress;
         protocolFeeBps = _protocolFeeBps;
@@ -181,7 +205,7 @@ contract AegisVault is Ownable, ReentrancyGuard {
      * @notice Deposit BNB into the vault
      */
     function deposit() external payable nonReentrant whenDepositsActive {
-        require(msg.value >= minDeposit, "Below minimum deposit");
+        if (msg.value < minDeposit) revert BelowMinDeposit();
 
         Position storage pos = positions[msg.sender];
 
@@ -210,8 +234,8 @@ contract AegisVault is Ownable, ReentrancyGuard {
      * @param amount Amount to deposit
      */
     function depositToken(address token, uint256 amount) external nonReentrant whenDepositsActive {
-        require(token != address(0), "Invalid token");
-        require(amount > 0, "Amount must be > 0");
+        if (token == address(0)) revert InvalidToken();
+        if (amount == 0) revert ZeroAmount();
 
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
@@ -244,7 +268,7 @@ contract AegisVault is Ownable, ReentrancyGuard {
         Position storage pos = positions[msg.sender];
         uint256 withdrawAmount = amount == 0 ? pos.bnbBalance : amount;
 
-        require(withdrawAmount <= pos.bnbBalance, "Insufficient balance");
+        if (withdrawAmount > pos.bnbBalance) revert InsufficientBalance();
 
         pos.bnbBalance -= withdrawAmount;
         totalBnbDeposited -= withdrawAmount;
@@ -254,7 +278,7 @@ contract AegisVault is Ownable, ReentrancyGuard {
         }
 
         (bool sent, ) = payable(msg.sender).call{value: withdrawAmount}("");
-        require(sent, "Transfer failed");
+        if (!sent) revert TransferFailed();
 
         emit Withdrawn(msg.sender, withdrawAmount, block.timestamp);
     }
@@ -268,7 +292,7 @@ contract AegisVault is Ownable, ReentrancyGuard {
         uint256 balance = tokenBalances[msg.sender][token];
         uint256 withdrawAmount = amount == 0 ? balance : amount;
 
-        require(withdrawAmount <= balance, "Insufficient token balance");
+        if (withdrawAmount > balance) revert InsufficientTokenBalance();
 
         tokenBalances[msg.sender][token] -= withdrawAmount;
         IERC20(token).safeTransfer(msg.sender, withdrawAmount);
@@ -345,18 +369,20 @@ contract AegisVault is Ownable, ReentrancyGuard {
 
         // Withdraw all tokens
         address[] storage tokens = userTokens[msg.sender];
-        for (uint256 i = 0; i < tokens.length; i++) {
+        uint256 tokensLength = tokens.length;
+        for (uint256 i = 0; i < tokensLength;) {
             uint256 tokenBal = tokenBalances[msg.sender][tokens[i]];
             if (tokenBal > 0) {
                 tokenBalances[msg.sender][tokens[i]] = 0;
                 IERC20(tokens[i]).safeTransfer(msg.sender, tokenBal);
             }
+            unchecked { ++i; }
         }
 
         // Withdraw BNB
         if (bnbAmount > 0) {
             (bool sent, ) = payable(msg.sender).call{value: bnbAmount}("");
-            require(sent, "BNB transfer failed");
+            if (!sent) revert TransferFailed();
         }
 
         emit EmergencyWithdrawal(msg.sender, bnbAmount);
@@ -381,32 +407,32 @@ contract AegisVault is Ownable, ReentrancyGuard {
         bytes32 reasonHash
     ) external nonReentrant onlyAuthorizedAgent(user) returns (uint256 actionId) {
         Position storage pos = positions[user];
-        require(pos.isActive, "Position not active");
+        if (!pos.isActive) revert PositionNotActive();
 
         uint256 agentId = pos.authorizedAgentId;
 
         // Validate action against risk profile
         if (actionType == ActionType.EmergencyWithdraw) {
-            require(pos.riskProfile.allowAutoWithdraw, "Auto-withdraw not allowed");
+            if (!pos.riskProfile.allowAutoWithdraw) revert AutoWithdrawNotAllowed();
         }
 
         if (value > 0) {
-            require(value <= pos.riskProfile.maxSingleActionValue, "Exceeds max action value");
+            if (value > pos.riskProfile.maxSingleActionValue) revert ExceedsMaxActionValue();
         }
 
         bool successful = true;
 
         // Execute the protection action
         if (actionType == ActionType.EmergencyWithdraw && value > 0) {
-            require(value <= pos.bnbBalance, "Insufficient BNB");
+            if (value > pos.bnbBalance) revert InsufficientBalance();
             pos.bnbBalance -= value;
             totalBnbDeposited -= value;
 
             (bool sent, ) = payable(user).call{value: value}("");
             successful = sent;
         } else if (actionType == ActionType.StopLoss && value > 0) {
-            require(value <= pos.bnbBalance, "Insufficient BNB");
-            require(pos.riskProfile.allowAutoWithdraw, "Auto-withdraw not allowed");
+            if (value > pos.bnbBalance) revert InsufficientBalance();
+            if (!pos.riskProfile.allowAutoWithdraw) revert AutoWithdrawNotAllowed();
             pos.bnbBalance -= value;
             totalBnbDeposited -= value;
 
@@ -504,7 +530,7 @@ contract AegisVault is Ownable, ReentrancyGuard {
      * @notice Get a specific protection action
      */
     function getAction(uint256 actionId) external view returns (ProtectionAction memory) {
-        require(actionId < actionHistory.length, "Action does not exist");
+        if (actionId >= actionHistory.length) revert ActionDoesNotExist();
         return actionHistory[actionId];
     }
 
@@ -527,7 +553,7 @@ contract AegisVault is Ownable, ReentrancyGuard {
      * @notice Set authorized operator status
      */
     function setOperatorAuthorization(address operator, bool authorized) external onlyOwner {
-        require(operator != address(0), "Invalid operator");
+        if (operator == address(0)) revert InvalidOperator();
         authorizedOperators[operator] = authorized;
     }
 
@@ -542,7 +568,7 @@ contract AegisVault is Ownable, ReentrancyGuard {
      * @notice Update protocol fee
      */
     function setProtocolFee(uint256 newFeeBps) external onlyOwner {
-        require(newFeeBps <= 500, "Fee too high");
+        if (newFeeBps > 500) revert FeeTooHigh();
         protocolFeeBps = newFeeBps;
     }
 
@@ -559,10 +585,12 @@ contract AegisVault is Ownable, ReentrancyGuard {
 
     function _getUserTokenCount(address user) internal view returns (uint256 count) {
         address[] storage tokens = userTokens[user];
-        for (uint256 i = 0; i < tokens.length; i++) {
+        uint256 tokensLength = tokens.length;
+        for (uint256 i = 0; i < tokensLength;) {
             if (tokenBalances[user][tokens[i]] > 0) {
                 count++;
             }
+            unchecked { ++i; }
         }
     }
 

@@ -275,4 +275,108 @@ describe("AegisRegistry", function () {
       expect(await registry.registrationFee()).to.equal(newFee);
     });
   });
+
+  describe("Edge Cases", function () {
+    it("should revert registration with empty name", async function () {
+      const { registry, operator1 } = await loadFixture(deployRegistryFixture);
+
+      await expect(
+        registry.connect(operator1).registerAgent("", "ipfs://test", 0, { value: REGISTRATION_FEE })
+      ).to.be.revertedWith("Invalid name length");
+    });
+
+    it("should revert when max agents reached", async function () {
+      const [, op1, op2, op3] = await ethers.getSigners();
+
+      // Deploy with max 2 agents
+      const Registry = await ethers.getContractFactory("AegisRegistry");
+      const smallRegistry = await Registry.deploy(REGISTRATION_FEE, 2);
+
+      await smallRegistry.connect(op1).registerAgent("A1", "ipfs://1", 0, { value: REGISTRATION_FEE });
+      await smallRegistry.connect(op2).registerAgent("A2", "ipfs://2", 0, { value: REGISTRATION_FEE });
+
+      await expect(
+        smallRegistry.connect(op3).registerAgent("A3", "ipfs://3", 0, { value: REGISTRATION_FEE })
+      ).to.be.revertedWith("Max agents reached");
+    });
+
+    it("should prevent decommissioned agent from changing status", async function () {
+      const { registry, operator1 } = await loadFixture(deployRegistryFixture);
+
+      await registry.connect(operator1).registerAgent("Test", "ipfs://test", 0, { value: REGISTRATION_FEE });
+      await registry.connect(operator1).setAgentStatus(0, 2); // Decommissioned
+
+      await expect(
+        registry.connect(operator1).setAgentStatus(0, 0) // Try to reactivate
+      ).to.be.revertedWith("Agent decommissioned");
+    });
+
+    it("should revert non-owner tier upgrade", async function () {
+      const { registry, operator1, operator2 } = await loadFixture(deployRegistryFixture);
+
+      await registry.connect(operator1).registerAgent("Test", "ipfs://test", 0, { value: REGISTRATION_FEE });
+
+      await expect(
+        registry.connect(operator2).upgradeAgentTier(0, 2)
+      ).to.be.revertedWithCustomError(registry, "OwnableUnauthorizedAccount");
+    });
+
+    it("should revert tier downgrade", async function () {
+      const { registry, owner, operator1 } = await loadFixture(deployRegistryFixture);
+
+      await registry.connect(operator1).registerAgent("Test", "ipfs://test", 2, { value: REGISTRATION_FEE });
+
+      await expect(
+        registry.connect(owner).upgradeAgentTier(0, 1) // Downgrade Sentinel → Guardian
+      ).to.be.revertedWith("Can only upgrade tier");
+    });
+
+    it("should return zero success rate for agent with no decisions", async function () {
+      const { registry, operator1 } = await loadFixture(deployRegistryFixture);
+
+      await registry.connect(operator1).registerAgent("Test", "ipfs://test", 0, { value: REGISTRATION_FEE });
+
+      expect(await registry.getSuccessRate(0)).to.equal(0);
+    });
+
+    it("should reject feedback score out of range", async function () {
+      const { registry, operator1, operator2 } = await loadFixture(deployRegistryFixture);
+
+      await registry.connect(operator1).registerAgent("Test", "ipfs://test", 0, { value: REGISTRATION_FEE });
+
+      await expect(
+        registry.connect(operator2).giveFeedback(0, 0, "Bad score")
+      ).to.be.revertedWith("Score must be 1-5");
+
+      await expect(
+        registry.connect(operator2).giveFeedback(0, 6, "Bad score")
+      ).to.be.revertedWith("Score must be 1-5");
+    });
+
+    it("should reject unauthorized vault calling recordAgentAction", async function () {
+      const { registry, operator1, operator2 } = await loadFixture(deployRegistryFixture);
+
+      await registry.connect(operator1).registerAgent("Test", "ipfs://test", 0, { value: REGISTRATION_FEE });
+
+      await expect(
+        registry.connect(operator2).recordAgentAction(0, true, ethers.parseEther("1"))
+      ).to.be.revertedWith("Not authorized vault");
+    });
+
+    it("should reject zero address for vault authorization", async function () {
+      const { registry } = await loadFixture(deployRegistryFixture);
+
+      await expect(
+        registry.setVaultAuthorization(ethers.ZeroAddress, true)
+      ).to.be.revertedWith("Invalid vault address");
+    });
+
+    it("should revert getAgent for non-existent agent", async function () {
+      const { registry } = await loadFixture(deployRegistryFixture);
+
+      await expect(
+        registry.getAgent(999)
+      ).to.be.revertedWith("Agent does not exist");
+    });
+  });
 });

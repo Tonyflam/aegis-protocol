@@ -353,45 +353,6 @@ cd frontend && npm install && npm run dev
 npx hardhat run scripts/deploy.ts --network bscTestnet
 ```
 
-### 8. Launch Runbook (Mainnet)
-
-```bash
-cp .env.example .env
-```
-
-Set required values in `.env`:
-
-- `PRIVATE_KEY`
-- `BSCSCAN_API_KEY`
-- `BSC_MAINNET_RPC` (recommended dedicated RPC)
-
-Optional launch parameters (defaults already set):
-
-- `REGISTRATION_FEE_BNB`
-- `MAX_AGENTS`
-- `PROTOCOL_FEE_BPS`
-- `MIN_DEPOSIT_BNB`
-- `INITIAL_AGENT_*`
-
-Rehearse on testnet with production-like settings:
-
-```bash
-npm run deploy:testnet
-npm run verify:deployment:testnet
-```
-
-Mainnet deploy is guard-railed and requires explicit opt-in:
-
-```bash
-ALLOW_MAINNET_DEPLOY=true npm run deploy:mainnet
-npm run verify:deployment:mainnet
-```
-
-Deployment artifacts are written to both:
-
-- `deployment.bscMainnet.json` (or network-specific equivalent)
-- `deployment.json` (latest deployment)
-
 ---
 
 ## ⛓️ Smart Contracts
@@ -452,7 +413,31 @@ struct RiskProfile {
 
 ---
 
-## 🛠️ Tech Stack
+## � $UNIQ Token
+
+**$UNIQ** is the native utility token of the Aegis Protocol ecosystem, powering the Uniq Minds platform.
+
+| Property | Details |
+|----------|---------|
+| **Contract** | [`0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777`](https://bscscan.com/token/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777) |
+| **Chain** | BNB Smart Chain (BSC) |
+| **Supply** | 1,000,000,000 (1B) |
+| **Tax** | 3% |
+| **Ownership** | Renounced |
+| **LP** | Locked |
+
+**Upcoming Utility** (see [ROADMAP.md](./ROADMAP.md)):
+- Hold $UNIQ → reduced protocol fees (up to 80% discount)
+- Holder tiers: Bronze (10K) / Silver (100K) / Gold (1M)
+- Register agents with $UNIQ at discounted rates
+- Staking rewards from protocol fee revenue (Phase 5)
+- Governance voting on protocol parameters
+
+**Links**: [BSCScan](https://bscscan.com/token/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777) · [flap.sh](https://flap.sh/bnb/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777) · [Twitter](https://x.com/uniq_minds)
+
+---
+
+## �🛠️ Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -518,10 +503,10 @@ Built with AI assistance as encouraged by the hackathon:
 
 <div align="center">
 
-**Built with 🛡️ for BNB Chain · Good Vibes Only: OpenClaw Edition**
+**Aegis Protocol by [Uniq Minds](https://x.com/uniq_minds) · 🏆 Top 10 Winner — Good Vibes Only: OpenClaw Edition**
 
-*Aegis Protocol — Your DeFi positions deserve a guardian that never sleeps.*
+*Your DeFi positions deserve a guardian that never sleeps.*
 
-[Live Dashboard](https://aegis-protocol-1.vercel.app/) · [BSCScan](https://testnet.bscscan.com/address/0xac77139C2856788b7EEff767969353adF95D335e) · [GitHub](https://github.com/Tonyflam/rs)
+[Live Dashboard](https://aegis-protocol-1.vercel.app/) · [BSCScan](https://testnet.bscscan.com/address/0xac77139C2856788b7EEff767969353adF95D335e) · [$UNIQ Token](https://bscscan.com/token/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777) · [Twitter](https://x.com/uniq_minds) · [Roadmap](./ROADMAP.md)
 
 </div>

@@ -129,7 +129,7 @@ export default function Home() {
               <span className="text-[#00e0ff] cyan-glow">Aegis</span>{" "}
               <span className="text-gray-300">Protocol</span>
             </h1>
-            <p className="text-xs text-gray-500">AI-Powered DeFi Guardian</p>
+            <p className="text-xs text-gray-500">by <a href="https://x.com/uniq_minds" target="_blank" rel="noopener noreferrer" className="text-[#00e0ff] hover:underline">Uniq Minds</a> · AI-Powered DeFi Guardian</p>
           </div>
         </div>
 
@@ -183,7 +183,7 @@ export default function Home() {
       <section className="px-4 pt-16 pb-12 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6" style={{ background: "rgba(0,224,255,0.08)", border: "1px solid rgba(0,224,255,0.15)" }}>
           <Zap className="w-4 h-4 text-[#00e0ff]" />
-          <span className="text-sm text-[#00e0ff]">Good Vibes Only: OpenClaw Edition — BNB Chain</span>
+          <span className="text-sm text-[#00e0ff]">🏆 Top 10 Winner — Good Vibes Only: OpenClaw Edition · BNB Chain</span>
         </div>
         
         <h2 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
@@ -240,7 +240,7 @@ export default function Home() {
               <ArrowRight className="w-5 h-5" />
             </button>
           )}
-          <a href="https://github.com/Tonyflam/rs" target="_blank" rel="noopener noreferrer" className="glass-card px-8 py-4 flex items-center gap-2 text-gray-300 hover:text-white transition-colors" style={{ borderRadius: "12px" }}>
+          <a href="https://github.com/Tonyflam/aegis-protocol" target="_blank" rel="noopener noreferrer" className="glass-card px-8 py-4 flex items-center gap-2 text-gray-300 hover:text-white transition-colors" style={{ borderRadius: "12px" }}>
             <Github className="w-5 h-5" />
             View Source
           </a>
@@ -664,7 +664,7 @@ export default function Home() {
       <footer className="glass-card mx-4 mb-4 px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4" style={{ borderRadius: "12px" }}>
         <div className="flex items-center gap-2">
           <Shield className="w-5 h-5 text-[#00e0ff]" />
-          <span className="text-gray-400">Aegis Protocol — Built for Good Vibes Only: OpenClaw Edition</span>
+          <span className="text-gray-400">Aegis Protocol by <a href="https://x.com/uniq_minds" target="_blank" rel="noopener noreferrer" className="text-[#00e0ff] hover:underline">Uniq Minds</a> · <a href="https://bscscan.com/token/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777" target="_blank" rel="noopener noreferrer" className="text-[#f0b90b] hover:underline">$UNIQ</a></span>
         </div>
         <div className="flex items-center gap-4 flex-wrap justify-center">
           <a href={`https://testnet.bscscan.com/address/${CONTRACTS.REGISTRY}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-[#00e0ff] transition-colors flex items-center gap-1 text-sm">
@@ -677,8 +677,11 @@ export default function Home() {
             Logger <ExternalLink className="w-3 h-3" />
           </a>
           <span className="text-gray-700">|</span>
-          <a href="https://github.com/Tonyflam/rs" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors flex items-center gap-1 text-sm">
+          <a href="https://github.com/Tonyflam/aegis-protocol" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors flex items-center gap-1 text-sm">
             <Github className="w-3 h-3" /> Source
+          </a>
+          <a href="https://x.com/uniq_minds" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-[#00e0ff] transition-colors text-sm">
+            @uniq_minds
           </a>
           <span className="text-gray-600 text-sm">BNB Chain</span>
         </div>

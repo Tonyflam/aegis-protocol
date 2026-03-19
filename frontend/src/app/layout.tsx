@@ -8,9 +8,9 @@ export const metadata: Metadata = {
   description:
     "Autonomous AI agent that monitors your DeFi positions on BNB Chain 24/7, detects risks in real-time using LLM reasoning + PancakeSwap DEX verification, and executes protective on-chain transactions.",
   keywords: ["DeFi", "AI Agent", "BNB Chain", "PancakeSwap", "DeFi Guardian", "Autonomous Agent", "Smart Contract", "Risk Management"],
-  authors: [{ name: "Aegis Protocol Team" }],
+  authors: [{ name: "Uniq Minds" }],
   openGraph: {
-    title: "Aegis Protocol — AI-Powered DeFi Guardian",
+    title: "Aegis Protocol by Uniq Minds — AI-Powered DeFi Guardian",
     description: "Autonomous AI agent protecting your DeFi positions on BNB Chain 24/7. LLM reasoning + PancakeSwap DEX verification + on-chain execution.",
     url: "https://aegis-protocol-1.vercel.app",
     siteName: "Aegis Protocol",
@@ -20,8 +20,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Aegis Protocol — AI-Powered DeFi Guardian",
-    description: "Autonomous AI agent protecting your DeFi positions on BNB Chain 24/7. LLM reasoning + PancakeSwap DEX verification.",
+    title: "Aegis Protocol by Uniq Minds — AI-Powered DeFi Guardian",
+    description: "Autonomous AI agent protecting your DeFi positions on BNB Chain 24/7. $UNIQ token utility. LLM reasoning + PancakeSwap DEX verification.",
     images: ["/og-image.svg"],
   },
   icons: {

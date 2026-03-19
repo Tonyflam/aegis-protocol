@@ -56,7 +56,7 @@ describe("AegisVault", function () {
       const Vault = await ethers.getContractFactory("AegisVault");
       await expect(
         Vault.deploy(await registry.getAddress(), 600, MIN_DEPOSIT)
-      ).to.be.revertedWith("Fee too high");
+      ).to.be.revertedWithCustomError(Vault, "FeeTooHigh");
     });
   });
 
@@ -79,7 +79,7 @@ describe("AegisVault", function () {
 
       await expect(
         vault.connect(user1).deposit({ value: ethers.parseEther("0.0001") })
-      ).to.be.revertedWith("Below minimum deposit");
+      ).to.be.revertedWithCustomError(vault, "BelowMinDeposit");
     });
 
     it("should accumulate multiple deposits", async function () {
@@ -145,7 +145,7 @@ describe("AegisVault", function () {
 
       await expect(
         vault.connect(user1).withdraw(ethers.parseEther("2"))
-      ).to.be.revertedWith("Insufficient balance");
+      ).to.be.revertedWithCustomError(vault, "InsufficientBalance");
     });
 
     it("should emergency withdraw all assets", async function () {
@@ -267,7 +267,7 @@ describe("AegisVault", function () {
           ethers.parseEther("0.5"),
           ethers.ZeroHash
         )
-      ).to.be.revertedWith("Not authorized operator");
+      ).to.be.revertedWithCustomError(vault, "NotAuthorizedOperator");
     });
 
     it("should reject protection exceeding max action value", async function () {
@@ -286,7 +286,7 @@ describe("AegisVault", function () {
           ethers.parseEther("1.5"),
           ethers.ZeroHash
         )
-      ).to.be.revertedWith("Exceeds max action value");
+      ).to.be.revertedWithCustomError(vault, "ExceedsMaxActionValue");
     });
 
     it("should track action history", async function () {
@@ -332,6 +332,262 @@ describe("AegisVault", function () {
       expect(stats[0]).to.equal(ethers.parseEther("4")); // 3+2-1 = 4 BNB
       expect(stats[1]).to.equal(1); // 1 action
       expect(stats[2]).to.equal(ethers.parseEther("1")); // 1 BNB protected
+    });
+  });
+
+  describe("Deposit Pausing", function () {
+    it("should revert deposits when paused", async function () {
+      const { vault, owner, user1 } = await loadFixture(deployFullFixture);
+
+      await vault.connect(owner).setDepositsPaused(true);
+
+      await expect(
+        vault.connect(user1).deposit({ value: ethers.parseEther("1") })
+      ).to.be.revertedWithCustomError(vault, "DepositsPaused");
+    });
+
+    it("should accept deposits after unpausing", async function () {
+      const { vault, owner, user1 } = await loadFixture(deployFullFixture);
+
+      await vault.connect(owner).setDepositsPaused(true);
+      await vault.connect(owner).setDepositsPaused(false);
+
+      await expect(
+        vault.connect(user1).deposit({ value: ethers.parseEther("1") })
+      ).to.emit(vault, "Deposited");
+    });
+  });
+
+  describe("Position Guard", function () {
+    it("should revert withdraw without active position", async function () {
+      const { vault, user1 } = await loadFixture(deployFullFixture);
+
+      await expect(
+        vault.connect(user1).withdraw(ethers.parseEther("1"))
+      ).to.be.revertedWithCustomError(vault, "NoActivePosition");
+    });
+
+    it("should revert authorizeAgent without active position", async function () {
+      const { vault, user1 } = await loadFixture(deployFullFixture);
+
+      await expect(
+        vault.connect(user1).authorizeAgent(0)
+      ).to.be.revertedWithCustomError(vault, "NoActivePosition");
+    });
+
+    it("should revert revokeAgent without active position", async function () {
+      const { vault, user1 } = await loadFixture(deployFullFixture);
+
+      await expect(
+        vault.connect(user1).revokeAgent()
+      ).to.be.revertedWithCustomError(vault, "NoActivePosition");
+    });
+
+    it("should revert updateRiskProfile without active position", async function () {
+      const { vault, user1 } = await loadFixture(deployFullFixture);
+
+      await expect(
+        vault.connect(user1).updateRiskProfile(100, 1000, ethers.parseEther("1"), true, false)
+      ).to.be.revertedWithCustomError(vault, "NoActivePosition");
+    });
+  });
+
+  describe("Constructor Validation", function () {
+    it("should revert on zero registry address", async function () {
+      const Vault = await ethers.getContractFactory("AegisVault");
+      await expect(
+        Vault.deploy(ethers.ZeroAddress, 50, ethers.parseEther("0.001"))
+      ).to.be.revertedWithCustomError(Vault, "InvalidRegistry");
+    });
+  });
+
+  describe("Admin Functions", function () {
+    it("should allow owner to set min deposit", async function () {
+      const { vault, owner } = await loadFixture(deployFullFixture);
+
+      const newMin = ethers.parseEther("0.01");
+      await vault.connect(owner).setMinDeposit(newMin);
+      expect(await vault.minDeposit()).to.equal(newMin);
+    });
+
+    it("should allow owner to update protocol fee", async function () {
+      const { vault, owner } = await loadFixture(deployFullFixture);
+
+      await vault.connect(owner).setProtocolFee(100);
+      expect(await vault.protocolFeeBps()).to.equal(100);
+    });
+
+    it("should revert protocol fee above 5%", async function () {
+      const { vault, owner } = await loadFixture(deployFullFixture);
+
+      await expect(
+        vault.connect(owner).setProtocolFee(600)
+      ).to.be.revertedWithCustomError(vault, "FeeTooHigh");
+    });
+
+    it("should revert setOperatorAuthorization with zero address", async function () {
+      const { vault, owner } = await loadFixture(deployFullFixture);
+
+      await expect(
+        vault.connect(owner).setOperatorAuthorization(ethers.ZeroAddress, true)
+      ).to.be.revertedWithCustomError(vault, "InvalidOperator");
+    });
+  });
+
+  describe("Protection Edge Cases", function () {
+    it("should execute StopLoss protection action", async function () {
+      const { vault, user1, agentOperator } = await loadFixture(deployFullFixture);
+
+      await vault.connect(user1).deposit({ value: ethers.parseEther("2") });
+      await vault.connect(user1).authorizeAgent(0);
+
+      const balanceBefore = await ethers.provider.getBalance(user1.address);
+
+      await vault.connect(agentOperator).executeProtection(
+        user1.address,
+        3, // StopLoss
+        ethers.parseEther("0.5"),
+        ethers.ZeroHash
+      );
+
+      const balanceAfter = await ethers.provider.getBalance(user1.address);
+      expect(balanceAfter - balanceBefore).to.equal(ethers.parseEther("0.5"));
+    });
+
+    it("should revert EmergencyWithdraw when auto withdraw disabled", async function () {
+      const { vault, user1, agentOperator } = await loadFixture(deployFullFixture);
+
+      await vault.connect(user1).deposit({ value: ethers.parseEther("2") });
+      await vault.connect(user1).updateRiskProfile(100, 1000, ethers.parseEther("1"), false, false);
+      await vault.connect(user1).authorizeAgent(0);
+
+      await expect(
+        vault.connect(agentOperator).executeProtection(
+          user1.address,
+          0, // EmergencyWithdraw
+          ethers.parseEther("0.5"),
+          ethers.ZeroHash
+        )
+      ).to.be.revertedWithCustomError(vault, "AutoWithdrawNotAllowed");
+    });
+
+    it("should revert StopLoss when auto withdraw disabled", async function () {
+      const { vault, user1, agentOperator } = await loadFixture(deployFullFixture);
+
+      await vault.connect(user1).deposit({ value: ethers.parseEther("2") });
+      await vault.connect(user1).updateRiskProfile(100, 1000, ethers.parseEther("1"), false, false);
+      await vault.connect(user1).authorizeAgent(0);
+
+      await expect(
+        vault.connect(agentOperator).executeProtection(
+          user1.address,
+          3, // StopLoss
+          ethers.parseEther("0.5"),
+          ethers.ZeroHash
+        )
+      ).to.be.revertedWithCustomError(vault, "AutoWithdrawNotAllowed");
+    });
+
+    it("should execute AlertOnly with zero value", async function () {
+      const { vault, user1, agentOperator } = await loadFixture(deployFullFixture);
+
+      await vault.connect(user1).deposit({ value: ethers.parseEther("1") });
+      await vault.connect(user1).authorizeAgent(0);
+
+      await expect(
+        vault.connect(agentOperator).executeProtection(
+          user1.address, 2, 0, ethers.ZeroHash
+        )
+      ).to.emit(vault, "ProtectionExecuted");
+
+      // Balance unchanged
+      const position = await vault.getPosition(user1.address);
+      expect(position.bnbBalance).to.equal(ethers.parseEther("1"));
+    });
+
+    it("should revert protection when no agent authorized", async function () {
+      const { vault, user1, agentOperator } = await loadFixture(deployFullFixture);
+
+      await vault.connect(user1).deposit({ value: ethers.parseEther("1") });
+
+      await expect(
+        vault.connect(agentOperator).executeProtection(
+          user1.address, 0, ethers.parseEther("0.5"), ethers.ZeroHash
+        )
+      ).to.be.revertedWithCustomError(vault, "NoAgentAuthorized");
+    });
+
+    it("should track multiple sequential actions", async function () {
+      const { vault, user1, agentOperator } = await loadFixture(deployFullFixture);
+
+      await vault.connect(user1).deposit({ value: ethers.parseEther("5") });
+      await vault.connect(user1).authorizeAgent(0);
+
+      // Execute 3 actions
+      await vault.connect(agentOperator).executeProtection(
+        user1.address, 2, 0, ethers.ZeroHash // AlertOnly
+      );
+      await vault.connect(agentOperator).executeProtection(
+        user1.address, 0, ethers.parseEther("0.5"), ethers.ZeroHash // EmergencyWithdraw
+      );
+      await vault.connect(agentOperator).executeProtection(
+        user1.address, 2, 0, ethers.ZeroHash // AlertOnly
+      );
+
+      expect(await vault.totalActionsExecuted()).to.equal(3);
+      const userActionIds = await vault.getUserActions(user1.address);
+      expect(userActionIds.length).to.equal(3);
+    });
+  });
+
+  describe("Action History", function () {
+    it("should revert getAction with invalid ID", async function () {
+      const { vault } = await loadFixture(deployFullFixture);
+
+      await expect(
+        vault.getAction(999)
+      ).to.be.revertedWithCustomError(vault, "ActionDoesNotExist");
+    });
+
+    it("should return correct action count", async function () {
+      const { vault } = await loadFixture(deployFullFixture);
+      expect(await vault.getActionCount()).to.equal(0);
+    });
+
+    it("should track agent action IDs", async function () {
+      const { vault, user1, agentOperator } = await loadFixture(deployFullFixture);
+
+      await vault.connect(user1).deposit({ value: ethers.parseEther("2") });
+      await vault.connect(user1).authorizeAgent(0);
+
+      await vault.connect(agentOperator).executeProtection(
+        user1.address, 2, 0, ethers.ZeroHash
+      );
+
+      const agentActionIds = await vault.getAgentActions(0);
+      expect(agentActionIds.length).to.equal(1);
+      expect(agentActionIds[0]).to.equal(0);
+    });
+  });
+
+  describe("Risk Profile Validation", function () {
+    it("should revert stop loss above 50%", async function () {
+      const { vault, user1 } = await loadFixture(deployFullFixture);
+
+      await vault.connect(user1).deposit({ value: ethers.parseEther("1") });
+
+      await expect(
+        vault.connect(user1).updateRiskProfile(100, 6000, ethers.parseEther("1"), true, false)
+      ).to.be.revertedWith("Stop loss too high");
+    });
+  });
+
+  describe("Emergency Withdraw", function () {
+    it("should work even with zero BNB balance", async function () {
+      const { vault, user1 } = await loadFixture(deployFullFixture);
+
+      // No deposit, just call emergency withdraw — should not revert
+      await vault.connect(user1).emergencyWithdraw();
     });
   });
 });
