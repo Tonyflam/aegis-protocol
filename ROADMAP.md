@@ -38,9 +38,9 @@
   - Add $UNIQ token link in sidebar or navbar
   - Add hackathon winner badge/banner
 
-- [ ] **Social profile alignment** *(manual — update Twitter/socials)*
-  - Twitter bio → "Aegis Protocol — AI-Powered DeFi Guardian | $UNIQ | Built on BNB Chain | Hackathon Top 10 Winner"
-  - Pin tweet: Win announcement + roadmap thread
+- [x] **Social profile alignment** ✅
+  - Twitter bio: "AI-powered DeFi guardian on BNB Chain (hackathon top-10) $UNIQ + dashboard link"
+  - Pinned tweet: DeFi Hacks thread — real stories, real risks, $UNIQ protection
 
 ## 1.2 — Repo Cleanup
 
