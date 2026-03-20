@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useWallet } from "../lib/useWallet";
 import { useContractData, useContractWrite, usePublicContractData } from "../lib/useContracts";
-import { RISK_LEVELS, RISK_COLORS, AGENT_TIERS, CONTRACTS, HOLDER_TIERS, HOLDER_TIER_COLORS, HOLDER_TIER_THRESHOLDS } from "../lib/constants";
+import { RISK_LEVELS, RISK_COLORS, AGENT_TIERS, CONTRACTS, HOLDER_TIER_COLORS, HOLDER_TIER_THRESHOLDS } from "../lib/constants";
 import { useLiveMarketData } from "../lib/useLiveMarket";
 import AgentSimulation from "../components/AgentSimulation";
 import toast from "react-hot-toast";
