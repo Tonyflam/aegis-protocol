@@ -302,7 +302,8 @@ export default function Home() {
           {activeTab === "positions" && (
             <PositionsTab userPosition={contractData.userPosition} isConnected={isConnected} depositAmount={depositAmount}
               setDepositAmount={setDepositAmount} onDeposit={handleDeposit} onAuthorize={handleAuthorize}
-              isLive={contractData.isLive} isDeployed={contractData.isDeployed} />
+              isLive={contractData.isLive} isDeployed={contractData.isDeployed}
+              uniqBalance={contractData.uniqBalance} uniqTier={contractData.uniqTier} effectiveFeeBps={contractData.effectiveFeeBps} />
           )}
           {activeTab === "agent" && (
             <AgentTab agentInfo={contractData.agentInfo} publicData={publicData}
@@ -790,6 +791,47 @@ function OverviewTab({ stats, decisions, riskSnapshot, isLive }: OverviewProps) 
           ))}
         </div>
       </div>
+
+      {/* $UNIQ Token Section */}
+      <div className="glass-card glow-border p-6 md:col-span-2" style={{ borderRadius: "16px" }}>
+        <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          💎 $UNIQ Token — Protocol Utility
+        </h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 rounded-xl text-center" style={{ background: "rgba(255,215,0,0.04)", borderLeft: "3px solid #ffd700" }}>
+            <p className="text-xs text-gray-500">Total Supply</p>
+            <p className="stat-number text-lg">1,000,000,000</p>
+          </div>
+          <div className="p-4 rounded-xl text-center" style={{ background: "rgba(0,224,255,0.04)", borderLeft: "3px solid #00e0ff" }}>
+            <p className="text-xs text-gray-500">Chain</p>
+            <p className="stat-number text-lg">BNB Chain</p>
+          </div>
+          <div className="p-4 rounded-xl text-center" style={{ background: "rgba(168,85,247,0.04)", borderLeft: "3px solid #a855f7" }}>
+            <p className="text-xs text-gray-500">Tax</p>
+            <p className="stat-number text-lg">3%</p>
+          </div>
+          <div className="p-4 rounded-xl text-center" style={{ background: "rgba(34,197,94,0.04)", borderLeft: "3px solid #22c55e" }}>
+            <p className="text-xs text-gray-500">Contract</p>
+            <p className="stat-number text-lg">Renounced</p>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-3 justify-center">
+          <a href={`https://bscscan.com/token/${CONTRACTS.UNIQ_TOKEN}`} target="_blank" rel="noopener noreferrer"
+            className="text-xs text-[#00e0ff] hover:underline flex items-center gap-1">
+            BSCScan <ExternalLink className="w-3 h-3" />
+          </a>
+          <span className="text-gray-700">·</span>
+          <a href="https://flap.sh/bsc/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777" target="_blank" rel="noopener noreferrer"
+            className="text-xs text-[#00e0ff] hover:underline flex items-center gap-1">
+            Trade on Flap.sh <ExternalLink className="w-3 h-3" />
+          </a>
+          <span className="text-gray-700">·</span>
+          <a href="https://x.com/uniq_minds" target="_blank" rel="noopener noreferrer"
+            className="text-xs text-[#00e0ff] hover:underline flex items-center gap-1">
+            @uniq_minds <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+      </div>
     </div>
   );
 }
@@ -862,8 +904,9 @@ interface PositionsProps {
   userPosition: { bnbBalance: string; isActive: boolean; agentAuthorized: boolean; authorizedAgentId: number; riskProfile: { maxSlippage: number; stopLossThreshold: number; allowAutoWithdraw: boolean } } | null;
   isConnected: boolean; depositAmount: string; setDepositAmount: (v: string) => void;
   onDeposit: () => void; onAuthorize: () => void; isLive: boolean; isDeployed: boolean;
+  uniqBalance: string; uniqTier: number; effectiveFeeBps: number;
 }
-function PositionsTab({ userPosition, isConnected, depositAmount, setDepositAmount, onDeposit, onAuthorize, isLive, isDeployed }: PositionsProps) {
+function PositionsTab({ userPosition, isConnected, depositAmount, setDepositAmount, onDeposit, onAuthorize, isLive, isDeployed, uniqBalance, uniqTier, effectiveFeeBps }: PositionsProps) {
   return (
     <div className="space-y-6">
       {isConnected && isDeployed && (
@@ -932,10 +975,42 @@ function PositionsTab({ userPosition, isConnected, depositAmount, setDepositAmou
                 View Token <ExternalLink className="w-3 h-3" />
               </a>
             </div>
+
+            {/* User's $UNIQ stats */}
+            {parseFloat(uniqBalance) > 0 && (
+              <div className="mb-3 p-3 rounded-lg flex items-center justify-between" style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${HOLDER_TIER_COLORS[uniqTier]}30` }}>
+                <div>
+                  <p className="text-xs text-gray-500">Your Balance</p>
+                  <p className="text-sm font-bold" style={{ color: HOLDER_TIER_COLORS[uniqTier] || "#fff" }}>
+                    {parseFloat(uniqBalance).toLocaleString(undefined, { maximumFractionDigits: 0 })} $UNIQ
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Your Tier</p>
+                  <p className="text-sm font-semibold" style={{ color: HOLDER_TIER_COLORS[uniqTier] || "#6b7280" }}>
+                    {["None", "Bronze", "Silver", "Gold"][uniqTier] || "None"}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Your Fee</p>
+                  <p className="text-sm font-mono text-green-400">
+                    {(effectiveFeeBps / 100).toFixed(2)}%
+                    {effectiveFeeBps < 50 && <span className="text-xs ml-1 text-green-500">(-{((50 - effectiveFeeBps) / 100).toFixed(2)}%)</span>}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-3">
               {(["Bronze", "Silver", "Gold"] as const).map((tier, i) => (
-                <div key={tier} className="p-3 rounded-lg text-center" style={{ background: "rgba(0,0,0,0.2)", borderLeft: `3px solid ${HOLDER_TIER_COLORS[i + 1]}` }}>
-                  <p className="text-xs font-semibold" style={{ color: HOLDER_TIER_COLORS[i + 1] }}>{tier}</p>
+                <div key={tier} className="p-3 rounded-lg text-center" style={{
+                  background: uniqTier === i + 1 ? `${HOLDER_TIER_COLORS[i + 1]}10` : "rgba(0,0,0,0.2)",
+                  borderLeft: `3px solid ${HOLDER_TIER_COLORS[i + 1]}`,
+                  outline: uniqTier === i + 1 ? `1px solid ${HOLDER_TIER_COLORS[i + 1]}40` : "none",
+                }}>
+                  <p className="text-xs font-semibold" style={{ color: HOLDER_TIER_COLORS[i + 1] }}>
+                    {tier} {uniqTier === i + 1 && "✓"}
+                  </p>
                   <p className="text-xs text-gray-400 mt-1">{HOLDER_TIER_THRESHOLDS[tier].toLocaleString()} $UNIQ</p>
                   <p className="text-xs text-gray-500">{i === 0 ? "0.10%" : i === 1 ? "0.25%" : "0.40%"} fee discount</p>
                 </div>

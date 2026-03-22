@@ -142,8 +142,8 @@ New:     protocolFeeBps = 50 - holderDiscount (dynamic per user)
 
 Changes to `contracts/AegisVault.sol`:
 - [x] Add `AegisTokenGate` reference (settable by owner)
-- [ ] Modify `executeProtection()` to check holder tier before applying fee
-- [ ] Add `registerAgentWithUNIQ()` — pay registration fee in $UNIQ instead of BNB
+- [x] Modify `executeProtection()` to check holder tier before applying fee
+- [x] Add `registerAgentWithUNIQ()` — pay registration fee in $UNIQ instead of BNB
 - [x] Add view function `getEffectiveFee(address user)` for frontend
 
 ## 2.3 — AegisRegistry Upgrade: Holder Badge
@@ -151,25 +151,25 @@ Changes to `contracts/AegisVault.sol`:
 Changes to `contracts/AegisRegistry.sol`:
 - [x] Add `AegisTokenGate` reference
 - [x] Add `holderBadge` field to agent metadata
-- [ ] Holders get priority tier upgrade consideration (lower threshold)
+- [x] Holders get priority tier upgrade consideration (lower threshold)
 - [x] Add `isUNIQHolder()` view function
 
 ## 2.4 — Frontend: $UNIQ Dashboard Integration
 
 Changes to `frontend/src/app/page.tsx` and supporting files:
 
-- [ ] **$UNIQ Balance Display**
+- [x] **$UNIQ Balance Display**
   - Read user's $UNIQ balance via ERC-20 `balanceOf()`
   - Show holder tier (Bronze/Silver/Gold/None)
   - Display fee discount applied
 
-- [ ] **$UNIQ Stats Section**
+- [x] **$UNIQ Stats Section**
   - Current price (from PancakeSwap on-chain or flap.sh)
   - Total holders count
   - Market cap
   - Your holdings + tier
 
-- [ ] **Registration with $UNIQ**
+- [x] **Registration with $UNIQ**
   - "Register Agent with $UNIQ" button (discounted/free)
   - ERC-20 approve + register flow
   - Transaction confirmation UI
@@ -182,12 +182,12 @@ Changes to `frontend/src/app/page.tsx` and supporting files:
 ## 2.5 — Agent Engine: $UNIQ Awareness
 
 Changes to `agent/src/`:
-- [ ] Add $UNIQ price monitoring to market provider
+- [x] Add $UNIQ price monitoring to market provider
   - File: `agent/src/market-provider.ts`
   - Fetch $UNIQ/BNB price from PancakeSwap V2
   - Include in market snapshot data
 
-- [ ] Add $UNIQ holder check in executor
+- [x] Add $UNIQ holder check in executor
   - File: `agent/src/executor.ts`
   - Log whether user is a $UNIQ holder when executing protections
   - Use discounted fee path when applicable
@@ -217,7 +217,7 @@ Changes to `agent/src/`:
 - [ ] `AegisTokenGate.sol` deployed to testnet
 - [x] Vault + Registry upgraded with token integration
 - [x] Frontend shows $UNIQ holder benefits panel + tier constants
-- [x] 150 total tests passing (target was 110+)
+- [x] 170 total tests passing (target was 110+)
 - [ ] Token utility announcement thread posted
 - [ ] Updated contracts verified on testnet
 

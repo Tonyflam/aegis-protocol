@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./AegisTokenGate.sol";
 
@@ -18,6 +20,7 @@ import "./AegisTokenGate.sol";
  *      scoring for autonomous DeFi guardian agents.
  */
 contract AegisRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
     // ═══════════════════════════════════════════════════════════════
     //                        STRUCTS
     // ═══════════════════════════════════════════════════════════════
@@ -92,6 +95,9 @@ contract AegisRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     /// @notice Holder badge per agent (set when operator is a $UNIQ holder)
     mapping(uint256 => AegisTokenGate.HolderTier) public holderBadge;
 
+    /// @notice $UNIQ registration fee (alternative to BNB)
+    uint256 public uniqRegistrationFee;
+
     // ═══════════════════════════════════════════════════════════════
     //                        EVENTS
     // ═══════════════════════════════════════════════════════════════
@@ -138,6 +144,7 @@ contract AegisRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     event VaultAuthorized(address indexed vault, bool authorized);
     event TokenGateUpdated(address indexed tokenGate);
     event HolderBadgeUpdated(uint256 indexed agentId, AegisTokenGate.HolderTier tier);
+    event AgentRegisteredWithUNIQ(uint256 indexed agentId, address indexed operator, uint256 uniqPaid);
 
     // ═══════════════════════════════════════════════════════════════
     //                      MODIFIERS
@@ -220,6 +227,58 @@ contract AegisRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice Register a new agent by paying with $UNIQ instead of BNB
+     * @param name Human-readable agent name
+     * @param agentURI Off-chain metadata URI
+     * @param tier Initial agent capability tier
+     * @return agentId The newly minted agent token ID
+     * @dev Requires prior ERC-20 approve() for uniqRegistrationFee
+     */
+    function registerAgentWithUNIQ(
+        string calldata name,
+        string calldata agentURI,
+        AgentTier tier
+    ) external nonReentrant returns (uint256 agentId) {
+        require(address(tokenGate) != address(0), "TokenGate not set");
+        require(uniqRegistrationFee > 0, "UNIQ fee not set");
+        require(!hasAgent[msg.sender], "Operator already has an agent");
+        require(_nextTokenId < maxAgents, "Max agents reached");
+        require(bytes(name).length > 0 && bytes(name).length <= 64, "Invalid name length");
+
+        IERC20 uniq = tokenGate.uniqToken();
+        uniq.safeTransferFrom(msg.sender, address(this), uniqRegistrationFee);
+
+        agentId = _nextTokenId++;
+
+        agents[agentId] = AgentInfo({
+            name: name,
+            agentURI: agentURI,
+            operator: msg.sender,
+            registeredAt: block.timestamp,
+            totalDecisions: 0,
+            successfulActions: 0,
+            totalValueProtected: 0,
+            status: AgentStatus.Active,
+            tier: tier
+        });
+
+        operatorToAgent[msg.sender] = agentId;
+        hasAgent[msg.sender] = true;
+
+        _safeMint(msg.sender, agentId);
+
+        // Auto-set holder badge if applicable
+        AegisTokenGate.HolderTier holderTier = tokenGate.getHolderTier(msg.sender);
+        if (holderTier != AegisTokenGate.HolderTier.None) {
+            holderBadge[agentId] = holderTier;
+            emit HolderBadgeUpdated(agentId, holderTier);
+        }
+
+        emit AgentRegistered(agentId, msg.sender, name, tier, block.timestamp);
+        emit AgentRegisteredWithUNIQ(agentId, msg.sender, uniqRegistrationFee);
+    }
+
+    /**
      * @notice Update agent metadata URI
      * @param agentId Agent token ID
      * @param newURI New metadata URI
@@ -250,16 +309,32 @@ contract AegisRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Upgrade agent tier (requires owner or sufficient reputation)
+     * @notice Upgrade agent tier (owner, or $UNIQ holder self-upgrade)
      * @param agentId Agent token ID
      * @param newTier New capability tier
+     * @dev Owner can upgrade any agent. $UNIQ holders can self-upgrade based
+     *      on their holder tier: Bronze→Guardian, Silver→Sentinel, Gold→Archon
      */
     function upgradeAgentTier(
         uint256 agentId,
         AgentTier newTier
-    ) external onlyOwner agentExists(agentId) {
+    ) external agentExists(agentId) {
         AgentTier oldTier = agents[agentId].tier;
         require(uint8(newTier) > uint8(oldTier), "Can only upgrade tier");
+
+        if (msg.sender != owner()) {
+            // Holder self-upgrade path
+            require(agents[agentId].operator == msg.sender, "Not agent operator");
+            require(address(tokenGate) != address(0), "TokenGate not set");
+
+            AegisTokenGate.HolderTier holderTier = tokenGate.getHolderTier(msg.sender);
+            // Bronze holders → up to Guardian, Silver → Sentinel, Gold → Archon
+            uint8 maxTier = uint8(holderTier); // HolderTier enum aligns: None=0, Bronze=1, Silver=2, Gold=3
+            require(uint8(newTier) <= maxTier, "Tier exceeds holder level");
+
+            // Refresh holder badge
+            holderBadge[agentId] = holderTier;
+        }
 
         agents[agentId].tier = newTier;
         emit AgentTierUpgraded(agentId, oldTier, newTier);
@@ -459,5 +534,24 @@ contract AegisRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     function setTokenGate(address _tokenGate) external onlyOwner {
         tokenGate = AegisTokenGate(_tokenGate);
         emit TokenGateUpdated(_tokenGate);
+    }
+
+    /**
+     * @notice Set $UNIQ registration fee
+     * @param newFee Fee in $UNIQ token units (18 decimals)
+     */
+    function setUniqRegistrationFee(uint256 newFee) external onlyOwner {
+        uniqRegistrationFee = newFee;
+    }
+
+    /**
+     * @notice Withdraw accumulated $UNIQ registration fees
+     */
+    function withdrawUniqFees() external onlyOwner {
+        require(address(tokenGate) != address(0), "TokenGate not set");
+        IERC20 uniq = tokenGate.uniqToken();
+        uint256 balance = uniq.balanceOf(address(this));
+        require(balance > 0, "No UNIQ to withdraw");
+        uniq.safeTransfer(owner(), balance);
     }
 }

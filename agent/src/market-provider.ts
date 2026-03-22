@@ -150,13 +150,55 @@ export class LiveMarketProvider {
 
 /**
  * BSC on-chain data provider using public RPC
- * Fetches gas prices, block times, and pending tx data
+ * Fetches gas prices, block times, $UNIQ data, and pending tx data
  */
 export class BSCOnChainProvider {
   private rpcUrl: string;
 
+  /** $UNIQ token address on BNB Chain */
+  static readonly UNIQ_TOKEN = "0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777";
+
   constructor(rpcUrl: string = "https://data-seed-prebsc-1-s1.bnbchain.org:8545") {
     this.rpcUrl = rpcUrl;
+  }
+
+  /**
+   * Get $UNIQ balance for an address (uses ERC-20 balanceOf)
+   * @param holder Address to check
+   * @returns Balance in wei (18 decimals)
+   */
+  async getUniqBalance(holder: string): Promise<bigint> {
+    try {
+      // balanceOf(address) selector = 0x70a08231
+      const paddedAddr = holder.toLowerCase().replace("0x", "").padStart(64, "0");
+      const data = `0x70a08231${paddedAddr}`;
+
+      const res = await fetch(this.rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "eth_call",
+          params: [{ to: BSCOnChainProvider.UNIQ_TOKEN, data }, "latest"],
+          id: 2,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.error) throw new Error(json.error.message);
+      return BigInt(json.result || "0x0");
+    } catch (err: any) {
+      console.warn(`[BSCOnChain] $UNIQ balance check failed: ${err.message}`);
+      return BigInt(0);
+    }
+  }
+
+  /**
+   * Check if address is a $UNIQ holder (balance > 0)
+   */
+  async isUniqHolder(holder: string): Promise<boolean> {
+    const balance = await this.getUniqBalance(holder);
+    return balance > BigInt(0);
   }
 
   /**

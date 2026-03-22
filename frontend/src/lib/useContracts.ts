@@ -4,7 +4,7 @@
 import { useState, useCallback } from "react";
 import { ethers } from "ethers";
 import { CONTRACTS } from "./constants";
-import { REGISTRY_ABI, VAULT_ABI, LOGGER_ABI } from "./abis";
+import { REGISTRY_ABI, VAULT_ABI, LOGGER_ABI, ERC20_ABI, TOKEN_GATE_ABI } from "./abis";
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -76,6 +76,9 @@ export function useContractData(provider: ethers.BrowserProvider | null) {
   const [reputation, setReputation] = useState<number>(0);
   const [successRate, setSuccessRate] = useState<number>(0);
   const [agentCount, setAgentCount] = useState<number>(0);
+  const [uniqBalance, setUniqBalance] = useState<string>("0");
+  const [uniqTier, setUniqTier] = useState<number>(0);
+  const [effectiveFeeBps, setEffectiveFeeBps] = useState<number>(50);
   const [loading, setLoading] = useState(false);
   const [isLive, setIsLive] = useState(false);
 
@@ -103,6 +106,10 @@ export function useContractData(provider: ethers.BrowserProvider | null) {
         logger.getRecentDecisions(10),
         userAddress ? vault.getPosition(userAddress) : Promise.resolve(null),
         userAddress ? logger.getLatestRisk(userAddress) : Promise.resolve(null),
+        // $UNIQ balance + tier
+        userAddress && CONTRACTS.UNIQ_TOKEN ? new ethers.Contract(CONTRACTS.UNIQ_TOKEN, ERC20_ABI, readProvider).balanceOf(userAddress) : Promise.resolve(null),
+        userAddress && CONTRACTS.TOKEN_GATE ? new ethers.Contract(CONTRACTS.TOKEN_GATE, TOKEN_GATE_ABI, readProvider).getHolderTier(userAddress).catch(() => null) : Promise.resolve(null),
+        userAddress ? vault.getEffectiveFee(userAddress).catch(() => null) : Promise.resolve(null),
       ]);
 
       // Parse agent info
@@ -202,6 +209,21 @@ export function useContractData(provider: ethers.BrowserProvider | null) {
         }
       }
 
+      // $UNIQ balance
+      if (results[9].status === "fulfilled" && results[9].value != null) {
+        setUniqBalance(ethers.formatEther(results[9].value));
+      }
+
+      // $UNIQ holder tier
+      if (results[10].status === "fulfilled" && results[10].value != null) {
+        setUniqTier(Number(results[10].value));
+      }
+
+      // Effective fee
+      if (results[11].status === "fulfilled" && results[11].value != null) {
+        setEffectiveFeeBps(Number(results[11].value));
+      }
+
       setIsLive(true);
     } catch (err: any) {
       console.warn("Contract data fetch failed:", err.message);
@@ -221,6 +243,9 @@ export function useContractData(provider: ethers.BrowserProvider | null) {
     reputation,
     successRate,
     agentCount,
+    uniqBalance,
+    uniqTier,
+    effectiveFeeBps,
     loading,
     isLive,
     isDeployed,
@@ -386,5 +411,17 @@ export function useContractWrite(signer: ethers.Signer | null) {
     return tx.wait();
   }, [signer, isDeployed]);
 
-  return { deposit, withdraw, authorizeAgent, emergencyWithdraw, giveFeedback, isDeployed };
+  const registerAgentWithUNIQ = useCallback(async (name: string, agentURI: string, tier: number, uniqFee: bigint) => {
+    if (!signer || !isDeployed) throw new Error("Not connected");
+    // Step 1: Approve $UNIQ spend
+    const uniq = new ethers.Contract(CONTRACTS.UNIQ_TOKEN, ERC20_ABI, signer);
+    const approveTx = await uniq.approve(CONTRACTS.REGISTRY, uniqFee);
+    await approveTx.wait();
+    // Step 2: Register with $UNIQ
+    const registry = new ethers.Contract(CONTRACTS.REGISTRY, REGISTRY_ABI, signer);
+    const tx = await registry.registerAgentWithUNIQ(name, agentURI, tier);
+    return tx.wait();
+  }, [signer, isDeployed]);
+
+  return { deposit, withdraw, authorizeAgent, emergencyWithdraw, giveFeedback, registerAgentWithUNIQ, isDeployed };
 }

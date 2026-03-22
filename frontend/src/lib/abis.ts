@@ -15,7 +15,12 @@ export const REGISTRY_ABI = [
   "function operatorToAgent(address operator) view returns (uint256)",
   // Write
   "function registerAgent(string name, string agentURI, uint8 tier) payable returns (uint256)",
+  "function registerAgentWithUNIQ(string name, string agentURI, uint8 tier) returns (uint256)",
   "function giveFeedback(uint256 agentId, uint8 score, string comment)",
+  "function upgradeAgentTier(uint256 agentId, uint8 newTier)",
+  // Views (holder)
+  "function isUNIQHolder(uint256 agentId) view returns (bool)",
+  "function getHolderBadge(uint256 agentId) view returns (uint8)",
 ];
 
 export const VAULT_ABI = [
@@ -28,6 +33,7 @@ export const VAULT_ABI = [
   "function totalBnbDeposited() view returns (uint256)",
   "function totalActionsExecuted() view returns (uint256)",
   "function totalValueProtected() view returns (uint256)",
+  "function getEffectiveFee(address user) view returns (uint256)",
   // Write
   "function deposit() payable",
   "function withdraw(uint256 amount)",
@@ -50,4 +56,20 @@ export const LOGGER_ABI = [
   "function getUserDecisions(address user) view returns (uint256[])",
   "function totalThreatsDetected() view returns (uint256)",
   "function totalProtectionsTriggered() view returns (uint256)",
+];
+
+export const ERC20_ABI = [
+  "function balanceOf(address account) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+];
+
+export const TOKEN_GATE_ABI = [
+  "function getHolderTier(address user) view returns (uint8)",
+  "function getFeeDiscount(address user) view returns (uint256)",
+  "function getEffectiveFee(address user, uint256 baseFee) view returns (uint256)",
+  "function isHolder(address user) view returns (bool)",
+  "function getBalance(address user) view returns (uint256)",
 ];

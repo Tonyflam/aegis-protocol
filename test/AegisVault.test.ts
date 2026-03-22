@@ -247,7 +247,9 @@ describe("AegisVault", function () {
       ).to.emit(vault, "ProtectionExecuted");
 
       const balanceAfter = await ethers.provider.getBalance(user1.address);
-      expect(balanceAfter - balanceBefore).to.equal(protectValue);
+      // Protocol fee (50 bps = 0.5%) deducted: user receives 0.995 BNB
+      const expectedFee = protectValue * BigInt(PROTOCOL_FEE_BPS) / BigInt(10000);
+      expect(balanceAfter - balanceBefore).to.equal(protectValue - expectedFee);
 
       // Check vault stats
       expect(await vault.totalActionsExecuted()).to.equal(1);
@@ -451,7 +453,10 @@ describe("AegisVault", function () {
       );
 
       const balanceAfter = await ethers.provider.getBalance(user1.address);
-      expect(balanceAfter - balanceBefore).to.equal(ethers.parseEther("0.5"));
+      // Protocol fee deducted: 0.5 BNB - 0.5% = 0.4975 BNB
+      const protectAmount = ethers.parseEther("0.5");
+      const expectedFee = protectAmount * BigInt(PROTOCOL_FEE_BPS) / BigInt(10000);
+      expect(balanceAfter - balanceBefore).to.equal(protectAmount - expectedFee);
     });
 
     it("should revert EmergencyWithdraw when auto withdraw disabled", async function () {
@@ -688,6 +693,125 @@ describe("AegisVault", function () {
       // User sells most tokens
       await uniq.connect(user1).transfer(user2.address, ethers.parseEther("990000"));
       expect(await vault.getEffectiveFee(user1.address)).to.equal(40); // Bronze discount (10K left)
+    });
+
+    // ─── Fee Deduction in executeProtection ──────────────────────
+
+    it("should deduct protocol fee on EmergencyWithdraw", async function () {
+      const { vault, user1, agentOperator } = await loadFixture(deployWithTokenGateFixture);
+      const depositAmount = ethers.parseEther("10");
+      await vault.connect(user1).deposit({ value: depositAmount });
+      await vault.connect(user1).authorizeAgent(0);
+      // Update risk profile to allow for larger single action
+      await vault.connect(user1).updateRiskProfile(100, 1000, depositAmount, true, false);
+
+      const protectAmount = ethers.parseEther("1");
+      const balanceBefore = await ethers.provider.getBalance(user1.address);
+
+      await vault.connect(agentOperator).executeProtection(
+        user1.address, 0, protectAmount, ethers.ZeroHash
+      );
+
+      const balanceAfter = await ethers.provider.getBalance(user1.address);
+      // Base fee = 50 bps = 0.5% of 1 BNB = 0.005 BNB (no holder discount)
+      const expectedFee = protectAmount * BigInt(50) / BigInt(10000);
+      const expectedReceived = protectAmount - expectedFee;
+      expect(balanceAfter - balanceBefore).to.equal(expectedReceived);
+    });
+
+    it("should deduct discounted fee for Gold holder on EmergencyWithdraw", async function () {
+      const { vault, uniq, user1, agentOperator } = await loadFixture(deployWithTokenGateFixture);
+      await uniq.transfer(user1.address, GOLD);
+
+      const depositAmount = ethers.parseEther("10");
+      await vault.connect(user1).deposit({ value: depositAmount });
+      await vault.connect(user1).authorizeAgent(0);
+      await vault.connect(user1).updateRiskProfile(100, 1000, depositAmount, true, false);
+
+      const protectAmount = ethers.parseEther("1");
+      const balanceBefore = await ethers.provider.getBalance(user1.address);
+
+      await vault.connect(agentOperator).executeProtection(
+        user1.address, 0, protectAmount, ethers.ZeroHash
+      );
+
+      const balanceAfter = await ethers.provider.getBalance(user1.address);
+      // Gold discount: effective fee = 50 - 40 = 10 bps = 0.1%
+      const expectedFee = protectAmount * BigInt(10) / BigInt(10000);
+      const expectedReceived = protectAmount - expectedFee;
+      expect(balanceAfter - balanceBefore).to.equal(expectedReceived);
+    });
+
+    it("should deduct fee on StopLoss action", async function () {
+      const { vault, uniq, user1, agentOperator } = await loadFixture(deployWithTokenGateFixture);
+      await uniq.transfer(user1.address, SILVER);
+
+      const depositAmount = ethers.parseEther("10");
+      await vault.connect(user1).deposit({ value: depositAmount });
+      await vault.connect(user1).authorizeAgent(0);
+      await vault.connect(user1).updateRiskProfile(100, 1000, depositAmount, true, false);
+
+      const protectAmount = ethers.parseEther("2");
+      const balanceBefore = await ethers.provider.getBalance(user1.address);
+
+      await vault.connect(agentOperator).executeProtection(
+        user1.address, 3, protectAmount, ethers.ZeroHash // StopLoss = 3
+      );
+
+      const balanceAfter = await ethers.provider.getBalance(user1.address);
+      // Silver discount: effective fee = 50 - 25 = 25 bps
+      const expectedFee = protectAmount * BigInt(25) / BigInt(10000);
+      const expectedReceived = protectAmount - expectedFee;
+      expect(balanceAfter - balanceBefore).to.equal(expectedReceived);
+    });
+
+    it("should emit ProtocolFeeDeducted event", async function () {
+      const { vault, user1, agentOperator } = await loadFixture(deployWithTokenGateFixture);
+      const depositAmount = ethers.parseEther("10");
+      await vault.connect(user1).deposit({ value: depositAmount });
+      await vault.connect(user1).authorizeAgent(0);
+      await vault.connect(user1).updateRiskProfile(100, 1000, depositAmount, true, false);
+
+      const protectAmount = ethers.parseEther("1");
+      const expectedFee = protectAmount * BigInt(50) / BigInt(10000);
+
+      await expect(
+        vault.connect(agentOperator).executeProtection(
+          user1.address, 0, protectAmount, ethers.ZeroHash
+        )
+      ).to.emit(vault, "ProtocolFeeDeducted").withArgs(user1.address, expectedFee, 50);
+    });
+
+    it("should accumulate fees and allow owner withdrawal", async function () {
+      const { vault, owner, user1, agentOperator } = await loadFixture(deployWithTokenGateFixture);
+      const depositAmount = ethers.parseEther("10");
+      await vault.connect(user1).deposit({ value: depositAmount });
+      await vault.connect(user1).authorizeAgent(0);
+      await vault.connect(user1).updateRiskProfile(100, 1000, depositAmount, true, false);
+
+      // Execute protection to accumulate fee
+      const protectAmount = ethers.parseEther("2");
+      await vault.connect(agentOperator).executeProtection(
+        user1.address, 0, protectAmount, ethers.ZeroHash
+      );
+
+      const expectedFee = protectAmount * BigInt(50) / BigInt(10000);
+      expect(await vault.accumulatedFees()).to.equal(expectedFee);
+
+      // Owner withdraws fees
+      const ownerBalBefore = await ethers.provider.getBalance(owner.address);
+      const tx = await vault.withdrawAccumulatedFees();
+      const receipt = await tx.wait();
+      const gasUsed = receipt!.gasUsed * receipt!.gasPrice;
+      const ownerBalAfter = await ethers.provider.getBalance(owner.address);
+
+      expect(ownerBalAfter - ownerBalBefore + gasUsed).to.equal(expectedFee);
+      expect(await vault.accumulatedFees()).to.equal(0);
+    });
+
+    it("should revert withdrawAccumulatedFees when nothing to withdraw", async function () {
+      const { vault } = await loadFixture(deployWithTokenGateFixture);
+      await expect(vault.withdrawAccumulatedFees()).to.be.revertedWithCustomError(vault, "ZeroAmount");
     });
   });
 });

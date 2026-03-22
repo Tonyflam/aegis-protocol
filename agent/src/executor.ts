@@ -11,6 +11,7 @@ export interface ExecutorConfig {
   vaultAddress: string;
   registryAddress: string;
   loggerAddress: string;
+  tokenGateAddress?: string;
   agentId: number;
   dryRun: boolean;   // if true, only logs but doesn't execute txs
 }
@@ -26,6 +27,12 @@ const REGISTRY_ABI = [
 const LOGGER_ABI = [
   "function logDecision(uint256 agentId, uint8 decisionType, uint8 riskLevel, uint256 confidence, address targetUser, bytes32 reasoningHash) external returns (uint256)",
   "function logRiskSnapshot(uint256 agentId, uint256 liquidationRisk, uint256 volatilityRisk, uint256 protocolRisk, uint256 smartContractRisk) external",
+];
+
+const TOKEN_GATE_ABI = [
+  "function getHolderTier(address user) view returns (uint8)",
+  "function isHolder(address user) view returns (bool)",
+  "function getEffectiveFee(address user, uint256 baseFee) view returns (uint256)",
 ];
 
 // Maps our SuggestedAction to contract's ActionType enum
@@ -52,6 +59,7 @@ export class OnChainExecutor {
   private vault: ethers.Contract;
   private registry: ethers.Contract;
   private logger: ethers.Contract;
+  private tokenGate: ethers.Contract | null;
   private config: ExecutorConfig;
   private executionLog: ExecutionRecord[] = [];
 
@@ -61,11 +69,15 @@ export class OnChainExecutor {
     this.vault = new ethers.Contract(config.vaultAddress, VAULT_ABI, this.wallet);
     this.registry = new ethers.Contract(config.registryAddress, REGISTRY_ABI, this.wallet);
     this.logger = new ethers.Contract(config.loggerAddress, LOGGER_ABI, this.wallet);
+    this.tokenGate = config.tokenGateAddress
+      ? new ethers.Contract(config.tokenGateAddress, TOKEN_GATE_ABI, this.wallet)
+      : null;
     
     console.log("[Aegis Executor] Initialized");
     console.log(`  Agent ID: ${config.agentId}`);
     console.log(`  Operator: ${this.wallet.address}`);
     console.log(`  Dry Run: ${config.dryRun}`);
+    if (this.tokenGate) console.log(`  TokenGate: ${config.tokenGateAddress}`);
   }
 
   /**
@@ -159,6 +171,20 @@ export class OnChainExecutor {
     }
 
     console.log(`[Aegis Executor] Executing protection: ${action} for ${userAddress} value=${value}`);
+
+    // Check if user is a $UNIQ holder (affects fee discount)
+    if (this.tokenGate) {
+      try {
+        const isHolder = await this.tokenGate.isHolder(userAddress);
+        if (isHolder) {
+          const tier = await this.tokenGate.getHolderTier(userAddress);
+          const tierNames = ["None", "Bronze", "Silver", "Gold"];
+          console.log(`[Aegis Executor] User is $UNIQ holder: ${tierNames[tier] || "Unknown"} tier — discounted fee applied`);
+        }
+      } catch {
+        // TokenGate read failed — non-critical, continue with protection
+      }
+    }
 
     if (this.config.dryRun) {
       console.log("[Aegis Executor] DRY RUN — skipping protection execution");

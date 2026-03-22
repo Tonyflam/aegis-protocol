@@ -144,6 +144,9 @@ contract AegisVault is Ownable, ReentrancyGuard {
     /// @notice Optional TokenGate for $UNIQ holder fee discounts
     AegisTokenGate public tokenGate;
 
+    /// @notice Accumulated protocol fees (BNB)
+    uint256 public accumulatedFees;
+
     // ═══════════════════════════════════════════════════════════════
     //                        EVENTS
     // ═══════════════════════════════════════════════════════════════
@@ -166,6 +169,7 @@ contract AegisVault is Ownable, ReentrancyGuard {
     );
     event EmergencyWithdrawal(address indexed user, uint256 bnbAmount);
     event TokenGateUpdated(address indexed tokenGate);
+    event ProtocolFeeDeducted(address indexed user, uint256 feeAmount, uint256 effectiveFeeBps);
 
     // ═══════════════════════════════════════════════════════════════
     //                      MODIFIERS
@@ -396,6 +400,21 @@ contract AegisVault is Ownable, ReentrancyGuard {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //                   $UNIQ FUNCTIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * @notice Withdraw accumulated protocol fees (owner only)
+     */
+    function withdrawAccumulatedFees() external onlyOwner {
+        uint256 amount = accumulatedFees;
+        if (amount == 0) revert ZeroAmount();
+        accumulatedFees = 0;
+        (bool sent, ) = payable(owner()).call{value: amount}("");
+        if (!sent) revert TransferFailed();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //                   AGENT FUNCTIONS
     // ═══════════════════════════════════════════════════════════════
 
@@ -432,18 +451,50 @@ contract AegisVault is Ownable, ReentrancyGuard {
         // Execute the protection action
         if (actionType == ActionType.EmergencyWithdraw && value > 0) {
             if (value > pos.bnbBalance) revert InsufficientBalance();
+
+            // Calculate and deduct protocol fee (with holder discount)
+            uint256 effectiveFeeBps = protocolFeeBps;
+            if (address(tokenGate) != address(0)) {
+                effectiveFeeBps = tokenGate.getEffectiveFee(user, protocolFeeBps);
+            }
+            uint256 feeAmount;
+            if (effectiveFeeBps > 0) {
+                feeAmount = (value * effectiveFeeBps) / 10000;
+            }
+            uint256 userAmount = value - feeAmount;
+
             pos.bnbBalance -= value;
             totalBnbDeposited -= value;
+            if (feeAmount > 0) {
+                accumulatedFees += feeAmount;
+                emit ProtocolFeeDeducted(user, feeAmount, effectiveFeeBps);
+            }
 
-            (bool sent, ) = payable(user).call{value: value}("");
+            (bool sent, ) = payable(user).call{value: userAmount}("");
             successful = sent;
         } else if (actionType == ActionType.StopLoss && value > 0) {
             if (value > pos.bnbBalance) revert InsufficientBalance();
             if (!pos.riskProfile.allowAutoWithdraw) revert AutoWithdrawNotAllowed();
+
+            // Calculate and deduct protocol fee (with holder discount)
+            uint256 effectiveFeeBps = protocolFeeBps;
+            if (address(tokenGate) != address(0)) {
+                effectiveFeeBps = tokenGate.getEffectiveFee(user, protocolFeeBps);
+            }
+            uint256 feeAmount;
+            if (effectiveFeeBps > 0) {
+                feeAmount = (value * effectiveFeeBps) / 10000;
+            }
+            uint256 userAmount = value - feeAmount;
+
             pos.bnbBalance -= value;
             totalBnbDeposited -= value;
+            if (feeAmount > 0) {
+                accumulatedFees += feeAmount;
+                emit ProtocolFeeDeducted(user, feeAmount, effectiveFeeBps);
+            }
 
-            (bool sent, ) = payable(user).call{value: value}("");
+            (bool sent, ) = payable(user).call{value: userAmount}("");
             successful = sent;
         }
 

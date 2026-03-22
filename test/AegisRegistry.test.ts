@@ -318,7 +318,7 @@ describe("AegisRegistry", function () {
 
       await expect(
         registry.connect(operator2).upgradeAgentTier(0, 2)
-      ).to.be.revertedWithCustomError(registry, "OwnableUnauthorizedAccount");
+      ).to.be.revertedWith("Not agent operator");
     });
 
     it("should revert tier downgrade", async function () {
@@ -484,6 +484,200 @@ describe("AegisRegistry", function () {
       await expect(
         registry.setTokenGate(await gate.getAddress())
       ).to.emit(registry, "TokenGateUpdated");
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Phase 2: Register Agent with $UNIQ
+  // ═══════════════════════════════════════════════════════════════
+
+  describe("Register Agent with $UNIQ", function () {
+    const BRONZE = ethers.parseEther("10000");
+    const GOLD   = ethers.parseEther("1000000");
+    const TOTAL  = ethers.parseEther("1000000000");
+    const UNIQ_REG_FEE = ethers.parseEther("50000"); // 50K $UNIQ
+
+    async function deployWithUniqRegistrationFixture() {
+      const base = await deployRegistryFixture();
+      const { registry, owner } = base;
+
+      const Token = await ethers.getContractFactory("MockERC20");
+      const uniq = await Token.deploy("Uniq Minds", "UNIQ", TOTAL);
+
+      const Gate = await ethers.getContractFactory("AegisTokenGate");
+      const gate = await Gate.deploy(await uniq.getAddress());
+
+      await registry.setTokenGate(await gate.getAddress());
+      await registry.setUniqRegistrationFee(UNIQ_REG_FEE);
+
+      return { ...base, uniq, gate };
+    }
+
+    it("should register agent with $UNIQ payment", async function () {
+      const { registry, uniq, operator1 } = await loadFixture(deployWithUniqRegistrationFixture);
+      await uniq.transfer(operator1.address, UNIQ_REG_FEE);
+      await uniq.connect(operator1).approve(await registry.getAddress(), UNIQ_REG_FEE);
+
+      await expect(
+        registry.connect(operator1).registerAgentWithUNIQ("UNIQ Agent", "ipfs://uniq", 0)
+      ).to.emit(registry, "AgentRegisteredWithUNIQ");
+
+      expect(await registry.hasAgent(operator1.address)).to.be.true;
+      const agent = await registry.getAgent(0);
+      expect(agent.name).to.equal("UNIQ Agent");
+    });
+
+    it("should transfer $UNIQ to registry on UNIQ registration", async function () {
+      const { registry, uniq, operator1 } = await loadFixture(deployWithUniqRegistrationFixture);
+      await uniq.transfer(operator1.address, UNIQ_REG_FEE);
+      await uniq.connect(operator1).approve(await registry.getAddress(), UNIQ_REG_FEE);
+
+      await registry.connect(operator1).registerAgentWithUNIQ("Test", "ipfs://test", 0);
+
+      expect(await uniq.balanceOf(await registry.getAddress())).to.equal(UNIQ_REG_FEE);
+      expect(await uniq.balanceOf(operator1.address)).to.equal(0);
+    });
+
+    it("should auto-set holder badge on UNIQ registration", async function () {
+      const { registry, uniq, operator1 } = await loadFixture(deployWithUniqRegistrationFixture);
+      // Give operator Gold-level tokens (enough for fee + gold threshold)
+      await uniq.transfer(operator1.address, GOLD + UNIQ_REG_FEE);
+      await uniq.connect(operator1).approve(await registry.getAddress(), UNIQ_REG_FEE);
+
+      await registry.connect(operator1).registerAgentWithUNIQ("Gold Agent", "ipfs://gold", 0);
+      // After paying 50K, operator still has 1M = Gold
+      expect(await registry.getHolderBadge(0)).to.equal(3); // Gold
+    });
+
+    it("should revert UNIQ registration when TokenGate not set", async function () {
+      const { registry, operator1 } = await loadFixture(deployRegistryFixture);
+      await expect(
+        registry.connect(operator1).registerAgentWithUNIQ("Fail", "ipfs://fail", 0)
+      ).to.be.revertedWith("TokenGate not set");
+    });
+
+    it("should revert UNIQ registration when fee not set", async function () {
+      const { registry, uniq, gate, operator1 } = await loadFixture(deployWithUniqRegistrationFixture);
+      await registry.setUniqRegistrationFee(0);
+      await expect(
+        registry.connect(operator1).registerAgentWithUNIQ("Fail", "ipfs://fail", 0)
+      ).to.be.revertedWith("UNIQ fee not set");
+    });
+
+    it("should revert UNIQ registration when insufficient allowance", async function () {
+      const { registry, uniq, operator1 } = await loadFixture(deployWithUniqRegistrationFixture);
+      await uniq.transfer(operator1.address, UNIQ_REG_FEE);
+      // No approve
+      await expect(
+        registry.connect(operator1).registerAgentWithUNIQ("Fail", "ipfs://fail", 0)
+      ).to.be.reverted; // SafeERC20 will revert
+    });
+
+    it("should allow owner to withdraw accumulated $UNIQ fees", async function () {
+      const { registry, uniq, owner, operator1 } = await loadFixture(deployWithUniqRegistrationFixture);
+      await uniq.transfer(operator1.address, UNIQ_REG_FEE);
+      await uniq.connect(operator1).approve(await registry.getAddress(), UNIQ_REG_FEE);
+      await registry.connect(operator1).registerAgentWithUNIQ("Test", "ipfs://test", 0);
+
+      const ownerBalBefore = await uniq.balanceOf(owner.address);
+      await registry.withdrawUniqFees();
+      const ownerBalAfter = await uniq.balanceOf(owner.address);
+      expect(ownerBalAfter - ownerBalBefore).to.equal(UNIQ_REG_FEE);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Phase 2: Holder Priority Tier Upgrade
+  // ═══════════════════════════════════════════════════════════════
+
+  describe("Holder Priority Tier Upgrade", function () {
+    const BRONZE = ethers.parseEther("10000");
+    const SILVER = ethers.parseEther("100000");
+    const GOLD   = ethers.parseEther("1000000");
+    const TOTAL  = ethers.parseEther("1000000000");
+
+    async function deployWithHolderUpgradeFixture() {
+      const base = await deployRegistryFixture();
+      const { registry, owner, operator1 } = base;
+
+      const Token = await ethers.getContractFactory("MockERC20");
+      const uniq = await Token.deploy("Uniq Minds", "UNIQ", TOTAL);
+
+      const Gate = await ethers.getContractFactory("AegisTokenGate");
+      const gate = await Gate.deploy(await uniq.getAddress());
+
+      await registry.setTokenGate(await gate.getAddress());
+
+      // Register Scout-tier agent for operator1
+      await registry.connect(operator1).registerAgent(
+        "Scout Agent", "ipfs://scout", 0, // Scout tier
+        { value: REGISTRATION_FEE }
+      );
+
+      return { ...base, uniq, gate };
+    }
+
+    it("should allow Bronze holder to self-upgrade to Guardian", async function () {
+      const { registry, uniq, operator1 } = await loadFixture(deployWithHolderUpgradeFixture);
+      await uniq.transfer(operator1.address, BRONZE);
+
+      await expect(
+        registry.connect(operator1).upgradeAgentTier(0, 1) // Guardian
+      ).to.emit(registry, "AgentTierUpgraded");
+
+      const agent = await registry.getAgent(0);
+      expect(agent.tier).to.equal(1); // Guardian
+    });
+
+    it("should allow Silver holder to self-upgrade to Sentinel", async function () {
+      const { registry, uniq, operator1 } = await loadFixture(deployWithHolderUpgradeFixture);
+      await uniq.transfer(operator1.address, SILVER);
+
+      await registry.connect(operator1).upgradeAgentTier(0, 2); // Sentinel
+      const agent = await registry.getAgent(0);
+      expect(agent.tier).to.equal(2);
+    });
+
+    it("should allow Gold holder to self-upgrade to Archon", async function () {
+      const { registry, uniq, operator1 } = await loadFixture(deployWithHolderUpgradeFixture);
+      await uniq.transfer(operator1.address, GOLD);
+
+      await registry.connect(operator1).upgradeAgentTier(0, 3); // Archon
+      const agent = await registry.getAgent(0);
+      expect(agent.tier).to.equal(3);
+    });
+
+    it("should reject Bronze holder trying to upgrade to Sentinel", async function () {
+      const { registry, uniq, operator1 } = await loadFixture(deployWithHolderUpgradeFixture);
+      await uniq.transfer(operator1.address, BRONZE);
+
+      await expect(
+        registry.connect(operator1).upgradeAgentTier(0, 2) // Sentinel exceeds Bronze
+      ).to.be.revertedWith("Tier exceeds holder level");
+    });
+
+    it("should reject non-holder self-upgrade", async function () {
+      const { registry, operator1 } = await loadFixture(deployWithHolderUpgradeFixture);
+
+      await expect(
+        registry.connect(operator1).upgradeAgentTier(0, 1)
+      ).to.be.revertedWith("Tier exceeds holder level");
+    });
+
+    it("should still allow owner to upgrade without holding tokens", async function () {
+      const { registry, owner } = await loadFixture(deployWithHolderUpgradeFixture);
+
+      await registry.connect(owner).upgradeAgentTier(0, 3); // Owner can upgrade to any tier
+      const agent = await registry.getAgent(0);
+      expect(agent.tier).to.equal(3); // Archon
+    });
+
+    it("should reject non-operator non-owner upgrade", async function () {
+      const { registry, operator2 } = await loadFixture(deployWithHolderUpgradeFixture);
+
+      await expect(
+        registry.connect(operator2).upgradeAgentTier(0, 1)
+      ).to.be.revertedWith("Not agent operator");
     });
   });
 });
