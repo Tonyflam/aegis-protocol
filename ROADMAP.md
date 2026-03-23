@@ -214,12 +214,12 @@ Changes to `agent/src/`:
   - HolderBadgeUpdated event emission
 
 ### Phase 2 Deliverables
-- [ ] `AegisTokenGate.sol` deployed to testnet
+- [x] `AegisTokenGate.sol` deployed to testnet
 - [x] Vault + Registry upgraded with token integration
 - [x] Frontend shows $UNIQ holder benefits panel + tier constants
 - [x] 170 total tests passing (target was 110+)
 - [ ] Token utility announcement thread posted
-- [ ] Updated contracts verified on testnet
+- [x] Updated contracts verified on testnet
 
 ---
 
