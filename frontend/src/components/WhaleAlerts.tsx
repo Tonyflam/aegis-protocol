@@ -64,8 +64,15 @@ const KNOWN_ADDRESSES: Record<string, string> = {
 // ERC-20 Transfer event signature
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 
-// BSC Mainnet provider
-const BSC_RPC = "https://bsc-dataseed1.binance.org";
+// BSC Mainnet providers — multiple endpoints to rotate through on rate limits
+const BSC_RPCS = [
+  "https://bsc-dataseed1.binance.org",
+  "https://bsc-dataseed2.binance.org",
+  "https://bsc-dataseed3.binance.org",
+  "https://bsc-dataseed4.binance.org",
+  "https://bsc-dataseed1.defibit.io",
+  "https://bsc-dataseed2.defibit.io",
+];
 
 // ─── Helpers ───────────────────────────────────────────────────
 
@@ -125,11 +132,49 @@ function formatUsd(value: number): string {
 
 // ─── Fetch real whale transfers from BSC ───────────────────────
 
+let rpcIndex = 0;
+
+function getProvider(): ethers.JsonRpcProvider {
+  const url = BSC_RPCS[rpcIndex % BSC_RPCS.length];
+  return new ethers.JsonRpcProvider(url);
+}
+
+function rotateRpc(): void {
+  rpcIndex = (rpcIndex + 1) % BSC_RPCS.length;
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function fetchLogsWithRetry(
+  provider: ethers.JsonRpcProvider,
+  filter: ethers.Filter,
+  maxRetries = 3
+): Promise<ethers.Log[]> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await provider.getLogs(filter);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isRateLimit = msg.includes("rate limit") || msg.includes("-32005") || msg.includes("Too Many");
+      if (isRateLimit && attempt < maxRetries - 1) {
+        rotateRpc();
+        provider = getProvider();
+        await sleep(1000 * (attempt + 1)); // backoff: 1s, 2s, 3s
+        continue;
+      }
+      throw err;
+    }
+  }
+  return [];
+}
+
 async function fetchWhaleTransfers(bnbPrice: number): Promise<WhaleAlert[]> {
-  const provider = new ethers.JsonRpcProvider(BSC_RPC);
+  let provider = getProvider();
   const latestBlock = await provider.getBlockNumber();
-  // Scan last ~100 blocks (~5 minutes on BSC)
-  const fromBlock = latestBlock - 100;
+  // Scan last ~50 blocks (~2.5 minutes on BSC) — smaller range to avoid rate limits
+  const fromBlock = latestBlock - 50;
 
   const tokenMap = new Map(TRACKED_TOKENS.map((t) => [t.address.toLowerCase(), t]));
 
@@ -140,17 +185,30 @@ async function fetchWhaleTransfers(bnbPrice: number): Promise<WhaleAlert[]> {
   const cakeToken = TRACKED_TOKENS.find((t) => t.symbol === "CAKE");
   if (cakeToken) cakeToken.priceUsd = 2.5;
 
-  // Fetch Transfer logs for all tracked tokens
-  const logs = await provider.getLogs({
-    fromBlock,
-    toBlock: latestBlock,
-    topics: [TRANSFER_TOPIC],
-    address: TRACKED_TOKENS.map((t) => t.address),
-  });
+  // Query each token individually to avoid batch rate limits
+  const allLogs: ethers.Log[] = [];
+  for (const token of TRACKED_TOKENS) {
+    try {
+      const logs = await fetchLogsWithRetry(provider, {
+        fromBlock,
+        toBlock: latestBlock,
+        topics: [TRANSFER_TOPIC],
+        address: token.address,
+      });
+      allLogs.push(...logs);
+    } catch {
+      // Skip this token on persistent failure, continue with others
+      console.warn(`[WhaleAlerts] Failed to fetch logs for ${token.symbol}, skipping`);
+    }
+    // Small delay between per-token queries to stay under rate limits
+    await sleep(300);
+    // Re-get provider in case it was rotated during retry
+    provider = getProvider();
+  }
 
   const alerts: WhaleAlert[] = [];
 
-  for (const log of logs) {
+  for (const log of allLogs) {
     const tokenInfo = tokenMap.get(log.address.toLowerCase());
     if (!tokenInfo) continue;
 
@@ -297,7 +355,7 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
         <div className="flex items-center gap-2 mb-4 p-2 rounded-lg" style={{ background: "rgba(0,224,255,0.04)", border: "1px solid var(--accent-muted)" }}>
           <Shield className="w-3 h-3 text-[color:var(--accent)] flex-shrink-0" />
           <p className="text-xs text-gray-400">
-            Scanning real ERC-20 Transfer events on BSC Mainnet (last ~100 blocks). Minimum threshold: ${WHALE_THRESHOLD_USD.toLocaleString()}.
+            Scanning real ERC-20 Transfer events on BSC Mainnet (last ~50 blocks). Minimum threshold: ${WHALE_THRESHOLD_USD.toLocaleString()}.
             {lastFetch && <span className="text-gray-500"> Last scan: {timeAgo(lastFetch)}</span>}
           </p>
         </div>
@@ -350,7 +408,7 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
           <div className="card p-12 text-center" style={{ borderRadius: "12px" }}>
             <RefreshCw className="w-8 h-8 text-[color:var(--accent)] mx-auto mb-3 animate-spin" />
             <p className="text-gray-400">Scanning BSC Mainnet for whale transfers...</p>
-            <p className="text-xs text-gray-500 mt-1">Checking last ~100 blocks for large ERC-20 transfers</p>
+            <p className="text-xs text-gray-500 mt-1">Checking last ~50 blocks for large ERC-20 transfers</p>
           </div>
         ) : filteredAlerts.length === 0 ? (
           <div className="card p-12 text-center" style={{ borderRadius: "12px" }}>
