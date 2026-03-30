@@ -255,12 +255,12 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
   return (
     <div className="space-y-6">
       {/* Header + Stats */}
-      <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
+      <div className="card p-6" style={{ borderRadius: "12px" }}>
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-lg font-semibold flex items-center gap-2">
-            <Bell className="w-5 h-5 text-[#00e0ff]" />
+            <Bell className="w-5 h-5 text-[color:var(--accent)]" />
             Whale &amp; Risk Alerts
-            <span className="text-xs px-2 py-1 rounded-md bg-[#00e0ff]/10 text-[#00e0ff] border border-[#00e0ff]/20">
+            <span className="text-xs px-2 py-1 rounded-md bg-[var(--accent)]/10 text-[color:var(--accent)] border border-[var(--accent)]/20">
               BSC Mainnet
             </span>
           </h4>
@@ -274,7 +274,7 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
             <button
               onClick={fetchAlerts}
               disabled={loading}
-              className="text-xs px-3 py-1.5 rounded-lg transition-all bg-[#00e0ff]/10 text-[#00e0ff] border border-[#00e0ff]/20 hover:bg-[#00e0ff]/20 disabled:opacity-50"
+              className="text-xs px-3 py-1.5 rounded-lg transition-all bg-[var(--accent)]/10 text-[color:var(--accent)] border border-[var(--accent)]/20 hover:bg-[var(--accent)]/20 disabled:opacity-50"
             >
               <RefreshCw className={`w-3 h-3 inline mr-1 ${loading ? "animate-spin" : ""}`} />
               {loading ? "Scanning..." : "Refresh"}
@@ -294,8 +294,8 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
         </div>
 
         {/* Data Source Notice */}
-        <div className="flex items-center gap-2 mb-4 p-2 rounded-lg" style={{ background: "rgba(0,224,255,0.04)", border: "1px solid rgba(0,224,255,0.08)" }}>
-          <Shield className="w-3 h-3 text-[#00e0ff] flex-shrink-0" />
+        <div className="flex items-center gap-2 mb-4 p-2 rounded-lg" style={{ background: "rgba(0,224,255,0.04)", border: "1px solid var(--accent-muted)" }}>
+          <Shield className="w-3 h-3 text-[color:var(--accent)] flex-shrink-0" />
           <p className="text-xs text-gray-400">
             Scanning real ERC-20 Transfer events on BSC Mainnet (last ~100 blocks). Minimum threshold: ${WHALE_THRESHOLD_USD.toLocaleString()}.
             {lastFetch && <span className="text-gray-500"> Last scan: {timeAgo(lastFetch)}</span>}
@@ -313,7 +313,7 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
         {/* Alert Stats */}
         <div className="grid grid-cols-4 gap-3 mb-4">
           {[
-            { label: "Whale Transfers", value: alerts.length, color: "#00e0ff" },
+            { label: "Whale Transfers", value: alerts.length, color: "var(--accent)" },
             { label: "Critical", value: alerts.filter((a) => a.severity === "CRITICAL").length, color: "#ef4444" },
             { label: "High Risk", value: alerts.filter((a) => a.severity === "HIGH").length, color: "#f97316" },
             { label: "Tokens Tracked", value: TRACKED_TOKENS.length, color: "#a855f7" },
@@ -334,7 +334,7 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
               onClick={() => setFilter(f)}
               className={`text-xs px-3 py-1.5 rounded-lg transition-all ${
                 filter === f
-                  ? "bg-[#00e0ff]/10 text-[#00e0ff] border border-[#00e0ff]/20"
+                  ? "bg-[var(--accent)]/10 text-[color:var(--accent)] border border-[var(--accent)]/20"
                   : "text-gray-500 hover:text-gray-300 border border-transparent"
               }`}
             >
@@ -347,13 +347,13 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
       {/* Alert Feed */}
       <div className="space-y-2">
         {loading && alerts.length === 0 ? (
-          <div className="glass-card p-12 text-center" style={{ borderRadius: "12px" }}>
-            <RefreshCw className="w-8 h-8 text-[#00e0ff] mx-auto mb-3 animate-spin" />
+          <div className="card p-12 text-center" style={{ borderRadius: "12px" }}>
+            <RefreshCw className="w-8 h-8 text-[color:var(--accent)] mx-auto mb-3 animate-spin" />
             <p className="text-gray-400">Scanning BSC Mainnet for whale transfers...</p>
             <p className="text-xs text-gray-500 mt-1">Checking last ~100 blocks for large ERC-20 transfers</p>
           </div>
         ) : filteredAlerts.length === 0 ? (
-          <div className="glass-card p-12 text-center" style={{ borderRadius: "12px" }}>
+          <div className="card p-12 text-center" style={{ borderRadius: "12px" }}>
             <Shield className="w-8 h-8 text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400">
               {filter !== "ALL"
@@ -374,7 +374,7 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
             return (
               <div
                 key={alert.id}
-                className="glass-card overflow-hidden transition-all duration-200 hover:border-opacity-50"
+                className="card overflow-hidden transition-all duration-200 hover:border-opacity-50"
                 style={{
                   borderRadius: "12px",
                   borderLeft: `3px solid ${getSeverityColor(alert.severity)}`,
@@ -452,7 +452,7 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
                         href={`https://bscscan.com/tx/${alert.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-xs text-[#00e0ff] hover:underline"
+                        className="flex items-center gap-1.5 text-xs text-[color:var(--accent)] hover:underline"
                       >
                         <ExternalLink className="w-3 h-3" />
                         View on BSCScan: {alert.txHash.slice(0, 16)}...{alert.txHash.slice(-8)}

@@ -189,7 +189,7 @@ export class BSCOnChainProvider {
         }),
       });
 
-      const json = await res.json();
+      const json = (await res.json()) as { error?: { message: string }; result?: string };
       if (json.error) throw new Error(json.error.message);
       return BigInt(json.result || "0x0");
     } catch (err: any) {

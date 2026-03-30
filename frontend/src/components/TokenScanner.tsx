@@ -522,11 +522,11 @@ export default function TokenScanner({
   return (
     <div className="space-y-6">
       {/* ─── Scanner Input ─── */}
-      <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
+      <div className="card p-6" style={{ borderRadius: "12px" }}>
         <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Search className="w-5 h-5 text-[#00e0ff]" />
+          <Search className="w-5 h-5 text-[color:var(--accent)]" />
           Token Risk Scanner
-          <span className="ml-auto text-xs px-2 py-1 rounded-md bg-[#00e0ff]/10 text-[#00e0ff] border border-[#00e0ff]/20">
+          <span className="ml-auto text-xs px-2 py-1 rounded-md bg-[var(--accent)]/10 text-[color:var(--accent)] border border-[var(--accent)]/20">
             BSC Mainnet
           </span>
         </h4>
@@ -542,7 +542,7 @@ export default function TokenScanner({
                 setError("");
               }}
               onKeyDown={(e) => e.key === "Enter" && handleScan()}
-              className="w-full px-4 py-3.5 pl-11 rounded-xl bg-black/40 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-[#00e0ff]/50 font-mono text-sm transition-all"
+              className="w-full px-4 py-3.5 pl-11 rounded-xl bg-[var(--bg-base)] border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-[var(--accent)]/50 font-mono text-sm transition-all"
               disabled={scanning}
             />
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -579,9 +579,9 @@ export default function TokenScanner({
               disabled={scanning}
               className="text-xs px-3 py-1.5 rounded-lg transition-all hover:scale-105"
               style={{
-                background: "rgba(0,224,255,0.06)",
-                border: "1px solid rgba(0,224,255,0.15)",
-                color: "#00e0ff",
+                background: "var(--accent-muted)",
+                border: "1px solid var(--accent-border)",
+                color: "var(--accent)",
               }}
             >
               {t.symbol}
@@ -602,12 +602,12 @@ export default function TokenScanner({
           <div className="mt-4">
             <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: "rgba(0,0,0,0.3)" }}>
               <div className="relative w-8 h-8">
-                <div className="absolute inset-0 rounded-full border-2 border-[#00e0ff]/20" />
-                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#00e0ff] animate-spin" />
+                <div className="absolute inset-0 rounded-full border-2 border-[var(--accent)]/20" />
+                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[var(--accent)] animate-spin" />
               </div>
               <div>
                 <p className="text-sm text-white font-medium">Scanning token...</p>
-                <p className="text-xs text-[#00e0ff] font-mono">{scanPhase}</p>
+                <p className="text-xs text-[color:var(--accent)] font-mono">{scanPhase}</p>
               </div>
             </div>
           </div>
@@ -619,8 +619,8 @@ export default function TokenScanner({
         <div className="space-y-4 animate-fade-in-up">
           {/* Risk Score Hero */}
           <div
-            className="glass-card glow-border p-6 relative overflow-hidden"
-            style={{ borderRadius: "16px", borderColor: `${getRiskColor(report.riskScore)}30` }}
+            className="card p-6 relative overflow-hidden"
+            style={{ borderRadius: "12px", borderColor: `${getRiskColor(report.riskScore)}30` }}
           >
             {/* Background risk indicator */}
             <div
@@ -663,7 +663,7 @@ export default function TokenScanner({
 
                 <button
                   onClick={copyAddress}
-                  className="flex items-center gap-2 text-xs font-mono text-gray-400 hover:text-[#00e0ff] transition-colors mb-3"
+                  className="flex items-center gap-2 text-xs font-mono text-gray-400 hover:text-[color:var(--accent)] transition-colors mb-3"
                 >
                   {report.address.slice(0, 20)}...{report.address.slice(-8)}
                   <Copy className="w-3 h-3" />
@@ -696,7 +696,7 @@ export default function TokenScanner({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg"
-                style={{ background: "rgba(0,224,255,0.08)", color: "#00e0ff", border: "1px solid rgba(0,224,255,0.15)" }}
+                style={{ background: "var(--accent-muted)", color: "var(--accent)", border: "1px solid var(--accent-border)" }}
               >
                 BSCScan <ExternalLink className="w-3 h-3" />
               </a>
@@ -723,7 +723,7 @@ export default function TokenScanner({
           {/* Detail Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {/* Honeypot */}
-            <div className="glass-card p-4" style={{ borderRadius: "12px", borderLeft: `3px solid ${report.isHoneypot === true ? "#ef4444" : report.isHoneypot === null ? "#eab308" : "#22c55e"}` }}>
+            <div className="card p-4" style={{ borderRadius: "12px", borderLeft: `3px solid ${report.isHoneypot === true ? "#ef4444" : report.isHoneypot === null ? "#eab308" : "#22c55e"}` }}>
               <div className="flex items-center gap-2 mb-2">
                 {report.isHoneypot === true ? (
                   <Skull className="w-4 h-4 text-red-400" />
@@ -744,7 +744,7 @@ export default function TokenScanner({
 
             {/* Tax */}
             <div
-              className="glass-card p-4"
+              className="card p-4"
               style={{
                 borderRadius: "12px",
                 borderLeft: `3px solid ${report.buyTax > 10 || report.sellTax > 10 ? "#eab308" : "#22c55e"}`,
@@ -764,7 +764,7 @@ export default function TokenScanner({
 
             {/* Liquidity */}
             <div
-              className="glass-card p-4"
+              className="card p-4"
               style={{
                 borderRadius: "12px",
                 borderLeft: `3px solid ${report.liquidity < 10000 ? "#f97316" : "#22c55e"}`,
@@ -781,7 +781,7 @@ export default function TokenScanner({
 
             {/* LP Locked */}
             <div
-              className="glass-card p-4"
+              className="card p-4"
               style={{
                 borderRadius: "12px",
                 borderLeft: `3px solid ${report.isLiquidityLocked ? "#22c55e" : "#eab308"}`,
@@ -802,7 +802,7 @@ export default function TokenScanner({
           </div>
 
           {/* Security Flags */}
-          <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
+          <div className="card p-6" style={{ borderRadius: "12px" }}>
             <h4 className="text-sm font-semibold mb-4 text-gray-400 uppercase tracking-wider">
               Contract Security
             </h4>
@@ -864,7 +864,7 @@ export default function TokenScanner({
           </div>
 
           {/* Token Details */}
-          <div className="glass-card p-6" style={{ borderRadius: "16px" }}>
+          <div className="card p-6" style={{ borderRadius: "12px" }}>
             <h4 className="text-sm font-semibold mb-4 text-gray-400 uppercase tracking-wider">Token Details</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
@@ -902,9 +902,9 @@ export default function TokenScanner({
 
       {/* ─── Scan History ─── */}
       {history.length > 0 && !scanning && (
-        <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
+        <div className="card p-6" style={{ borderRadius: "12px" }}>
           <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Eye className="w-5 h-5 text-[#00e0ff]" />
+            <Eye className="w-5 h-5 text-[color:var(--accent)]" />
             Scan History
             <span className="ml-auto text-xs text-gray-500">{history.length} scanned</span>
           </h4>
@@ -959,9 +959,9 @@ export default function TokenScanner({
 
       {/* ─── Empty State ─── */}
       {!report && !scanning && history.length === 0 && (
-        <div className="glass-card glow-border p-12 text-center" style={{ borderRadius: "16px" }}>
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(0,224,255,0.1)" }}>
-            <Shield className="w-8 h-8 text-[#00e0ff]" />
+        <div className="card p-12 text-center" style={{ borderRadius: "12px" }}>
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "var(--accent-border)" }}>
+            <Shield className="w-8 h-8 text-[color:var(--accent)]" />
           </div>
           <h4 className="text-xl font-semibold mb-2 text-white">Scan Any BSC Token</h4>
           <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
@@ -976,7 +976,7 @@ export default function TokenScanner({
               { icon: Flame, label: "Rug Pull Alerts" },
             ].map((f) => (
               <div key={f.label} className="flex items-center gap-1.5">
-                <f.icon className="w-3.5 h-3.5 text-[#00e0ff]" />
+                <f.icon className="w-3.5 h-3.5 text-[color:var(--accent)]" />
                 <span>{f.label}</span>
               </div>
             ))}

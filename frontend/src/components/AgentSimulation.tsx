@@ -37,7 +37,7 @@ interface PhaseConfig {
 }
 
 const PHASES: PhaseConfig[] = [
-  { id: 0, key: "observe",  label: "OBSERVE",    sub: "Fetching Market Data",       icon: Eye,            color: "#00e0ff", duration: 2800 },
+  { id: 0, key: "observe",  label: "OBSERVE",    sub: "Fetching Market Data",       icon: Eye,            color: "var(--accent)", duration: 2800 },
   { id: 1, key: "analyze",  label: "ANALYZE",    sub: "5-Vector Risk Engine",       icon: Activity,       color: "#a855f7", duration: 3200 },
   { id: 2, key: "reason",   label: "AI REASON",  sub: "LLM Inference (Groq)",       icon: Cpu,            color: "#f97316", duration: 3800 },
   { id: 3, key: "verify",   label: "DEX VERIFY", sub: "PancakeSwap Cross-Check",    icon: BarChart3,      color: "#f0b90b", duration: 2500 },
@@ -66,7 +66,7 @@ function TypewriterText({ text, speed = 18 }: { text: string; speed?: number }) 
   return (
     <span>
       {displayed}
-      {displayed.length < text.length && <span className="animate-pulse text-[#00e0ff]">▌</span>}
+      {displayed.length < text.length && <span className="animate-pulse text-[color:var(--accent)]">▌</span>}
     </span>
   );
 }
@@ -318,12 +318,12 @@ export default function AgentSimulation({ market }: { market: LiveMarketData }) 
   }, []);
 
   return (
-    <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
+    <div className="card p-6" style={{ borderRadius: "12px" }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h4 className="text-lg font-semibold flex items-center gap-2">
-            <Shield className="w-5 h-5 text-[#00e0ff]" />
+            <Shield className="w-5 h-5 text-[color:var(--accent)]" />
             Agent Cycle Demo
             <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
               SIMULATION
@@ -351,7 +351,7 @@ export default function AgentSimulation({ market }: { market: LiveMarketData }) 
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
               isRunning
                 ? "bg-gray-700/50 text-gray-500 cursor-not-allowed"
-                : "bg-gradient-to-r from-[#00e0ff]/20 to-[#a855f7]/20 text-[#00e0ff] border border-[#00e0ff]/30 hover:border-[#00e0ff]/60 hover:scale-[1.02]"
+                : "bg-gradient-to-r from-[var(--accent)]/20 to-[#a855f7]/20 text-[color:var(--accent)] border border-[var(--accent)]/30 hover:border-[var(--accent)]/60 hover:scale-[1.02]"
             }`}
           >
             {isRunning ? (
@@ -431,7 +431,7 @@ export default function AgentSimulation({ market }: { market: LiveMarketData }) 
         {/* Phase Output */}
         <div
           className="rounded-xl p-4 font-mono text-xs min-h-[200px] max-h-[280px] overflow-y-auto"
-          style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(0,224,255,0.1)" }}
+          style={{ background: "rgba(0,0,0,0.4)", border: "1px solid var(--accent-border)" }}
         >
           <div className="flex items-center gap-2 mb-3 pb-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
             <div className="w-2 h-2 rounded-full bg-red-500" />
@@ -456,7 +456,7 @@ export default function AgentSimulation({ market }: { market: LiveMarketData }) 
           ))}
 
           {phaseSummary && (
-            <div className="mt-3 pt-2" style={{ borderTop: "1px solid rgba(0,224,255,0.1)" }}>
+            <div className="mt-3 pt-2" style={{ borderTop: "1px solid var(--accent-border)" }}>
               <span className="text-green-400">✓ {phaseSummary}</span>
             </div>
           )}
@@ -483,7 +483,7 @@ export default function AgentSimulation({ market }: { market: LiveMarketData }) 
             <div
               key={i}
               className={`leading-relaxed ${
-                log.includes("═══") ? "text-[#00e0ff] font-bold mt-1" : log.includes("✓") ? "text-green-400" : "text-gray-500"
+                log.includes("═══") ? "text-[color:var(--accent)] font-bold mt-1" : log.includes("✓") ? "text-green-400" : "text-gray-500"
               }`}
             >
               {log}

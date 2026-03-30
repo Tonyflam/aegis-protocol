@@ -1,1115 +1,171 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useWallet } from "../lib/useWallet";
-import { useContractData, useContractWrite, usePublicContractData } from "../lib/useContracts";
-import { RISK_LEVELS, RISK_COLORS, AGENT_TIERS, CONTRACTS, HOLDER_TIER_COLORS, HOLDER_TIER_THRESHOLDS } from "../lib/constants";
+import Link from "next/link";
+import { usePublicContractData } from "../lib/useContracts";
 import { useLiveMarketData } from "../lib/useLiveMarket";
-import AgentSimulation from "../components/AgentSimulation";
-import toast from "react-hot-toast";
-import TokenScanner from "../components/TokenScanner";
-import WhaleAlerts from "../components/WhaleAlerts";
+import { useWalletContext } from "../lib/WalletContext";
+import { CONTRACTS } from "../lib/constants";
 import {
-  Shield,
-  Activity,
-  AlertTriangle,
-  CheckCircle,
-  Wallet,
-  Bot,
-  BarChart3,
-  Zap,
-  Eye,
-  ArrowRight,
-  ExternalLink,
-  Github,
-  RefreshCw,
-  Lock,
-  Cpu,
-  Search,
-  Bell,
-  Skull,
-  Droplets,
+  Shield, AlertTriangle, CheckCircle, Bot,
+  Zap, ArrowRight, ExternalLink,
+  Lock, Search, Bell, Skull, Droplets,
 } from "lucide-react";
 
-// ─── Fallback Data (displayed only when BSC Testnet RPC is unreachable) ─────
-const FALLBACK_STATS = {
-  totalValueProtected: "0",
-  activeAgents: 0,
-  threatsDetected: 0,
-  protectionRate: "0",
-  totalDecisions: 0,
-  totalDeposited: "0",
-};
-
-// No mock decisions — only real on-chain data or empty state
-
-// No mock positions — only show real user data when wallet connected
-
-const DECISION_TYPES = ["Risk Assessment", "Threat Detected", "Protection Triggered", "All Clear", "Market Analysis", "Position Review"];
-
 export default function Home() {
-  const { address, isConnected, connect, disconnect, isConnecting, switchToBsc, chainId, provider, signer } = useWallet();
-  const contractData = useContractData(provider);
-  const contractWrite = useContractWrite(signer);
+  const { isConnected } = useWalletContext();
   const publicData = usePublicContractData();
   const liveMarket = useLiveMarketData(30000);
-  const [activeTab, setActiveTab] = useState<"overview" | "scanner" | "alerts" | "decisions" | "positions" | "agent">("overview");
-  const [depositAmount, setDepositAmount] = useState("");
 
-  // Fetch public on-chain data immediately (no wallet needed)
-  useEffect(() => {
-    publicData.fetchPublicData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Fetch contract data when connected
-  useEffect(() => {
-    if (isConnected && provider) {
-      contractData.fetchAll(address ?? undefined);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, provider, address]);
-
-  // Auto-refresh every 30s
-  useEffect(() => {
-    if (!isConnected || !provider) return;
-    const interval = setInterval(() => {
-      contractData.fetchAll(address ?? undefined);
-    }, 30000);
-    return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, provider, address]);
-
-  const handleDeposit = async () => {
-    if (!depositAmount || parseFloat(depositAmount) <= 0) {
-      toast.error("Enter a valid amount");
-      return;
-    }
-    try {
-      toast.loading("Depositing...", { id: "deposit" });
-      await contractWrite.deposit(depositAmount);
-      toast.success(`Deposited ${depositAmount} BNB`, { id: "deposit" });
-      setDepositAmount("");
-      contractData.fetchAll(address ?? undefined);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Deposit failed";
-      toast.error(msg, { id: "deposit" });
-    }
-  };
-
-  const handleAuthorize = async () => {
-    try {
-      toast.loading("Authorizing agent...", { id: "auth" });
-      await contractWrite.authorizeAgent(0);
-      toast.success("Agent #0 authorized!", { id: "auth" });
-      contractData.fetchAll(address ?? undefined);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Authorization failed";
-      toast.error(msg, { id: "auth" });
-    }
-  };
-
-  // Merged stats: wallet data > public on-chain data > fallback zeros
   const stats = {
-    totalValueProtected: contractData.vaultStats?.totalValueProtected ?? (publicData.isLive ? publicData.totalValueProtected : FALLBACK_STATS.totalValueProtected),
-    activeAgents: contractData.agentCount || publicData.agentCount || FALLBACK_STATS.activeAgents,
-    threatsDetected: contractData.loggerStats?.totalThreats ?? (publicData.isLive ? publicData.totalThreats : FALLBACK_STATS.threatsDetected),
-    protectionRate: contractData.successRate > 0 ? contractData.successRate.toFixed(1) : publicData.isLive && publicData.agentSuccessRate > 0 ? publicData.agentSuccessRate.toFixed(1) : FALLBACK_STATS.protectionRate,
-    totalDecisions: contractData.loggerStats?.totalDecisions ?? (publicData.isLive ? publicData.totalDecisions : FALLBACK_STATS.totalDecisions),
-    totalDeposited: contractData.vaultStats?.totalBnbDeposited ?? (publicData.isLive ? publicData.totalDeposited : FALLBACK_STATS.totalDeposited),
-    actionsExecuted: contractData.vaultStats?.totalActionsExecuted ?? (publicData.isLive ? publicData.totalActionsExecuted : 0),
+    totalValueProtected: publicData.isLive ? publicData.totalValueProtected : "0",
+    activeAgents: publicData.agentCount || 0,
+    threatsDetected: publicData.isLive ? publicData.totalThreats : 0,
+    protectionRate: publicData.isLive && publicData.agentSuccessRate > 0 ? publicData.agentSuccessRate.toFixed(1) : "0",
   };
-
-  const dataSource = contractData.isLive ? "wallet" : publicData.isLive ? "public-rpc" : "demo";
 
   return (
-    <div className="min-h-screen">
-      {/* ═══ NAVBAR ═══ */}
-      <nav className="glass-card mx-4 mt-4 px-6 py-4 flex items-center justify-between" style={{ borderRadius: "12px" }}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, rgba(0,224,255,0.2), rgba(168,85,247,0.2))" }}>
-            <Shield className="w-6 h-6 text-[#00e0ff]" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">
-              <span className="text-[#00e0ff] cyan-glow">Aegis</span>{" "}
-              <span className="text-gray-300">Protocol</span>
-            </h1>
-            <p className="text-xs text-gray-500">by <a href="https://x.com/uniq_minds" target="_blank" rel="noopener noreferrer" className="text-[#00e0ff] hover:underline">Uniq Minds</a> · AI-Powered DeFi Guardian</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ 
-            background: dataSource === "wallet" ? "rgba(34,197,94,0.1)" : dataSource === "public-rpc" ? "rgba(0,224,255,0.1)" : "rgba(234,179,8,0.1)", 
-            border: `1px solid ${dataSource === "wallet" ? "rgba(34,197,94,0.2)" : dataSource === "public-rpc" ? "rgba(0,224,255,0.2)" : "rgba(234,179,8,0.2)"}` 
-          }}>
-            <div className={`w-2 h-2 rounded-full ${dataSource === "wallet" ? "bg-green-500" : dataSource === "public-rpc" ? "bg-[#00e0ff]" : "bg-yellow-500"} pulse-live`} />
-            <span className={`${dataSource === "wallet" ? "text-green-400" : dataSource === "public-rpc" ? "text-[#00e0ff]" : "text-yellow-400"} text-sm font-medium`}>
-              {dataSource === "wallet" ? "Live On-Chain" : dataSource === "public-rpc" ? "On-Chain (Read)" : "Demo Mode"}
-            </span>
+    <div className="min-h-screen relative z-10 flex flex-col">
+      {/* Hero */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-16 pb-14 w-full">
+        <div className="max-w-3xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs mb-6" style={{ background: "var(--accent-muted)", border: "1px solid var(--accent-border)", color: "var(--accent)" }}>
+            <Zap className="w-3 h-3" />
+            Top 10 — Good Vibes Only Hackathon · BNB Chain
           </div>
 
-          {isConnected && (
-            <button 
-              onClick={() => contractData.fetchAll(address ?? undefined)} 
-              className="text-gray-500 hover:text-[#00e0ff] transition-colors"
-              title="Refresh data"
-            >
-              <RefreshCw className={`w-4 h-4 ${contractData.loading ? "animate-spin" : ""}`} />
-            </button>
-          )}
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] mb-5">
+            <span className="text-white">Scan. Detect.</span>
+            <br />
+            <span className="text-gradient">Protect.</span>
+          </h1>
 
-          {isConnected ? (
-            <div className="flex items-center gap-3">
-              {chainId !== 97 && (
-                <button onClick={switchToBsc} className="text-sm text-yellow-400 hover:text-yellow-300 transition-colors">
-                  Switch to BSC
-                </button>
-              )}
-              <div className="glass-card px-4 py-2" style={{ borderRadius: "10px" }}>
-                <span className="text-sm text-gray-400">
-                  {address?.slice(0, 6)}...{address?.slice(-4)}
-                </span>
-              </div>
-              <button onClick={disconnect} className="text-sm text-gray-500 hover:text-red-400 transition-colors">
-                Disconnect
-              </button>
-            </div>
-          ) : (
-            <button onClick={connect} disabled={isConnecting} className="btn-primary flex items-center gap-2">
-              <Wallet className="w-4 h-4" />
-              {isConnecting ? "Connecting..." : "Connect Wallet"}
-            </button>
-          )}
-        </div>
-      </nav>
+          <p className="text-base sm:text-lg leading-relaxed mb-8 max-w-xl" style={{ color: "var(--text-secondary)" }}>
+            Scan any BSC token for honeypots, rug pulls, and whale risks in seconds.
+            Real-time alerts on whale movements. AI-powered portfolio protection.
+          </p>
 
-      {/* Demo Mode Banner — prominent when BSC RPC unreachable */}
-      {dataSource === "demo" && (
-        <div className="mx-4 mt-2 px-4 py-3 rounded-xl flex items-center gap-3" style={{ background: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.2)" }}>
-          <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
-          <div>
-            <p className="text-sm text-yellow-400 font-medium">Demo Mode — BSC Testnet data unavailable</p>
-            <p className="text-xs text-gray-500">Protocol stats show zeros because the RPC is unreachable. Connect a wallet or wait for the network to respond. Token Scanner and Whale Alerts use BSC Mainnet and may still work.</p>
+          <div className="flex items-center gap-3 mb-14">
+            <Link href="/scanner" className="btn-primary flex items-center gap-2">
+              <Search className="w-4 h-4" />
+              Scan a Token
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link href={isConnected ? "/positions" : "/dashboard"} className="btn-secondary flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              {isConnected ? "My Positions" : "Dashboard"}
+            </Link>
           </div>
         </div>
-      )}
 
-      {/* ═══ HERO ═══ */}
-      <section className="px-4 pt-16 pb-12 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6" style={{ background: "rgba(0,224,255,0.08)", border: "1px solid rgba(0,224,255,0.15)" }}>
-          <Zap className="w-4 h-4 text-[#00e0ff]" />
-          <span className="text-sm text-[#00e0ff]">🏆 Top 10 Winner — Good Vibes Only: OpenClaw Edition · BNB Chain</span>
-        </div>
-        
-        <h2 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
-          <span className="text-white">Scan. Detect.</span>
-          <br />
-          <span className="text-[#00e0ff] cyan-glow">Protect.</span>
-        </h2>
-        
-        <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-8">
-          Aegis scans any BSC token for honeypots, rug pulls, and whale risks in seconds.
-          Get real-time alerts on whale movements and protect your entire portfolio —
-          not just BNB.
-        </p>
-
-        {/* Live Market Ticker */}
+        {/* Market Ticker */}
         {!liveMarket.isLoading && liveMarket.bnbPriceCoinGecko > 0 && (
-          <div className="flex items-center justify-center gap-6 mb-8 flex-wrap">
-            <div className="glass-card px-4 py-2 flex items-center gap-2" style={{ borderRadius: "10px" }}>
-              <div className="w-2 h-2 rounded-full bg-green-500 pulse-live" />
-              <span className="text-xs text-gray-500">BNB/USD</span>
-              <span className="text-sm font-mono font-bold text-white">${liveMarket.bnbPriceCoinGecko.toFixed(2)}</span>
-              <span className={`text-xs font-mono ${liveMarket.priceChange24h >= 0 ? "text-green-400" : "text-red-400"}`}>
-                {liveMarket.priceChange24h >= 0 ? "+" : ""}{liveMarket.priceChange24h.toFixed(2)}%
-              </span>
-            </div>
-            <div className="glass-card px-4 py-2 flex items-center gap-2" style={{ borderRadius: "10px" }}>
-              <span className="text-xs text-gray-500">Volume 24h</span>
-              <span className="text-sm font-mono text-[#00e0ff]">${(liveMarket.volume24h / 1e9).toFixed(2)}B</span>
-            </div>
-            <div className="glass-card px-4 py-2 flex items-center gap-2" style={{ borderRadius: "10px" }}>
-              <span className="text-xs text-gray-500">BSC TVL</span>
-              <span className="text-sm font-mono text-[#f0b90b]">${(liveMarket.bscTvl / 1e9).toFixed(2)}B</span>
-            </div>
-            <div className="glass-card px-4 py-2 flex items-center gap-2" style={{ borderRadius: "10px" }}>
-              <span className="text-xs text-gray-500">Oracle</span>
-              <span className={`text-xs font-bold ${liveMarket.oracleStatus === "consistent" ? "text-green-400" : liveMarket.oracleStatus === "warning" ? "text-yellow-400" : "text-red-400"}`}>
-                {liveMarket.oracleStatus === "consistent" ? "✓ Verified" : liveMarket.oracleStatus === "warning" ? "⚠ Divergence" : "🚨 Critical"}
-              </span>
-            </div>
+          <div className="flex items-center gap-3 flex-wrap mb-10">
+            {[
+              { label: "BNB/USD", value: `$${liveMarket.bnbPriceCoinGecko.toFixed(2)}`, extra: `${liveMarket.priceChange24h >= 0 ? "+" : ""}${liveMarket.priceChange24h.toFixed(2)}%`, extraColor: liveMarket.priceChange24h >= 0 ? "var(--green)" : "var(--red)", live: true },
+              { label: "Volume 24h", value: `$${(liveMarket.volume24h / 1e9).toFixed(2)}B` },
+              { label: "BSC TVL", value: `$${(liveMarket.bscTvl / 1e9).toFixed(2)}B` },
+              { label: "Oracle", value: liveMarket.oracleStatus === "consistent" ? "Consistent" : liveMarket.oracleStatus === "warning" ? "Divergence" : "Critical", valueColor: liveMarket.oracleStatus === "consistent" ? "var(--green)" : liveMarket.oracleStatus === "warning" ? "var(--yellow)" : "var(--red)" },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-md" style={{ background: "var(--bg-raised)", border: "1px solid var(--border-subtle)" }}>
+                {item.live && <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--green)" }} />}
+                <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{item.label}</span>
+                <span className="text-xs font-mono font-medium" style={{ color: item.valueColor || "var(--text-primary)" }}>{item.value}</span>
+                {item.extra && <span className="text-[11px] font-mono" style={{ color: item.extraColor }}>{item.extra}</span>}
+              </div>
+            ))}
           </div>
         )}
 
-        <div className="flex items-center justify-center gap-4 mb-12">
-          <button onClick={() => setActiveTab("scanner")} className="btn-primary flex items-center gap-2 text-lg px-8 py-4">
-            <Search className="w-5 h-5" />
-            Scan a Token
-            <ArrowRight className="w-5 h-5" />
-          </button>
-          {!isConnected ? (
-            <button onClick={connect} className="glass-card px-8 py-4 flex items-center gap-2 text-gray-300 hover:text-white transition-colors" style={{ borderRadius: "12px" }}>
-              <Wallet className="w-5 h-5" />
-              Connect Wallet
-            </button>
-          ) : (
-            <button onClick={() => setActiveTab("positions")} className="glass-card px-8 py-4 flex items-center gap-2 text-gray-300 hover:text-white transition-colors" style={{ borderRadius: "12px" }}>
-              <Shield className="w-5 h-5" />
-              Dashboard
-            </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 max-w-5xl mx-auto">
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "Value Protected", value: `${stats.totalValueProtected} BNB`, icon: Shield },
-            { label: "Tokens Scanned", value: "Live", icon: Search },
             { label: "Active Agents", value: stats.activeAgents.toString(), icon: Bot },
             { label: "Threats Detected", value: stats.threatsDetected.toString(), icon: AlertTriangle },
             { label: "Protection Rate", value: `${stats.protectionRate}%`, icon: CheckCircle },
           ].map((stat, i) => (
-            <div key={i} className="glass-card glow-border p-5 text-center" style={{ borderRadius: "14px" }}>
-              <stat.icon className="w-6 h-6 text-[#00e0ff] mx-auto mb-2" />
-              <p className="stat-number">{stat.value}</p>
-              <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
+            <div key={i} className="card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <stat.icon className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
+                <span className="text-[11px] uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{stat.label}</span>
+              </div>
+              <p className="text-xl font-semibold tracking-tight text-white">{stat.value}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ═══ TABS ═══ */}
-      <section className="px-4 pb-20">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex gap-1 mb-6 glass-card p-1.5 w-fit mx-auto" style={{ borderRadius: "12px" }}>
-            {([
-              { key: "overview", label: "Overview", icon: BarChart3 },
-              { key: "scanner", label: "Token Scanner", icon: Search },
-              { key: "alerts", label: "Alerts", icon: Bell },
-              { key: "decisions", label: "AI Decisions", icon: Activity },
-              { key: "positions", label: "Positions", icon: Eye },
-              { key: "agent", label: "Agent Info", icon: Bot },
-            ] as const).map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === tab.key
-                    ? "bg-[#00e0ff]/10 text-[#00e0ff] border border-[#00e0ff]/20"
-                    : "text-gray-500 hover:text-gray-300"
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                <span className="hidden md:inline">{tab.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {activeTab === "overview" && (
-            <OverviewTab stats={stats} 
-              decisions={contractData.decisions.length > 0 ? contractData.decisions : publicData.recentDecisions} 
-              riskSnapshot={contractData.riskSnapshot ?? publicData.publicRiskSnapshot} 
-              isLive={contractData.isLive || publicData.isLive} />
-          )}
-          {activeTab === "scanner" && (
-            <TokenScanner bnbPrice={liveMarket.bnbPriceCoinGecko} />
-          )}
-          {activeTab === "alerts" && (
-            <WhaleAlerts bnbPrice={liveMarket.bnbPriceCoinGecko} />
-          )}
-          {activeTab === "decisions" && (
-            <DecisionsTab 
-              decisions={contractData.decisions.length > 0 ? contractData.decisions : publicData.recentDecisions} 
-              agentName={contractData.agentInfo?.name ?? publicData.agentName ?? "Guardian Alpha"} 
-              isLive={contractData.isLive || publicData.isLive} />
-          )}
-          {activeTab === "positions" && (
-            <PositionsTab userPosition={contractData.userPosition} isConnected={isConnected} depositAmount={depositAmount}
-              setDepositAmount={setDepositAmount} onDeposit={handleDeposit} onAuthorize={handleAuthorize}
-              isLive={contractData.isLive} isDeployed={contractData.isDeployed}
-              uniqBalance={contractData.uniqBalance} uniqTier={contractData.uniqTier} effectiveFeeBps={contractData.effectiveFeeBps} />
-          )}
-          {activeTab === "agent" && (
-            <AgentTab agentInfo={contractData.agentInfo} publicData={publicData}
-              reputation={contractData.reputation || publicData.agentReputation} 
-              successRate={contractData.successRate || publicData.agentSuccessRate} isLive={contractData.isLive || publicData.isLive} />
-          )}
-        </div>
-      </section>
-
-      {/* ═══ FEATURES ═══ */}
-      <section className="px-4 pb-20">
-        <div className="max-w-6xl mx-auto">
-          <h3 className="text-3xl font-bold text-center mb-12">
-            How <span className="text-[#00e0ff]">Aegis</span> Protects You
-          </h3>
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              { icon: Skull, title: "Honeypot Detection", desc: "Instantly detect if a token is a honeypot before you buy. Aegis simulates sells and analyzes contract bytecode to find traps that prevent selling." },
-              { icon: Search, title: "Token Risk Scanner", desc: "Paste any BSC token address to get a comprehensive risk report: contract security, liquidity depth, whale concentration, tax rates, and rug pull indicators." },
-              { icon: Bell, title: "Whale Alerts", desc: "Real-time monitoring of large holder movements, exchange deposits, and liquidity changes. Get alerts when whales dump or when liquidity is removed." },
-              { icon: Shield, title: "AI Portfolio Guardian", desc: "Autonomous AI agent monitors your DeFi positions 24/7, detects threats using LLM reasoning, and executes protective transactions before you lose money." },
-              { icon: Droplets, title: "Liquidity Analysis", desc: "Deep analysis of PancakeSwap LP pairs — reserve depth, LP burn status, and real-time liquidity monitoring to detect rug pulls before they happen." },
-              { icon: Lock, title: "Non-Custodial Vault", desc: "Your funds stay in your control. Set stop-losses, max slippage, and action limits. Emergency withdrawal always available. $UNIQ holders get fee discounts." },
-            ].map((feature, i) => (
-              <div key={i} className="glass-card glow-border p-6 group hover:scale-[1.02] transition-transform" style={{ borderRadius: "16px" }}>
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(0,224,255,0.1)" }}>
-                  <feature.icon className="w-6 h-6 text-[#00e0ff] group-hover:scale-110 transition-transform" />
-                </div>
-                <h4 className="text-lg font-semibold mb-2 text-white">{feature.title}</h4>
-                <p className="text-gray-400 text-sm leading-relaxed">{feature.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ AI INTELLIGENCE ENGINE ═══ */}
-      <section className="px-4 pb-20">
-        <div className="max-w-6xl mx-auto">
-          <h3 className="text-3xl font-bold text-center mb-4">
-            <span className="text-[#00e0ff]">AI Intelligence</span> Engine
-          </h3>
-          <p className="text-center text-gray-400 mb-10 max-w-2xl mx-auto">
-            Aegis combines LLM reasoning with on-chain DEX data for multi-layered threat detection that goes beyond simple heuristics.
-          </p>
-
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            {/* LLM Reasoning Panel */}
-            <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
-              <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Cpu className="w-5 h-5 text-[#a855f7]" />
-                AI Analysis Engine
-                <span className="ml-auto text-xs px-2 py-1 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">{liveMarket.bnbPriceCoinGecko > 0 ? "Live Data" : "Offline"}</span>
-              </h4>
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl" style={{ background: "rgba(0,0,0,0.3)" }}>
-                  <p className="text-xs text-purple-400 font-mono mb-2">Heuristic Risk Analysis — {liveMarket.bnbPriceCoinGecko > 0 ? "Live Market Feed" : "Example Output"}</p>
-                  <p className="text-sm text-gray-300 leading-relaxed italic">
-                    {liveMarket.bnbPriceCoinGecko > 0 
-                      ? `"BNB trading at $${liveMarket.bnbPriceCoinGecko.toFixed(2)} with ${liveMarket.priceChange24h >= 0 ? "+" : ""}${liveMarket.priceChange24h.toFixed(2)}% 24h movement. Volume at $${(liveMarket.volume24h / 1e9).toFixed(2)}B. BSC ecosystem TVL at $${(liveMarket.bscTvl / 1e9).toFixed(2)}B. Oracle cross-check delta: ${liveMarket.priceDelta.toFixed(3)}%. ${liveMarket.priceDelta < 1 ? "No oracle manipulation detected. All metrics within normal parameters." : "WARNING: Price divergence detected between sources."}"` 
-                      : `"BNB trading at $612.50 with +1.8% 24h movement. Volume at $780M (+15% change). BSC ecosystem liquidity at $4.2B. Risk engine scores: Liquidation 8/100, Volatility 22/100, Protocol 5/100. No significant threats detected."`
-                    }
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-lg" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.15)" }}>
-                    <p className="text-xs text-gray-500">Sentiment</p>
-                    <p className="text-sm font-semibold text-purple-400">
-                      {liveMarket.priceChange24h < -5 ? "Bearish" : liveMarket.priceChange24h > 5 ? "Bullish" : "Neutral"}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg" style={{ background: `rgba(${Math.abs(liveMarket.priceChange24h) > 10 ? "239,68,68" : Math.abs(liveMarket.priceChange24h) > 3 ? "234,179,8" : "34,197,94"},0.08)`, border: `1px solid rgba(${Math.abs(liveMarket.priceChange24h) > 10 ? "239,68,68" : Math.abs(liveMarket.priceChange24h) > 3 ? "234,179,8" : "34,197,94"},0.15)` }}>
-                    <p className="text-xs text-gray-500">AI Risk Score</p>
-                    <p className={`text-sm font-semibold ${Math.abs(liveMarket.priceChange24h) > 10 ? "text-red-400" : Math.abs(liveMarket.priceChange24h) > 3 ? "text-yellow-400" : "text-green-400"}`}>
-                      {Math.min(100, Math.round(Math.abs(liveMarket.priceChange24h) * 4 + (liveMarket.priceDelta > 1 ? 30 : 0)))}/100
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg" style={{ background: "rgba(0,224,255,0.08)", border: "1px solid rgba(0,224,255,0.15)" }}>
-                    <p className="text-xs text-gray-500">Confidence</p>
-                    <p className="text-sm font-semibold text-[#00e0ff]">{liveMarket.bnbPriceCoinGecko > 0 ? Math.max(60, Math.round(100 - Math.abs(liveMarket.priceChange24h) * 2 - liveMarket.priceDelta * 10)) : "—"}%</p>
-                  </div>
-                  <div className="p-3 rounded-lg" style={{ background: `rgba(${liveMarket.priceDelta > 1 ? "239,68,68" : "34,197,94"},0.08)`, border: `1px solid rgba(${liveMarket.priceDelta > 1 ? "239,68,68" : "34,197,94"},0.15)` }}>
-                    <p className="text-xs text-gray-500">Threats</p>
-                    <p className={`text-sm font-semibold ${liveMarket.priceDelta > 1 ? "text-red-400" : "text-green-400"}`}>
-                      {liveMarket.priceDelta > 5 ? "Oracle Attack" : liveMarket.priceDelta > 1 ? "Divergence" : "None ✓"}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-2">Key Insights</p>
-                  <div className="space-y-1">
-                    {[
-                      liveMarket.bnbPriceCoinGecko > 0 
-                        ? `BNB at $${liveMarket.bnbPriceCoinGecko.toFixed(2)} with ${liveMarket.priceChange24h >= 0 ? "+" : ""}${liveMarket.priceChange24h.toFixed(2)}% 24h change`
-                        : "BNB stable at $612.50 with +1.8% 24h change",
-                      liveMarket.volume24h > 0
-                        ? `24h Volume: $${(liveMarket.volume24h / 1e9).toFixed(2)}B — ${liveMarket.volume24h > 1e9 ? "healthy" : "low"} activity`
-                        : "Volume up 15% from baseline — healthy activity",
-                      liveMarket.bscTvl > 0
-                        ? `BSC TVL: $${(liveMarket.bscTvl / 1e9).toFixed(2)}B — ecosystem ${liveMarket.bscTvl > 3e9 ? "strong" : "monitoring"}`
-                        : "Liquidity: $4.20B (+0.5%) — no drain risk",
-                    ].map((insight, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm text-gray-400">
-                        <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0" />
-                        <span>{insight}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* PancakeSwap DEX Panel */}
-            <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
-              <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-[#f0b90b]" />
-                PancakeSwap V2 — On-Chain DEX
-                <span className="ml-auto text-xs px-2 py-1 rounded-md bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">BSC Mainnet</span>
-              </h4>
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl" style={{ background: "rgba(0,0,0,0.3)" }}>
-                  <p className="text-xs text-yellow-400 font-mono mb-3">Price Oracle Cross-Verification {liveMarket.bnbPricePancakeSwap > 0 && <span className="text-green-400 ml-2">● LIVE</span>}</p>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-400">CoinGecko (API)</span>
-                      <span className="text-sm font-mono text-white">${liveMarket.bnbPriceCoinGecko > 0 ? liveMarket.bnbPriceCoinGecko.toFixed(2) : "612.50"}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-400">PancakeSwap (On-chain)</span>
-                      <span className="text-sm font-mono text-white">${liveMarket.bnbPricePancakeSwap > 0 ? liveMarket.bnbPricePancakeSwap.toFixed(2) : "612.38"}</span>
-                    </div>
-                    <div className="h-px bg-gray-700 my-1" />
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-400">Price Delta</span>
-                      <span className={`text-sm font-mono font-bold ${liveMarket.priceDelta > 1 ? "text-yellow-400" : "text-green-400"}`}>{liveMarket.bnbPriceCoinGecko > 0 ? liveMarket.priceDelta.toFixed(3) : "0.019"}% {liveMarket.priceDelta > 1 ? "⚠" : "✓"}</span>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-2">Monitored BSC Tokens</p>
-                  <div className="flex flex-wrap gap-2">
-                    {["WBNB", "BUSD", "USDT", "CAKE", "ETH", "BTCB", "USDC", "XRP"].map((token) => (
-                      <span key={token} className="text-xs px-2 py-1 rounded-md font-mono" style={{ background: "rgba(240,185,11,0.08)", color: "#f0b90b", border: "1px solid rgba(240,185,11,0.15)" }}>
-                        {token}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-lg" style={{ background: "rgba(240,185,11,0.08)", border: "1px solid rgba(240,185,11,0.15)" }}>
-                    <p className="text-xs text-gray-500">Oracle Status</p>
-                    <p className={`text-sm font-semibold ${liveMarket.oracleStatus === "consistent" ? "text-green-400" : liveMarket.oracleStatus === "warning" ? "text-yellow-400" : "text-red-400"}`}>
-                      {liveMarket.oracleStatus === "loading" ? "Loading..." : liveMarket.oracleStatus === "consistent" ? "Consistent ✓" : liveMarket.oracleStatus === "warning" ? "Divergence ⚠" : "CRITICAL 🚨"}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg" style={{ background: "rgba(240,185,11,0.08)", border: "1px solid rgba(240,185,11,0.15)" }}>
-                    <p className="text-xs text-gray-500">Data Source</p>
-                    <p className="text-sm font-semibold text-yellow-400">{liveMarket.bnbPricePancakeSwap > 0 ? "Live On-Chain" : "On-Chain"}</p>
-                  </div>
-                </div>
-                <div className="p-3 rounded-lg" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.1)" }}>
-                  <p className="text-xs text-red-400 font-mono mb-1">Alert Thresholds</p>
-                  <p className="text-xs text-gray-400">Delta &gt; 1% → Potential manipulation warning</p>
-                  <p className="text-xs text-gray-400">Delta &gt; 5% → CRITICAL oracle attack alert</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Agent Loop Diagram */}
-          <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
-            <h4 className="text-lg font-semibold mb-4 text-center">Agent Decision Loop (30s Cycles)</h4>
-            <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
-              {[
-                { label: "OBSERVE", sub: "CoinGecko + DeFiLlama", color: "#00e0ff" },
-                { label: "ANALYZE", sub: "5-Vector Risk Engine", color: "#a855f7" },
-                { label: "AI REASON", sub: "LLM (Groq/OpenAI)", color: "#f97316" },
-                { label: "DEX VERIFY", sub: "PancakeSwap V2", color: "#f0b90b" },
-                { label: "DECIDE", sub: "Threat + Confidence", color: "#ef4444" },
-                { label: "EXECUTE", sub: "On-Chain TX", color: "#22c55e" },
-              ].map((step, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl text-center min-w-[120px]" style={{ background: `${step.color}10`, border: `1px solid ${step.color}30` }}>
-                    <p className="font-bold" style={{ color: step.color }}>{step.label}</p>
-                    <p className="text-xs text-gray-500 mt-1">{step.sub}</p>
-                  </div>
-                  {i < 5 && <ArrowRight className="w-4 h-4 text-gray-600 hidden md:block" />}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ LIVE AGENT SIMULATION ═══ */}
-      <section className="px-4 pb-20">
-        <div className="max-w-6xl mx-auto">
-          <h3 className="text-3xl font-bold text-center mb-4">
-            <span className="text-[#00e0ff]">Live</span> Agent Simulation
-          </h3>
-          <p className="text-center text-gray-400 mb-10 max-w-2xl mx-auto">
-            Watch the Aegis guardian execute a complete 6-phase decision cycle using real market data. 
-            This is the same loop that runs autonomously every 30 seconds to protect your DeFi positions.
-          </p>
-          <AgentSimulation market={liveMarket} />
-        </div>
-      </section>
-
-      {/* ═══ DEPLOYED & VERIFIED ON-CHAIN ═══ */}
-      <section className="px-4 pb-20">
-        <div className="max-w-6xl mx-auto">
-          <h3 className="text-3xl font-bold text-center mb-4">
-            Deployed &amp; <span className="text-[#00e0ff]">Verified</span> On-Chain
-          </h3>
-          <p className="text-center text-gray-400 mb-10 max-w-xl mx-auto">
-            All smart contracts are deployed on BNB Smart Chain Testnet and verified via Sourcify for full source code transparency.
-          </p>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[
-              {
-                name: "AegisRegistry",
-                address: CONTRACTS.REGISTRY,
-                desc: "ERC-721 agent identity NFTs with 4-tier system",
-                color: "#00e0ff",
-                lines: "415 LOC",
-              },
-              {
-                name: "AegisVault",
-                address: CONTRACTS.VAULT,
-                desc: "Non-custodial vault with agent authorization",
-                color: "#a855f7",
-                lines: "573 LOC",
-              },
-              {
-                name: "DecisionLogger",
-                address: CONTRACTS.DECISION_LOGGER,
-                desc: "Immutable AI decision audit trail",
-                color: "#22c55e",
-                lines: "338 LOC",
-              },
-              {
-                name: "AegisScanner",
-                address: CONTRACTS.SCANNER,
-                desc: "On-chain token risk registry for BSC tokens",
-                color: "#f97316",
-                lines: "180 LOC",
-              },
-            ].map((contract, i) => (
-              <div key={i} className="glass-card glow-border p-6 group" style={{ borderRadius: "16px" }}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-3 h-3 rounded-full" style={{ background: contract.color }} />
-                  <h4 className="font-mono text-lg font-bold" style={{ color: contract.color }}>{contract.name}</h4>
-                  <span className="ml-auto text-xs text-gray-500 font-mono">{contract.lines}</span>
-                </div>
-                <p className="text-sm text-gray-400 mb-4">{contract.desc}</p>
-                <div className="bg-black/30 rounded-lg p-3 mb-4">
-                  <p className="font-mono text-xs text-gray-300 break-all">{contract.address}</p>
-                </div>
-                <div className="flex gap-2">
-                  <a href={`https://testnet.bscscan.com/address/${contract.address}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-colors"
-                    style={{ background: "rgba(0,224,255,0.08)", color: "#00e0ff", border: "1px solid rgba(0,224,255,0.15)" }}>
-                    <ExternalLink className="w-3 h-3" /> BSCScan
-                  </a>
-                  <a href={`https://repo.sourcify.dev/contracts/full_match/97/${contract.address}/`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-colors"
-                    style={{ background: "rgba(34,197,94,0.08)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.15)" }}>
-                    <CheckCircle className="w-3 h-3" /> Sourcify Verified
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Tech Stack Summary */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-            {[
-              { label: "Solidity Tests", value: "170+ Passing", color: "#22c55e" },
-              { label: "Smart Contracts", value: "5 Deployed", color: "#00e0ff" },
-              { label: "AI Engine", value: "LLM + Scanner", color: "#a855f7" },
-              { label: "DEX Integration", value: "PancakeSwap V2", color: "#f0b90b" },
-            ].map((badge, i) => (
-              <div key={i} className="glass-card p-4 text-center" style={{ borderRadius: "12px", borderLeft: `3px solid ${badge.color}` }}>
-                <p className="text-lg font-bold" style={{ color: badge.color }}>{badge.value}</p>
-                <p className="text-xs text-gray-500 mt-1">{badge.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ FOOTER ═══ */}
-      <footer className="glass-card mx-4 mb-4 px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4" style={{ borderRadius: "12px" }}>
-        <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-[#00e0ff]" />
-          <span className="text-gray-400">Aegis Protocol by <a href="https://x.com/uniq_minds" target="_blank" rel="noopener noreferrer" className="text-[#00e0ff] hover:underline">Uniq Minds</a> · <a href="https://bscscan.com/token/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777" target="_blank" rel="noopener noreferrer" className="text-[#f0b90b] hover:underline">$UNIQ</a></span>
-        </div>
-        <div className="flex items-center gap-4 flex-wrap justify-center">
-          <a href={`https://testnet.bscscan.com/address/${CONTRACTS.REGISTRY}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-[#00e0ff] transition-colors flex items-center gap-1 text-sm">
-            Registry <ExternalLink className="w-3 h-3" />
-          </a>
-          <a href={`https://testnet.bscscan.com/address/${CONTRACTS.VAULT}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-[#a855f7] transition-colors flex items-center gap-1 text-sm">
-            Vault <ExternalLink className="w-3 h-3" />
-          </a>
-          <a href={`https://testnet.bscscan.com/address/${CONTRACTS.DECISION_LOGGER}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-[#22c55e] transition-colors flex items-center gap-1 text-sm">
-            Logger <ExternalLink className="w-3 h-3" />
-          </a>
-          <span className="text-gray-700">|</span>
-          <a href="https://github.com/Tonyflam/aegis-protocol" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors flex items-center gap-1 text-sm">
-            <Github className="w-3 h-3" /> Source
-          </a>
-          <a href="https://x.com/uniq_minds" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-[#00e0ff] transition-colors text-sm">
-            @uniq_minds
-          </a>
-          <span className="text-gray-600 text-sm">BNB Chain</span>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-// ─── TAB: Overview ────────────────────────────────────────────
-interface OverviewProps {
-  stats: Record<string, string | number>;
-  decisions: { decisionType: number; riskLevel: number; confidence: number; targetUser: string; timestamp: number; actionTaken: boolean }[];
-  riskSnapshot: { liquidationRisk: number; volatilityScore: number; protocolRisk: number; smartContractRisk: number } | null;
-  isLive: boolean;
-}
-function OverviewTab({ stats, decisions, riskSnapshot, isLive }: OverviewProps) {
-  const riskBars = riskSnapshot ? [
-    { label: "Liquidation Risk", value: riskSnapshot.liquidationRisk, color: riskSnapshot.liquidationRisk > 50 ? "#ef4444" : riskSnapshot.liquidationRisk > 25 ? "#eab308" : "#22c55e" },
-    { label: "Volatility", value: riskSnapshot.volatilityScore, color: riskSnapshot.volatilityScore > 50 ? "#f97316" : riskSnapshot.volatilityScore > 25 ? "#eab308" : "#22c55e" },
-    { label: "Protocol Risk", value: riskSnapshot.protocolRisk, color: riskSnapshot.protocolRisk > 50 ? "#ef4444" : "#22c55e" },
-    { label: "Smart Contract Risk", value: riskSnapshot.smartContractRisk, color: riskSnapshot.smartContractRisk > 30 ? "#eab308" : "#22c55e" },
-  ] : [
-    { label: "Liquidation Risk", value: 0, color: "#6b7280" },
-    { label: "Volatility", value: 0, color: "#6b7280" },
-    { label: "Protocol Risk", value: 0, color: "#6b7280" },
-    { label: "Smart Contract Risk", value: 0, color: "#6b7280" },
-  ];
-
-  const displayDecisions = decisions.slice(0, 4).map((d, i) => ({
-    id: i + 1,
-    type: DECISION_TYPES[d.decisionType] || "Unknown",
-    risk: d.riskLevel,
-    user: `${d.targetUser.slice(0, 5)}...${d.targetUser.slice(-3)}`,
-    time: new Date(d.timestamp * 1000).toLocaleTimeString(),
-    action: d.actionTaken,
-  }));
-
-  return (
-    <div className="grid md:grid-cols-2 gap-6">
-      <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
-        <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Activity className="w-5 h-5 text-[#00e0ff]" />
-          System Risk Overview
-          {isLive && <span className="text-xs text-green-400 ml-auto">LIVE</span>}
-        </h4>
-        <div className="space-y-4">
-          {riskBars.map((risk, i) => (
-            <div key={i}>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-400">{risk.label}</span>
-                <span className="font-mono" style={{ color: risk.color }}>{risk.value}%</span>
-              </div>
-              <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${risk.value}%`, background: risk.color }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
-        <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Zap className="w-5 h-5 text-[#00e0ff]" />
-          Recent Activity
-        </h4>
-        <div className="space-y-3">
-          {displayDecisions.length > 0 ? displayDecisions.map((d) => (
-            <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "rgba(0,0,0,0.2)" }}>
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${RISK_COLORS[d.risk]}15` }}>
-                {d.risk >= 3 ? <AlertTriangle className="w-4 h-4" style={{ color: RISK_COLORS[d.risk] }} /> : <CheckCircle className="w-4 h-4" style={{ color: RISK_COLORS[d.risk] }} />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{d.type}</p>
-                <p className="text-xs text-gray-500">{d.user} · {d.time}</p>
-              </div>
-              <span className="text-xs font-mono px-2 py-1 rounded-md" style={{ background: `${RISK_COLORS[d.risk]}15`, color: RISK_COLORS[d.risk] }}>
-                {RISK_LEVELS[d.risk]}
-              </span>
-            </div>
-          )) : (
-            <div className="text-center py-6 text-gray-500 text-sm">
-              <Activity className="w-8 h-8 mx-auto mb-2 text-gray-600" />
-              {isLive ? "No decisions logged yet on-chain." : "Connecting to BSC Testnet..."}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="glass-card glow-border p-6 md:col-span-2" style={{ borderRadius: "16px" }}>
-        <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-[#00e0ff]" />
-          Protocol Statistics
-        </h4>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      {/* Features */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-20 w-full">
+        <h2 className="text-2xl font-bold tracking-tight mb-8 text-white">How Aegis Protects You</h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
-            { label: "Total Decisions", value: stats.totalDecisions },
-            { label: "Value Protected", value: `${stats.totalValueProtected} BNB` },
-            { label: "Total Deposited", value: `${stats.totalDeposited} BNB` },
-            { label: "Threats Blocked", value: stats.threatsDetected },
-            { label: "Success Rate", value: `${stats.protectionRate}%` },
-          ].map((stat, i) => (
-            <div key={i} className="text-center p-4 rounded-xl" style={{ background: "rgba(0,0,0,0.2)" }}>
-              <p className="stat-number text-2xl">{stat.value}</p>
-              <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
-            </div>
+            { icon: Skull, title: "Honeypot Detection", desc: "Simulates sells and analyzes bytecode to find traps that prevent selling — before you buy.", href: "/scanner" },
+            { icon: Search, title: "Token Risk Scanner", desc: "Comprehensive risk report: contract security, liquidity, whale concentration, tax rates, and rug pull indicators.", href: "/scanner" },
+            { icon: Bell, title: "Whale Alerts", desc: "Real-time monitoring of large transfers, exchange deposits, and liquidity changes on BSC Mainnet.", href: "/alerts" },
+            { icon: Shield, title: "AI Portfolio Guardian", desc: "Autonomous agent monitors DeFi positions 24/7 and executes protective transactions using LLM reasoning.", href: "/agent" },
+            { icon: Droplets, title: "Liquidity Analysis", desc: "PancakeSwap LP reserve depth, burn status, and real-time monitoring to detect rug pulls.", href: "/scanner" },
+            { icon: Lock, title: "Non-Custodial Vault", desc: "Your funds, your control. Set stop-losses, max slippage, and action limits. $UNIQ holders get fee discounts.", href: "/positions" },
+          ].map((f, i) => (
+            <Link key={i} href={f.href} className="card p-5 group hover:border-[var(--border-hover)] transition-colors">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: "var(--accent-muted)" }}>
+                <f.icon className="w-4.5 h-4.5" style={{ color: "var(--accent)" }} />
+              </div>
+              <h3 className="text-sm font-semibold text-white mb-1">{f.title}</h3>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{f.desc}</p>
+            </Link>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* $UNIQ Token Section */}
-      <div className="glass-card glow-border p-6 md:col-span-2" style={{ borderRadius: "16px" }}>
-        <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          💎 $UNIQ Token — Protocol Utility
-        </h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 rounded-xl text-center" style={{ background: "rgba(255,215,0,0.04)", borderLeft: "3px solid #ffd700" }}>
-            <p className="text-xs text-gray-500">Total Supply</p>
-            <p className="stat-number text-lg">1,000,000,000</p>
-          </div>
-          <div className="p-4 rounded-xl text-center" style={{ background: "rgba(0,224,255,0.04)", borderLeft: "3px solid #00e0ff" }}>
-            <p className="text-xs text-gray-500">Chain</p>
-            <p className="stat-number text-lg">BNB Chain</p>
-          </div>
-          <div className="p-4 rounded-xl text-center" style={{ background: "rgba(168,85,247,0.04)", borderLeft: "3px solid #a855f7" }}>
-            <p className="text-xs text-gray-500">Tax</p>
-            <p className="stat-number text-lg">3%</p>
-          </div>
-          <div className="p-4 rounded-xl text-center" style={{ background: "rgba(34,197,94,0.04)", borderLeft: "3px solid #22c55e" }}>
-            <p className="text-xs text-gray-500">Contract</p>
-            <p className="stat-number text-lg">Renounced</p>
-          </div>
-        </div>
-        <div className="mt-4 flex items-center gap-3 justify-center">
-          <a href={`https://bscscan.com/token/${CONTRACTS.UNIQ_TOKEN}`} target="_blank" rel="noopener noreferrer"
-            className="text-xs text-[#00e0ff] hover:underline flex items-center gap-1">
-            BSCScan <ExternalLink className="w-3 h-3" />
-          </a>
-          <span className="text-gray-700">·</span>
-          <a href="https://flap.sh/bsc/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777" target="_blank" rel="noopener noreferrer"
-            className="text-xs text-[#00e0ff] hover:underline flex items-center gap-1">
-            Trade on Flap.sh <ExternalLink className="w-3 h-3" />
-          </a>
-          <span className="text-gray-700">·</span>
-          <a href="https://x.com/uniq_minds" target="_blank" rel="noopener noreferrer"
-            className="text-xs text-[#00e0ff] hover:underline flex items-center gap-1">
-            @uniq_minds <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
+      {/* Contracts */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-20 w-full">
+        <h2 className="text-2xl font-bold tracking-tight mb-2 text-white">Smart Contracts</h2>
+        <p className="text-sm mb-8" style={{ color: "var(--text-secondary)" }}>Deployed on BNB Chain Testnet. Verified via Sourcify for full source transparency.</p>
 
-// ─── TAB: AI Decisions ────────────────────────────────────────
-function DecisionsTab({ decisions, agentName, isLive }: {
-  decisions: { decisionType: number; riskLevel: number; confidence: number; targetUser: string; timestamp: number; actionTaken: boolean }[];
-  agentName: string;
-  isLive: boolean;
-}) {
-  const displayDecisions = decisions.map((d, i) => ({
-    id: i + 1, agent: agentName, type: DECISION_TYPES[d.decisionType] || "Unknown", risk: d.riskLevel,
-    confidence: d.confidence, user: `${d.targetUser.slice(0, 5)}...${d.targetUser.slice(-3)}`,
-    time: new Date(d.timestamp * 1000).toLocaleString(), action: d.actionTaken,
-  }));
-
-  return (
-    <div className="glass-card glow-border overflow-hidden" style={{ borderRadius: "16px" }}>
-      <div className="p-6 border-b flex items-center justify-between" style={{ borderColor: "rgba(0,224,255,0.1)" }}>
-        <h4 className="text-lg font-semibold flex items-center gap-2">
-          <Activity className="w-5 h-5 text-[#00e0ff]" />
-          AI Decision Log
-          <span className="text-xs text-gray-500 ml-2">(On-chain verified)</span>
-        </h4>
-        {isLive && <span className="text-xs px-2 py-1 rounded-md bg-green-500/10 text-green-400 border border-green-500/20">LIVE DATA</span>}
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="text-sm text-gray-500 border-b" style={{ borderColor: "rgba(0,224,255,0.05)" }}>
-              <th className="px-6 py-3 text-left">ID</th>
-              <th className="px-6 py-3 text-left">Agent</th>
-              <th className="px-6 py-3 text-left">Type</th>
-              <th className="px-6 py-3 text-left">Risk</th>
-              <th className="px-6 py-3 text-left">Confidence</th>
-              <th className="px-6 py-3 text-left">User</th>
-              <th className="px-6 py-3 text-left">Time</th>
-              <th className="px-6 py-3 text-left">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayDecisions.length > 0 ? displayDecisions.map((d) => (
-              <tr key={d.id} className="border-b hover:bg-white/[0.02] transition-colors" style={{ borderColor: "rgba(0,224,255,0.03)" }}>
-                <td className="px-6 py-4 text-sm font-mono text-gray-400">#{d.id}</td>
-                <td className="px-6 py-4 text-sm">{d.agent}</td>
-                <td className="px-6 py-4"><span className="text-sm px-2 py-1 rounded-md" style={{ background: "rgba(0,224,255,0.08)", color: "#00e0ff" }}>{d.type}</span></td>
-                <td className="px-6 py-4"><span className="text-sm font-medium px-2 py-1 rounded-md" style={{ background: `${RISK_COLORS[d.risk]}15`, color: RISK_COLORS[d.risk] }}>{RISK_LEVELS[d.risk]}</span></td>
-                <td className="px-6 py-4 text-sm font-mono">{d.confidence}%</td>
-                <td className="px-6 py-4 text-sm font-mono text-gray-400">{d.user}</td>
-                <td className="px-6 py-4 text-sm text-gray-500">{d.time}</td>
-                <td className="px-6 py-4">
-                  {d.action ? <span className="flex items-center gap-1 text-sm text-green-400"><CheckCircle className="w-4 h-4" /> Executed</span>
-                    : <span className="text-sm text-gray-500">Monitor</span>}
-                </td>
-              </tr>
-            )) : (
-              <tr><td colSpan={8} className="px-6 py-8 text-center text-gray-500 text-sm">
-                {isLive ? "No decisions logged on-chain yet. Run the agent to generate real AI decisions." : "Connecting to BSC Testnet RPC..."}
-              </td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ─── TAB: Positions ───────────────────────────────────────────
-interface PositionsProps {
-  userPosition: { bnbBalance: string; isActive: boolean; agentAuthorized: boolean; authorizedAgentId: number; riskProfile: { maxSlippage: number; stopLossThreshold: number; allowAutoWithdraw: boolean } } | null;
-  isConnected: boolean; depositAmount: string; setDepositAmount: (v: string) => void;
-  onDeposit: () => void; onAuthorize: () => void; isLive: boolean; isDeployed: boolean;
-  uniqBalance: string; uniqTier: number; effectiveFeeBps: number;
-}
-function PositionsTab({ userPosition, isConnected, depositAmount, setDepositAmount, onDeposit, onAuthorize, isLive, isDeployed, uniqBalance, uniqTier, effectiveFeeBps }: PositionsProps) {
-  return (
-    <div className="space-y-6">
-      {isConnected && isDeployed && (
-        <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
-          <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-[#00e0ff]" />
-            Your Position
-            {isLive && <span className="text-xs text-green-400 ml-auto">LIVE</span>}
-          </h4>
-          {userPosition?.isActive ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 rounded-xl" style={{ background: "rgba(0,0,0,0.2)" }}>
-                  <p className="text-xs text-gray-500">Balance</p>
-                  <p className="stat-number text-xl">{userPosition.bnbBalance} BNB</p>
-                </div>
-                <div className="p-4 rounded-xl" style={{ background: "rgba(0,0,0,0.2)" }}>
-                  <p className="text-xs text-gray-500">Agent</p>
-                  <p className="text-sm font-semibold">{userPosition.agentAuthorized ? `#${userPosition.authorizedAgentId}` : "None"}</p>
-                </div>
-                <div className="p-4 rounded-xl" style={{ background: "rgba(0,0,0,0.2)" }}>
-                  <p className="text-xs text-gray-500">Stop-Loss</p>
-                  <p className="text-sm font-mono">{userPosition.riskProfile.stopLossThreshold / 100}%</p>
-                </div>
-                <div className="p-4 rounded-xl" style={{ background: "rgba(0,0,0,0.2)" }}>
-                  <p className="text-xs text-gray-500">Auto-Withdraw</p>
-                  <p className="text-sm">{userPosition.riskProfile.allowAutoWithdraw ? "Enabled" : "Disabled"}</p>
-                </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {[
+            { name: "AegisRegistry", address: CONTRACTS.REGISTRY, desc: "ERC-721 agent identity NFTs with 4-tier system", color: "var(--accent)", lines: "415 LOC" },
+            { name: "AegisVault", address: CONTRACTS.VAULT, desc: "Non-custodial vault with agent authorization", color: "var(--purple)", lines: "573 LOC" },
+            { name: "DecisionLogger", address: CONTRACTS.DECISION_LOGGER, desc: "Immutable AI decision audit trail", color: "var(--green)", lines: "338 LOC" },
+            { name: "AegisScanner", address: CONTRACTS.SCANNER, desc: "On-chain token risk registry for BSC tokens", color: "#f97316", lines: "180 LOC" },
+          ].map((c, i) => (
+            <div key={i} className="card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
+                <span className="font-mono text-xs font-semibold" style={{ color: c.color }}>{c.name}</span>
+                <span className="ml-auto text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>{c.lines}</span>
               </div>
-              {!userPosition.agentAuthorized && (
-                <button onClick={onAuthorize} className="btn-primary flex items-center gap-2">
-                  <Bot className="w-4 h-4" /> Authorize Guardian Agent #0
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-6">
-              <p className="text-gray-400 mb-4">No active position. Deposit BNB to get started.</p>
-              <div className="flex items-center gap-3 max-w-sm mx-auto">
-                <input type="number" step="0.01" placeholder="Amount (BNB)" value={depositAmount}
-                  onChange={e => setDepositAmount(e.target.value)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-black/30 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-[#00e0ff]/50" />
-                <button onClick={onDeposit} className="btn-primary px-6 py-3 flex items-center gap-2">
-                  <Wallet className="w-4 h-4" /> Deposit
-                </button>
+              <p className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>{c.desc}</p>
+              <p className="font-mono text-[10px] break-all mb-3 p-2 rounded" style={{ background: "var(--bg-base)", color: "var(--text-muted)" }}>{c.address}</p>
+              <div className="flex gap-2">
+                <a href={`https://testnet.bscscan.com/address/${c.address}`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded transition-colors" style={{ color: "var(--accent)", background: "var(--accent-muted)" }}>
+                  <ExternalLink className="w-2.5 h-2.5" /> BSCScan
+                </a>
+                <a href={`https://repo.sourcify.dev/contracts/full_match/97/${c.address}/`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded transition-colors" style={{ color: "var(--green)", background: "rgba(52,211,153,0.06)" }}>
+                  <CheckCircle className="w-2.5 h-2.5" /> Verified
+                </a>
               </div>
             </div>
-          )}
+          ))}
         </div>
-      )}
 
-      <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
-        <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Eye className="w-5 h-5 text-[#00e0ff]" /> Protected Positions
-        </h4>
-
-        {/* $UNIQ Holder Tier Panel */}
-        {isConnected && (
-          <div className="mb-6 p-4 rounded-xl" style={{ background: "linear-gradient(135deg, rgba(255,215,0,0.05), rgba(0,224,255,0.05))" }}>
-            <div className="flex items-center justify-between mb-3">
-              <h5 className="text-sm font-semibold flex items-center gap-2">
-                💎 $UNIQ Holder Benefits
-              </h5>
-              <a href={`https://bscscan.com/token/${CONTRACTS.UNIQ_TOKEN}`} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-[#00e0ff] hover:underline flex items-center gap-1">
-                View Token <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-
-            {/* User's $UNIQ stats */}
-            {parseFloat(uniqBalance) > 0 && (
-              <div className="mb-3 p-3 rounded-lg flex items-center justify-between" style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${HOLDER_TIER_COLORS[uniqTier]}30` }}>
-                <div>
-                  <p className="text-xs text-gray-500">Your Balance</p>
-                  <p className="text-sm font-bold" style={{ color: HOLDER_TIER_COLORS[uniqTier] || "#fff" }}>
-                    {parseFloat(uniqBalance).toLocaleString(undefined, { maximumFractionDigits: 0 })} $UNIQ
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-500">Your Tier</p>
-                  <p className="text-sm font-semibold" style={{ color: HOLDER_TIER_COLORS[uniqTier] || "#6b7280" }}>
-                    {["None", "Bronze", "Silver", "Gold"][uniqTier] || "None"}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-500">Your Fee</p>
-                  <p className="text-sm font-mono text-green-400">
-                    {(effectiveFeeBps / 100).toFixed(2)}%
-                    {effectiveFeeBps < 50 && <span className="text-xs ml-1 text-green-500">(-{((50 - effectiveFeeBps) / 100).toFixed(2)}%)</span>}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-3 gap-3">
-              {(["Bronze", "Silver", "Gold"] as const).map((tier, i) => (
-                <div key={tier} className="p-3 rounded-lg text-center" style={{
-                  background: uniqTier === i + 1 ? `${HOLDER_TIER_COLORS[i + 1]}10` : "rgba(0,0,0,0.2)",
-                  borderLeft: `3px solid ${HOLDER_TIER_COLORS[i + 1]}`,
-                  outline: uniqTier === i + 1 ? `1px solid ${HOLDER_TIER_COLORS[i + 1]}40` : "none",
-                }}>
-                  <p className="text-xs font-semibold" style={{ color: HOLDER_TIER_COLORS[i + 1] }}>
-                    {tier} {uniqTier === i + 1 && "✓"}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">{HOLDER_TIER_THRESHOLDS[tier].toLocaleString()} $UNIQ</p>
-                  <p className="text-xs text-gray-500">{i === 0 ? "0.10%" : i === 1 ? "0.25%" : "0.40%"} fee discount</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="text-center py-8">
-          <Shield className="w-10 h-10 text-gray-600 mx-auto mb-3" />
-          <p className="text-gray-400 text-sm">
-            {isConnected ? "No protected positions yet. Deposit BNB and authorize an agent to start." : "Connect wallet to view and manage positions."}
-          </p>
-        </div>
-      </div>
-
-      {!isConnected && (
-        <div className="glass-card glow-border p-8 text-center" style={{ borderRadius: "16px" }}>
-          <Shield className="w-12 h-12 text-[#00e0ff] mx-auto mb-4" />
-          <h4 className="text-xl font-semibold mb-2">Protect Your DeFi Position</h4>
-          <p className="text-gray-400 mb-6 max-w-md mx-auto">
-            Connect your wallet, deposit BNB, authorize your AI guardian, and sleep peacefully knowing your assets are protected 24/7.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── TAB: Agent Info ──────────────────────────────────────────
-function AgentTab({ agentInfo, publicData, reputation, successRate, isLive }: {
-  agentInfo: { name: string; operator: string; tier: number; totalDecisions: number; successfulActions: number; totalValueProtected: string; registeredAt: number } | null;
-  publicData: { agentName: string; agentTier: number; agentOperator: string; agentTotalDecisions: number; agentSuccessfulActions: number; agentTotalValueProtected: string; agentRegisteredAt: number; isLive: boolean };
-  reputation: number; successRate: number; isLive: boolean;
-}) {
-  // Use wallet data > public RPC data > zeros (never fake inflated values)
-  const agent = agentInfo ?? (publicData.isLive ? {
-    name: publicData.agentName || "Agent #0",
-    operator: publicData.agentOperator || "—",
-    tier: publicData.agentTier,
-    totalDecisions: publicData.agentTotalDecisions,
-    successfulActions: publicData.agentSuccessfulActions,
-    totalValueProtected: publicData.agentTotalValueProtected,
-    registeredAt: publicData.agentRegisteredAt,
-  } : {
-    name: "Agent #0", operator: "—", tier: 0, totalDecisions: 0,
-    successfulActions: 0, totalValueProtected: "0", registeredAt: 0,
-  });
-  const displayReputation = reputation > 0 ? reputation.toFixed(2) : "0.00";
-  const displaySuccessRate = successRate > 0 ? `${successRate.toFixed(1)}%` : "0%";
-
-  return (
-    <div className="grid md:grid-cols-2 gap-6">
-      <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, rgba(0,224,255,0.2), rgba(168,85,247,0.2))" }}>
-            <Bot className="w-8 h-8 text-[#00e0ff]" />
-          </div>
-          <div>
-            <h4 className="text-xl font-bold">{agent.name}</h4>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs px-2 py-0.5 rounded-md bg-[#00e0ff]/10 text-[#00e0ff] border border-[#00e0ff]/20">
-                {AGENT_TIERS[agent.tier]} Tier
-              </span>
-              <span className="text-xs px-2 py-0.5 rounded-md bg-green-500/10 text-green-400 border border-green-500/20 flex items-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 pulse-live" /> Active
-              </span>
-              {isLive && <span className="text-xs px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400">LIVE</span>}
-            </div>
-          </div>
-        </div>
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Agent ID", value: "#0 (ERC-721 NFT)" },
-            { label: "Operator", value: typeof agent.operator === "string" && agent.operator.length > 10 ? `${agent.operator.slice(0, 8)}...${agent.operator.slice(-4)}` : agent.operator },
-            { label: "Registered", value: new Date(agent.registeredAt * 1000).toLocaleDateString() },
-            { label: "Total Decisions", value: agent.totalDecisions.toLocaleString() },
-            { label: "Successful Actions", value: agent.successfulActions.toString() },
-            { label: "Success Rate", value: displaySuccessRate },
-            { label: "Value Protected", value: `${agent.totalValueProtected} BNB` },
-          ].map((item, i) => (
-            <div key={i} className="flex justify-between py-2 border-b" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
-              <span className="text-sm text-gray-500">{item.label}</span>
-              <span className="text-sm font-mono">{item.value}</span>
+            { label: "Solidity Tests", value: "170+", color: "var(--green)" },
+            { label: "Smart Contracts", value: "5 Deployed", color: "var(--accent)" },
+            { label: "AI Engine", value: "LLM + Scanner", color: "var(--purple)" },
+            { label: "DEX Integration", value: "PancakeSwap", color: "var(--bnb)" },
+          ].map((b, i) => (
+            <div key={i} className="px-4 py-3 rounded-lg" style={{ background: "var(--bg-raised)", borderLeft: `2px solid ${b.color}` }}>
+              <p className="text-sm font-semibold" style={{ color: b.color }}>{b.value}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>{b.label}</p>
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
-        <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-[#00e0ff]" /> Reputation &amp; Performance
-        </h4>
-        <div className="text-center mb-6 p-6 rounded-xl" style={{ background: "rgba(0,0,0,0.2)" }}>
-          <p className="text-6xl font-bold text-[#00e0ff] cyan-glow">{displayReputation}</p>
-          <p className="text-sm text-gray-500 mt-2">Average Rating</p>
-          <div className="flex justify-center gap-1 mt-3">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <span key={star} className={`text-xl ${star <= Math.round(parseFloat(displayReputation)) ? "text-yellow-400" : "text-yellow-400/30"}`}>★</span>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-3">
-          <h5 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Capabilities</h5>
-          {[
-            "Real-time DeFi position monitoring (30s cycles)",
-            "LLM-powered reasoning (Groq Llama 3.3 70B / OpenAI GPT-4o)",
-            "PancakeSwap V2 on-chain price verification",
-            "CoinGecko + DeFiLlama live data feeds",
-            "5-vector weighted risk analysis engine",
-            "Autonomous stop-loss & emergency withdrawal",
-            "On-chain decision attestation (keccak256 reasoning hash)",
-          ].map((cap, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-[#00e0ff] flex-shrink-0" />
-              <span className="text-sm text-gray-300">{cap}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="glass-card glow-border p-6 md:col-span-2" style={{ borderRadius: "16px" }}>
-        <h4 className="text-lg font-semibold mb-4">Smart Contract Architecture</h4>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { name: "AegisRegistry", desc: "ERC-721 agent identity NFTs with 4-tier permissions, reputation scoring (1-5), and on-chain performance metrics.", color: "#00e0ff" },
-            { name: "AegisVault", desc: "Non-custodial vault for BNB/ERC-20 with agent authorization, per-user risk profiles, and autonomous protection execution.", color: "#a855f7" },
-            { name: "DecisionLogger", desc: "Immutable audit trail of every AI decision — risk snapshots, threat detections, and protection actions with reasoning hashes.", color: "#22c55e" },
-            { name: "AegisScanner", desc: "On-chain token risk registry. Agents push scan results (honeypot, rug pull, whale risk), users/frontends query before interacting.", color: "#f97316" },
-          ].map((contract, i) => (
-            <div key={i} className="p-4 rounded-xl" style={{ background: "rgba(0,0,0,0.2)", borderLeft: `3px solid ${contract.color}` }}>
-              <h5 className="font-mono text-sm font-bold mb-2" style={{ color: contract.color }}>{contract.name}</h5>
-              <p className="text-xs text-gray-400 leading-relaxed">{contract.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

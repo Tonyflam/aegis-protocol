@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Toaster } from "react-hot-toast";
+import ClientLayout from "../components/ClientLayout";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://aegis-protocol-1.vercel.app"),
@@ -44,17 +44,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#0a0e17" />
       </head>
       <body className="bg-[#0a0e17] text-white antialiased min-h-screen">
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            style: {
-              background: "#1a1f2e",
-              color: "#e2e8f0",
-              border: "1px solid rgba(0, 224, 255, 0.2)",
-            },
-          }}
-        />
-        {children}
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
