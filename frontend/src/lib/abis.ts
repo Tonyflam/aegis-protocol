@@ -73,3 +73,13 @@ export const TOKEN_GATE_ABI = [
   "function isHolder(address user) view returns (bool)",
   "function getBalance(address user) view returns (uint256)",
 ];
+
+export const SCANNER_ABI = [
+  "function getTokenScan(address token) view returns (tuple(address token, uint256 riskScore, uint256 liquidity, uint256 holderCount, uint256 topHolderPercent, uint256 buyTax, uint256 sellTax, bool isHoneypot, bool ownerCanMint, bool ownerCanPause, bool ownerCanBlacklist, bool isContractRenounced, bool isLiquidityLocked, bool isVerified, uint256 scanTimestamp, address scannedBy, string flags))",
+  "function getTokenRiskScore(address token) view returns (uint256)",
+  "function isHoneypot(address token) view returns (bool)",
+  "function isScanned(address token) view returns (bool)",
+  "function getScannedTokenCount() view returns (uint256)",
+  "function getRecentScans(uint256 count) view returns (tuple(address token, uint256 riskScore, uint256 liquidity, uint256 holderCount, uint256 topHolderPercent, uint256 buyTax, uint256 sellTax, bool isHoneypot, bool ownerCanMint, bool ownerCanPause, bool ownerCanBlacklist, bool isContractRenounced, bool isLiquidityLocked, bool isVerified, uint256 scanTimestamp, address scannedBy, string flags)[])",
+  "function getScannerStats() view returns (uint256 totalScans, uint256 totalHoneypots, uint256 totalRugRisks, uint256 totalTokens)",
+];

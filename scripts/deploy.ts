@@ -50,6 +50,14 @@ async function main() {
     console.log("\n3b. Skipping AegisTokenGate (UNIQ_TOKEN_ADDRESS not set)");
   }
 
+  // ─── Deploy AegisScanner ──────────────────────────────────
+  console.log("\n3c. Deploying AegisScanner...");
+  const Scanner = await ethers.getContractFactory("AegisScanner");
+  const scanner = await Scanner.deploy();
+  await scanner.waitForDeployment();
+  const scannerAddress = await scanner.getAddress();
+  console.log("   AegisScanner deployed to:", scannerAddress);
+
   // ─── Configure Permissions ────────────────────────────────
   console.log("\n4. Configuring permissions...");
 
@@ -79,6 +87,11 @@ async function main() {
     console.log("   ✓ TokenGate wired into Registry");
   }
 
+  // Authorize deployer as scanner
+  const tx5 = await scanner.setScannerAuthorization(deployer.address, true);
+  await tx5.wait();
+  console.log("   ✓ Deployer authorized as scanner in AegisScanner");
+
   // ─── Register Initial Agent ───────────────────────────────
   console.log("\n5. Registering initial Aegis Guardian Agent...");
   const tx4 = await registry.registerAgent(
@@ -100,6 +113,7 @@ async function main() {
   console.log(`  AegisRegistry:    ${registryAddress}`);
   console.log(`  AegisVault:       ${vaultAddress}`);
   console.log(`  DecisionLogger:   ${loggerAddress}`);
+  console.log(`  AegisScanner:     ${scannerAddress}`);
   if (tokenGateAddress) {
     console.log(`  AegisTokenGate:   ${tokenGateAddress}`);
   }
@@ -115,6 +129,7 @@ async function main() {
       AegisRegistry: registryAddress,
       AegisVault: vaultAddress,
       DecisionLogger: loggerAddress,
+      AegisScanner: scannerAddress,
       ...(tokenGateAddress ? { AegisTokenGate: tokenGateAddress } : {}),
     },
     configuration: {

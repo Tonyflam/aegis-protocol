@@ -7,6 +7,8 @@ import { RISK_LEVELS, RISK_COLORS, AGENT_TIERS, CONTRACTS, HOLDER_TIER_COLORS, H
 import { useLiveMarketData } from "../lib/useLiveMarket";
 import AgentSimulation from "../components/AgentSimulation";
 import toast from "react-hot-toast";
+import TokenScanner from "../components/TokenScanner";
+import WhaleAlerts from "../components/WhaleAlerts";
 import {
   Shield,
   Activity,
@@ -23,6 +25,10 @@ import {
   RefreshCw,
   Lock,
   Cpu,
+  Search,
+  Bell,
+  Skull,
+  Droplets,
 } from "lucide-react";
 
 // ─── Fallback Data (displayed only when BSC Testnet RPC is unreachable) ─────
@@ -47,7 +53,7 @@ export default function Home() {
   const contractWrite = useContractWrite(signer);
   const publicData = usePublicContractData();
   const liveMarket = useLiveMarketData(30000);
-  const [activeTab, setActiveTab] = useState<"overview" | "decisions" | "positions" | "agent">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "scanner" | "alerts" | "decisions" | "positions" | "agent">("overview");
   const [depositAmount, setDepositAmount] = useState("");
 
   // Fetch public on-chain data immediately (no wallet needed)
@@ -187,15 +193,15 @@ export default function Home() {
         </div>
         
         <h2 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
-          <span className="text-white">Your AI Guardian</span>
+          <span className="text-white">Scan. Detect.</span>
           <br />
-          <span className="text-[#00e0ff] cyan-glow">Never Sleeps</span>
+          <span className="text-[#00e0ff] cyan-glow">Protect.</span>
         </h2>
         
         <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-8">
-          Aegis is an autonomous AI agent that monitors your DeFi positions on BNB Chain 24/7, 
-          detects risks in real-time, and executes protective on-chain transactions — 
-          before you lose money.
+          Aegis scans any BSC token for honeypots, rug pulls, and whale risks in seconds.
+          Get real-time alerts on whale movements and protect your entire portfolio —
+          not just BNB.
         </p>
 
         {/* Live Market Ticker */}
@@ -227,28 +233,28 @@ export default function Home() {
         )}
 
         <div className="flex items-center justify-center gap-4 mb-12">
+          <button onClick={() => setActiveTab("scanner")} className="btn-primary flex items-center gap-2 text-lg px-8 py-4">
+            <Search className="w-5 h-5" />
+            Scan a Token
+            <ArrowRight className="w-5 h-5" />
+          </button>
           {!isConnected ? (
-            <button onClick={connect} className="btn-primary flex items-center gap-2 text-lg px-8 py-4">
-              <Shield className="w-5 h-5" />
-              Connect &amp; Protect
-              <ArrowRight className="w-5 h-5" />
+            <button onClick={connect} className="glass-card px-8 py-4 flex items-center gap-2 text-gray-300 hover:text-white transition-colors" style={{ borderRadius: "12px" }}>
+              <Wallet className="w-5 h-5" />
+              Connect Wallet
             </button>
           ) : (
-            <button onClick={() => setActiveTab("positions")} className="btn-primary flex items-center gap-2 text-lg px-8 py-4">
+            <button onClick={() => setActiveTab("positions")} className="glass-card px-8 py-4 flex items-center gap-2 text-gray-300 hover:text-white transition-colors" style={{ borderRadius: "12px" }}>
               <Shield className="w-5 h-5" />
-              Go to Dashboard
-              <ArrowRight className="w-5 h-5" />
+              Dashboard
             </button>
           )}
-          <a href="https://github.com/Tonyflam/aegis-protocol" target="_blank" rel="noopener noreferrer" className="glass-card px-8 py-4 flex items-center gap-2 text-gray-300 hover:text-white transition-colors" style={{ borderRadius: "12px" }}>
-            <Github className="w-5 h-5" />
-            View Source
-          </a>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 max-w-5xl mx-auto">
           {[
             { label: "Value Protected", value: `${stats.totalValueProtected} BNB`, icon: Shield },
+            { label: "Tokens Scanned", value: "Live", icon: Search },
             { label: "Active Agents", value: stats.activeAgents.toString(), icon: Bot },
             { label: "Threats Detected", value: stats.threatsDetected.toString(), icon: AlertTriangle },
             { label: "Protection Rate", value: `${stats.protectionRate}%`, icon: CheckCircle },
@@ -268,6 +274,8 @@ export default function Home() {
           <div className="flex gap-1 mb-6 glass-card p-1.5 w-fit mx-auto" style={{ borderRadius: "12px" }}>
             {([
               { key: "overview", label: "Overview", icon: BarChart3 },
+              { key: "scanner", label: "Token Scanner", icon: Search },
+              { key: "alerts", label: "Alerts", icon: Bell },
               { key: "decisions", label: "AI Decisions", icon: Activity },
               { key: "positions", label: "Positions", icon: Eye },
               { key: "agent", label: "Agent Info", icon: Bot },
@@ -282,7 +290,7 @@ export default function Home() {
                 }`}
               >
                 <tab.icon className="w-4 h-4" />
-                {tab.label}
+                <span className="hidden md:inline">{tab.label}</span>
               </button>
             ))}
           </div>
@@ -292,6 +300,12 @@ export default function Home() {
               decisions={contractData.decisions.length > 0 ? contractData.decisions : publicData.recentDecisions} 
               riskSnapshot={contractData.riskSnapshot ?? publicData.publicRiskSnapshot} 
               isLive={contractData.isLive || publicData.isLive} />
+          )}
+          {activeTab === "scanner" && (
+            <TokenScanner bnbPrice={liveMarket.bnbPriceCoinGecko} />
+          )}
+          {activeTab === "alerts" && (
+            <WhaleAlerts />
           )}
           {activeTab === "decisions" && (
             <DecisionsTab 
@@ -321,12 +335,12 @@ export default function Home() {
           </h3>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { icon: Eye, title: "24/7 Monitoring", desc: "AI continuously scans your DeFi positions via CoinGecko & DeFiLlama live data feeds, analyzing market conditions and liquidity in real-time." },
-              { icon: Cpu, title: "LLM AI Reasoning", desc: "Powered by Groq (Llama 3.3 70B) or OpenAI (GPT-4o). Real natural language market analysis with structured threat reports and heuristic fallback." },
-              { icon: AlertTriangle, title: "5-Vector + DEX Verification", desc: "Weighted heuristic risk + PancakeSwap V2 on-chain price cross-verification. Detects oracle manipulation by comparing API vs DEX prices." },
-              { icon: Shield, title: "Autonomous Protection", desc: "When threats exceed your risk threshold, Aegis executes stop-losses, emergency withdrawals, and rebalances — all logged immutably on-chain." },
-              { icon: Bot, title: "ERC-721 Agent NFTs", desc: "Each guardian has a verifiable on-chain identity as an NFT with 4 tiers (Scout→Archon), reputation scoring, and performance metrics." },
-              { icon: Lock, title: "Non-Custodial Vault", desc: "Your funds stay in your control. Set max slippage, stop-loss thresholds, and action limits. Emergency withdrawal always available." },
+              { icon: Skull, title: "Honeypot Detection", desc: "Instantly detect if a token is a honeypot before you buy. Aegis simulates sells and analyzes contract bytecode to find traps that prevent selling." },
+              { icon: Search, title: "Token Risk Scanner", desc: "Paste any BSC token address to get a comprehensive risk report: contract security, liquidity depth, whale concentration, tax rates, and rug pull indicators." },
+              { icon: Bell, title: "Whale Alerts", desc: "Real-time monitoring of large holder movements, exchange deposits, and liquidity changes. Get alerts when whales dump or when liquidity is removed." },
+              { icon: Shield, title: "AI Portfolio Guardian", desc: "Autonomous AI agent monitors your DeFi positions 24/7, detects threats using LLM reasoning, and executes protective transactions before you lose money." },
+              { icon: Droplets, title: "Liquidity Analysis", desc: "Deep analysis of PancakeSwap LP pairs — reserve depth, LP burn status, and real-time liquidity monitoring to detect rug pulls before they happen." },
+              { icon: Lock, title: "Non-Custodial Vault", desc: "Your funds stay in your control. Set stop-losses, max slippage, and action limits. Emergency withdrawal always available. $UNIQ holders get fee discounts." },
             ].map((feature, i) => (
               <div key={i} className="glass-card glow-border p-6 group hover:scale-[1.02] transition-transform" style={{ borderRadius: "16px" }}>
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: "rgba(0,224,255,0.1)" }}>
@@ -522,7 +536,7 @@ export default function Home() {
             All smart contracts are deployed on BNB Smart Chain Testnet and verified via Sourcify for full source code transparency.
           </p>
 
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {[
               {
                 name: "AegisRegistry",
@@ -544,6 +558,13 @@ export default function Home() {
                 desc: "Immutable AI decision audit trail",
                 color: "#22c55e",
                 lines: "338 LOC",
+              },
+              {
+                name: "AegisScanner",
+                address: CONTRACTS.SCANNER,
+                desc: "On-chain token risk registry for BSC tokens",
+                color: "#f97316",
+                lines: "180 LOC",
               },
             ].map((contract, i) => (
               <div key={i} className="glass-card glow-border p-6 group" style={{ borderRadius: "16px" }}>
@@ -647,9 +668,9 @@ export default function Home() {
           {/* Tech Stack Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
             {[
-              { label: "Solidity Tests", value: "54 Passing", color: "#22c55e" },
-              { label: "Contract LOC", value: "1,326", color: "#00e0ff" },
-              { label: "AI Engine", value: "LLM + Heuristic", color: "#a855f7" },
+              { label: "Solidity Tests", value: "170+ Passing", color: "#22c55e" },
+              { label: "Smart Contracts", value: "5 Deployed", color: "#00e0ff" },
+              { label: "AI Engine", value: "LLM + Scanner", color: "#a855f7" },
               { label: "DEX Integration", value: "PancakeSwap V2", color: "#f0b90b" },
             ].map((badge, i) => (
               <div key={i} className="glass-card p-4 text-center" style={{ borderRadius: "12px", borderLeft: `3px solid ${badge.color}` }}>
@@ -1134,11 +1155,12 @@ function AgentTab({ agentInfo, publicData, reputation, successRate, isLive }: {
 
       <div className="glass-card glow-border p-6 md:col-span-2" style={{ borderRadius: "16px" }}>
         <h4 className="text-lg font-semibold mb-4">Smart Contract Architecture</h4>
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { name: "AegisRegistry", desc: "ERC-721 agent identity NFTs with 4-tier permissions, reputation scoring (1-5), and on-chain performance metrics.", color: "#00e0ff" },
             { name: "AegisVault", desc: "Non-custodial vault for BNB/ERC-20 with agent authorization, per-user risk profiles, and autonomous protection execution.", color: "#a855f7" },
             { name: "DecisionLogger", desc: "Immutable audit trail of every AI decision — risk snapshots, threat detections, and protection actions with reasoning hashes.", color: "#22c55e" },
+            { name: "AegisScanner", desc: "On-chain token risk registry. Agents push scan results (honeypot, rug pull, whale risk), users/frontends query before interacting.", color: "#f97316" },
           ].map((contract, i) => (
             <div key={i} className="p-4 rounded-xl" style={{ background: "rgba(0,0,0,0.2)", borderLeft: `3px solid ${contract.color}` }}>
               <h5 className="font-mono text-sm font-bold mb-2" style={{ color: contract.color }}>{contract.name}</h5>
