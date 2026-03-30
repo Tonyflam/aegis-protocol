@@ -11,31 +11,37 @@ Aegis Protocol is an **autonomous AI agent system** that protects DeFi positions
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    PRESENTATION LAYER                        │
-│   Next.js 14 Dashboard — Live data, wallet, contract reads  │
+│   Next.js 14 Multi-Page Dashboard (6 routes)                │
+│   Landing · Dashboard · Scanner · Alerts · Positions · Agent│
 │   (Vercel-deployed, no wallet required for public data)      │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
-│                     AGENT LAYER                              │
+│                     AGENT LAYER (3,236 LOC)                  │
 │                                                              │
 │   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
 │   │ Monitor  │  │ Analyzer │  │AI Engine │  │ PancakeSwap│  │
 │   │ (market  │→ │ (5-vector│→ │ (LLM/    │→ │ (on-chain │  │
 │   │  data)   │  │  risk)   │  │  heuristic│  │  prices)  │  │
 │   └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
-│                                                ↓             │
-│                           ┌──────────────────────────┐      │
-│                           │ Executor (on-chain TXs)  │      │
-│                           └──────────┬───────────────┘      │
-└──────────────────────────────────────┼──────────────────────┘
-                                       │
-┌──────────────────────────────────────▼──────────────────────┐
-│                  BLOCKCHAIN LAYER (BSC)                       │
+│                                                              │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│   │Token Scanner │  │Whale Tracker │  │   Executor   │     │
+│   │(risk scans)  │  │(large xfers) │  │ (on-chain TX)│     │
+│   └──────────────┘  └──────────────┘  └──────┬───────┘     │
+└──────────────────────────────────────────────┼──────────────┘
+                                               │
+┌──────────────────────────────────────────────▼──────────────┐
+│                  BLOCKCHAIN LAYER (BSC) — 1,971 LOC          │
 │                                                              │
 │   ┌──────────────┐  ┌────────────┐  ┌───────────────┐      │
 │   │AegisRegistry │  │ AegisVault │  │DecisionLogger │      │
 │   │  (ERC-721)   │  │(Non-Custodial)│  │  (Immutable)  │      │
 │   └──────────────┘  └────────────┘  └───────────────┘      │
+│   ┌──────────────┐  ┌──────────────┐                        │
+│   │AegisTokenGate│  │ AegisScanner │                        │
+│   │($UNIQ Tiers) │  │(Risk Registry)│                        │
+│   └──────────────┘  └──────────────┘                        │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -43,7 +49,7 @@ Aegis Protocol is an **autonomous AI agent system** that protects DeFi positions
 
 ## Smart Contract Layer
 
-### AegisRegistry.sol (415 LOC)
+### AegisRegistry.sol (557 LOC)
 
 **Purpose:** On-chain identity and reputation for AI agents
 
@@ -71,7 +77,7 @@ AegisRegistry
 
 **Key Design Decision:** Agents are ERC-721 NFTs so their identity and reputation are publicly verifiable on BSCScan. Anyone can inspect Agent #0's stats, tier, and reputation by reading the contract.
 
-### AegisVault.sol (573 LOC)
+### AegisVault.sol (677 LOC)
 
 **Purpose:** Non-custodial asset protection with per-user risk profiles
 
@@ -103,7 +109,7 @@ AegisVault
 
 **Key Design Decision:** Non-custodial means the AI agent is AUTHORIZED to act on behalf of the user, but the user can ALWAYS emergency withdraw. The agent cannot lock funds or prevent exit.
 
-### DecisionLogger.sol (338 LOC)
+### DecisionLogger.sol (337 LOC)
 
 **Purpose:** Immutable on-chain audit trail for every AI decision
 
@@ -146,6 +152,57 @@ On-chain:
 Verification:
   Anyone can hash the original text and compare → proves AI made that specific decision
 ```
+
+### AegisTokenGate.sol (200 LOC)
+
+**Purpose:** $UNIQ token utility — holder tiers and fee discounts
+
+```
+AegisTokenGate
+├── Holder Tiers (balance-based)
+│   ├── None      — < 10K $UNIQ
+│   ├── Bronze    — 10,000+ $UNIQ  → 0.10% fee discount
+│   ├── Silver    — 100,000+ $UNIQ → 0.25% fee discount
+│   └── Gold      — 1,000,000+ $UNIQ → 0.40% fee discount
+├── Fee Calculation
+│   ├── getHolderTier(user) → tier enum
+│   ├── getFeeDiscount(user) → discount in bps
+│   ├── getEffectiveFee(user, baseFee) → discounted fee
+│   └── isHolder(user) → bool
+├── Configuration (owner-only)
+│   ├── setThresholds(bronze, silver, gold)
+│   └── setDiscounts(bronze, silver, gold)
+└── Integration
+    ├── Called by AegisVault during executeProtection()
+    └── Called by AegisRegistry for holder badges
+```
+
+**Key Design Decision:** Read-only balance checks — no staking or locking required. Users simply hold $UNIQ to qualify for discounts. This minimizes friction and gas costs.
+
+### AegisScanner.sol (181 LOC)
+
+**Purpose:** On-chain token risk registry — agents push scan results, users query before interacting
+
+```
+AegisScanner
+├── Scan Submission (authorized scanners only)
+│   ├── submitScan(token, riskScore, liquidity, ...)
+│   ├── Updates risk data for any BSC token
+│   └── Tracks scan history per token
+├── Risk Queries (public)
+│   ├── getTokenRisk(token) → risk score + metadata
+│   ├── getScanHistory(token) → historical scans
+│   └── getScannerStats() → aggregate statistics
+├── Authorization
+│   ├── authorizedScanners mapping
+│   └── Owner adds/removes scanners
+└── Stats Tracking
+    ├── Total scans submitted
+    ├── Unique tokens scanned
+    └── Protection triggers from scans
+```
+
+**Key Design Decision:** Separating scan results into their own contract creates a public good — any DeFi protocol on BSC can query Aegis scan data before allowing token interactions.
 
 ---
 
@@ -351,11 +408,11 @@ Cache: 30-second TTL to avoid excessive RPC calls
 | DEX Integration | PancakeSwap V2 | Largest BSC DEX by volume |
 | Market Data | CoinGecko + DeFiLlama | Free, no API key required |
 | Frontend | Next.js 14 | App Router, SSG, Vercel native |
-| Styling | Tailwind CSS | Utility-first, responsive |
+| Styling | CSS Design System | Custom properties, dark theme |
 | Blockchain | ethers.js v6 | Modern, TypeScript-native |
 | Deployment | Vercel | Auto-deploy from git push |
 | Verification | Sourcify | Open-source contract verification |
-| Testing | Hardhat + Chai | 54 tests, comprehensive coverage |
+| Testing | Hardhat + Chai | 198 tests, comprehensive coverage |
 
 ---
 

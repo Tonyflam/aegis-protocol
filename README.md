@@ -7,15 +7,15 @@
 [![Built for BNB Chain](https://img.shields.io/badge/Built_for-BNB_Chain-F0B90B?style=for-the-badge&logo=binance)](https://www.bnbchain.org/)
 [![Good Vibes Only](https://img.shields.io/badge/Good_Vibes_Only-OpenClaw_Edition-00e0ff?style=for-the-badge)](https://openclaw.xyz)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636?style=for-the-badge&logo=solidity)](https://soliditylang.org/)
-[![Tests](https://img.shields.io/badge/Tests-54%2F54_Passing-22c55e?style=for-the-badge)](./test/)
-[![Deployed](https://img.shields.io/badge/BSC_Testnet-Deployed_%26_Verified-F0B90B?style=for-the-badge)](https://testnet.bscscan.com/address/0xac77139C2856788b7EEff767969353adF95D335e)
+[![Tests](https://img.shields.io/badge/Tests-198%2F198_Passing-22c55e?style=for-the-badge)](./test/)
+[![Deployed](https://img.shields.io/badge/BSC_Testnet-Deployed_%26_Verified-F0B90B?style=for-the-badge)](https://testnet.bscscan.com/address/0x7908c25C63AbAB47cb82bE50DBD874ED807EE8fF)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
 
 *An autonomous AI agent — powered by LLM reasoning (Groq/OpenAI) + PancakeSwap on-chain data — that monitors your DeFi positions on BNB Chain 24/7, detects risks in real-time, and executes protective on-chain transactions before you lose money.*
 
-**🌐 [Live Dashboard](https://aegis-protocol-1.vercel.app/) · � [Demo Video](https://youtu.be/zEeFEduh6eg) · �📜 [Verified Contracts](https://testnet.bscscan.com/address/0xac77139C2856788b7EEff767969353adF95D335e) · 🧪 [13 On-Chain TXs](#-on-chain-proof-13-verified-transactions) · 🤖 [AI Build Log](./AI_BUILD_LOG.md)**
+**🌐 [Live Dashboard](https://aegis-protocol-1.vercel.app/) · 🎥 [Demo Video](https://youtu.be/zEeFEduh6eg) · 📜 [Verified Contracts](https://testnet.bscscan.com/address/0x7908c25C63AbAB47cb82bE50DBD874ED807EE8fF) · 🧪 [13 On-Chain TXs](#-on-chain-proof-13-verified-transactions) · 🤖 [AI Build Log](./AI_BUILD_LOG.md)**
 
-[Architecture](#-architecture) · [AI Engine](#-ai-reasoning-engine-llm-powered) · [On-Chain Proof](#-on-chain-proof-13-verified-transactions) · [Smart Contracts](#%EF%B8%8F-smart-contracts) · [Quick Start](#-quick-start) · [AI Build Log](./AI_BUILD_LOG.md)
+[Architecture](#-architecture) · [AI Engine](#-ai-reasoning-engine-llm-powered) · [On-Chain Proof](#-on-chain-proof-13-verified-transactions) · [Smart Contracts](#%EF%B8%8F-smart-contracts) · [Token Scanner](#-token-scanner) · [Whale Alerts](#-whale-alerts) · [Quick Start](#-quick-start) · [AI Build Log](./AI_BUILD_LOG.md)
 
 </div>
 
@@ -85,17 +85,24 @@ OBSERVE → ANALYZE → AI REASON → DEX VERIFY → DECIDE → EXECUTE
 │   │  │Agent Identity│  │  Protection  │  │  Audit Log)   │     │   │
 │   │  │ + Reputation │  │ + Risk Profs │  │  + AI Hashes  │     │   │
 │   │  └──────────────┘  └──────────────┘  └───────────────┘     │   │
+│   │  ┌──────────────┐  ┌──────────────┐                        │   │
+│   │  │AegisTokenGate│  │ AegisScanner │                        │   │
+│   │  │ ($UNIQ Tiers)│  │(Risk Registry)│                        │   │
+│   │  │ Fee Discounts│  │Token Scanning│                        │   │
+│   │  └──────────────┘  └──────────────┘                        │   │
 │   └──────────────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-### Smart Contract Architecture (3 Contracts, 1,326 LOC)
+### Smart Contract Architecture (5 Contracts + Mock, 1,971 LOC)
 
 | Contract | LOC | Purpose | Key Features |
 |----------|-----|---------|--------------|
-| **AegisRegistry** | 415 | Agent identity & reputation | ERC-721 NFTs, 4 tiers (Scout→Archon), 1-5 reputation scoring, performance tracking |
-| **AegisVault** | 573 | Non-custodial asset protection | BNB/ERC20 deposits, per-user risk profiles, agent authorization, emergency withdrawal |
-| **DecisionLogger** | 338 | On-chain decision audit trail | Immutable records, risk snapshots, reasoning hashes (keccak256 of AI analysis), 6 decision types |
+| **AegisRegistry** | 557 | Agent identity & reputation | ERC-721 NFTs, 4 tiers (Scout→Archon), 1-5 reputation scoring, $UNIQ registration path |
+| **AegisVault** | 677 | Non-custodial asset protection | BNB/ERC20 deposits, per-user risk profiles, agent authorization, token-gated fee discounts |
+| **DecisionLogger** | 337 | On-chain decision audit trail | Immutable records, risk snapshots, reasoning hashes (keccak256 of AI analysis), 6 decision types |
+| **AegisTokenGate** | 200 | $UNIQ token utility | Holder tier system (Bronze/Silver/Gold), fee discounts, balance-based gating |
+| **AegisScanner** | 181 | On-chain token risk registry | Agents push scan results, users query risk scores before interacting with tokens |
 
 ---
 
@@ -187,9 +194,10 @@ If delta > 5%  → CRITICAL: Oracle attack likely
 
 | Contract | Address | Links |
 |----------|---------|-------|
-| **AegisRegistry** | `0xac77139C2856788b7EEff767969353adF95D335e` | [BSCScan](https://testnet.bscscan.com/address/0xac77139C2856788b7EEff767969353adF95D335e) · [Sourcify](https://repo.sourcify.dev/contracts/full_match/97/0xac77139C2856788b7EEff767969353adF95D335e/) |
-| **AegisVault** | `0x73CE32Ece5d21836824C55c5EDB9d09b07F3a56E` | [BSCScan](https://testnet.bscscan.com/address/0x73CE32Ece5d21836824C55c5EDB9d09b07F3a56E) · [Sourcify](https://repo.sourcify.dev/contracts/full_match/97/0x73CE32Ece5d21836824C55c5EDB9d09b07F3a56E/) |
-| **DecisionLogger** | `0xEbfb45d0c075d8BdabD6421bdFB9A4b9570219ea` | [BSCScan](https://testnet.bscscan.com/address/0xEbfb45d0c075d8BdabD6421bdFB9A4b9570219ea) · [Sourcify](https://repo.sourcify.dev/contracts/full_match/97/0xEbfb45d0c075d8BdabD6421bdFB9A4b9570219ea/) |
+| **AegisRegistry** | `0x7908c25C63AbAB47cb82bE50DBD874ED807EE8fF` | [BSCScan](https://testnet.bscscan.com/address/0x7908c25C63AbAB47cb82bE50DBD874ED807EE8fF) · [Sourcify](https://repo.sourcify.dev/contracts/full_match/97/0x7908c25C63AbAB47cb82bE50DBD874ED807EE8fF/) |
+| **AegisVault** | `0x15Ef23024c2b90beA81E002349C70f0C2A09433F` | [BSCScan](https://testnet.bscscan.com/address/0x15Ef23024c2b90beA81E002349C70f0C2A09433F) · [Sourcify](https://repo.sourcify.dev/contracts/full_match/97/0x15Ef23024c2b90beA81E002349C70f0C2A09433F/) |
+| **DecisionLogger** | `0x874d78947bd660665de237b16Ca05cd39b7feF6f` | [BSCScan](https://testnet.bscscan.com/address/0x874d78947bd660665de237b16Ca05cd39b7feF6f) · [Sourcify](https://repo.sourcify.dev/contracts/full_match/97/0x874d78947bd660665de237b16Ca05cd39b7feF6f/) |
+| **AegisTokenGate** | `0x672c5cC370085c3c6B5bcf2870e1A0Aa62Ff3D69` | [BSCScan](https://testnet.bscscan.com/address/0x672c5cC370085c3c6B5bcf2870e1A0Aa62Ff3D69) · [Sourcify](https://repo.sourcify.dev/contracts/full_match/97/0x672c5cC370085c3c6B5bcf2870e1A0Aa62Ff3D69/) |
 
 ### Verified Transaction Log (Click to verify on BSCScan)
 
@@ -215,23 +223,35 @@ Each decision includes a **keccak256 hash of the AI reasoning text** stored immu
 
 ---
 
-## 🧪 Tests (54/54 Passing)
+## 🧪 Tests (198/198 Passing)
 
 ```
-  AegisRegistry (20 tests)
-    ✓ Deployment, Agent Registration (5), Agent Management (3)
-    ✓ Reputation System (4), Agent Stats (4), Admin Functions (3)
+  AegisRegistry (52 tests)
+    ✓ Deployment, Agent Registration, Agent Management
+    ✓ Reputation System, Agent Stats, Admin Functions
+    ✓ $UNIQ Registration, Holder Badge, Tier Upgrades
 
-  AegisVault (20 tests)
-    ✓ Deployment, BNB Deposits (3), BNB Withdrawals (3)
-    ✓ Agent Authorization (3), Risk Profile (3)
-    ✓ Protection Execution (4), Emergency & Admin (3)
+  AegisVault (59 tests)
+    ✓ Deployment, BNB Deposits, BNB Withdrawals
+    ✓ Agent Authorization, Risk Profile
+    ✓ Protection Execution, Emergency & Admin
+    ✓ TokenGate Integration, Fee Discounts
 
-  DecisionLogger (14 tests)
-    ✓ Deployment, Decision Logging (4), Risk Snapshots (3)
-    ✓ View Functions (4), Admin Functions (2)
+  DecisionLogger (25 tests)
+    ✓ Decision Logging, Risk Snapshots
+    ✓ View Functions, Admin Functions
+    ✓ Edge Cases, Multi-Agent Support
 
-  54 passing
+  AegisTokenGate (34 tests)
+    ✓ Tier Classification, Fee Discounts
+    ✓ Threshold Updates, Holder Checks
+    ✓ Tier Changes on Transfer
+
+  AegisScanner (28 tests)
+    ✓ Scanner Authorization, Scan Submission
+    ✓ View Functions, Stats, Risk Tracking
+
+  198 passing
 ```
 
 ---
@@ -240,21 +260,26 @@ Each decision includes a **keccak256 hash of the AI reasoning text** stored immu
 
 ```
 aegis-protocol/
-├── contracts/                           # Solidity smart contracts (1,326 LOC)
-│   ├── AegisRegistry.sol                # ERC-721 agent identity & reputation (415 LOC)
-│   ├── AegisVault.sol                   # Non-custodial vault & protection (573 LOC)
-│   └── DecisionLogger.sol               # On-chain decision audit log (338 LOC)
+├── contracts/                           # Solidity smart contracts (1,971 LOC)
+│   ├── AegisRegistry.sol                # ERC-721 agent identity & reputation (557 LOC)
+│   ├── AegisVault.sol                   # Non-custodial vault & protection (677 LOC)
+│   ├── DecisionLogger.sol               # On-chain decision audit log (337 LOC)
+│   ├── AegisTokenGate.sol               # $UNIQ holder tiers & fee discounts (200 LOC)
+│   ├── AegisScanner.sol                 # On-chain token risk registry (181 LOC)
+│   └── mocks/MockERC20.sol              # Test helper (19 LOC)
 │
-├── agent/                               # AI Guardian Agent Engine
+├── agent/                               # AI Guardian Agent Engine (3,236 LOC)
 │   └── src/
-│       ├── index.ts                     # Main loop: OBSERVE→ANALYZE→AI→DEX→DECIDE→EXECUTE (292 LOC)
-│       ├── ai-engine.ts                 # 🧠 LLM-Powered AI reasoning — Groq/OpenAI (381 LOC)
-│       ├── pancakeswap.ts               # 📊 PancakeSwap V2 on-chain price feeds (300 LOC)
-│       ├── analyzer.ts                  # 5-vector weighted risk analysis engine (449 LOC)
-│       ├── monitor.ts                   # Position & market data monitor (live+fallback)
-│       ├── market-provider.ts           # CoinGecko + DeFiLlama live data feeds
-│       ├── executor.ts                  # On-chain transaction executor
-│       └── simulate.ts                  # Demo simulation (no blockchain required)
+│       ├── index.ts                     # Main loop: OBSERVE→ANALYZE→AI→DEX→DECIDE→EXECUTE (337 LOC)
+│       ├── ai-engine.ts                 # 🧠 LLM-Powered AI reasoning — Groq/OpenAI (380 LOC)
+│       ├── pancakeswap.ts               # 📊 PancakeSwap V2 on-chain price feeds (299 LOC)
+│       ├── analyzer.ts                  # 5-vector weighted risk analysis engine (448 LOC)
+│       ├── monitor.ts                   # Position & market data monitor (230 LOC)
+│       ├── market-provider.ts           # CoinGecko + DeFiLlama live data feeds (252 LOC)
+│       ├── executor.ts                  # On-chain transaction executor (260 LOC)
+│       ├── token-scanner.ts             # 🔍 Multi-source token risk scanner (522 LOC)
+│       ├── whale-tracker.ts             # 🐋 Real-time whale movement tracking (328 LOC)
+│       └── simulate.ts                  # Demo simulation (no blockchain required) (180 LOC)
 │
 ├── scripts/
 │   ├── deploy.ts                        # Multi-contract BSC deployment
@@ -262,29 +287,46 @@ aegis-protocol/
 │   ├── demo-onchain.ts                  # 7-phase BSC Testnet demo (6 TXs)
 │   └── demo-comprehensive.ts            # 🔥 15-phase BSC Testnet demo (full threat lifecycle)
 │
-├── test/                                # 54 comprehensive tests
-│   ├── AegisRegistry.test.ts            # 20 tests
-│   ├── AegisVault.test.ts               # 20 tests
-│   └── DecisionLogger.test.ts           # 14 tests
+├── test/                                # 198 comprehensive tests
+│   ├── AegisRegistry.test.ts            # 52 tests
+│   ├── AegisVault.test.ts               # 59 tests
+│   ├── DecisionLogger.test.ts           # 25 tests
+│   ├── AegisTokenGate.test.ts           # 34 tests
+│   └── AegisScanner.test.ts             # 28 tests
 │
-├── frontend/                            # Next.js 14 Dashboard (Vercel-deployed)
+├── frontend/                            # Next.js 14 Multi-Page Dashboard (4,154 LOC)
 │   └── src/
 │       ├── app/
-│       │   ├── page.tsx                 # Dashboard with live data + AI display + on-chain data
-│       │   ├── layout.tsx               # OG meta tags, dark cyberpunk theme
-│       │   └── globals.css              # Glassmorphism + animation CSS
+│       │   ├── page.tsx                 # Landing page — hero, features, contracts
+│       │   ├── dashboard/page.tsx       # Protocol overview — stats, risk, activity, AI analysis
+│       │   ├── scanner/page.tsx         # Token Scanner — honeypot, rug pull, whale risk detection
+│       │   ├── alerts/page.tsx          # Whale Alerts — real-time BSC large transfer monitoring
+│       │   ├── positions/page.tsx       # Positions — deposit, authorize agent, $UNIQ benefits
+│       │   ├── agent/page.tsx           # AI Agent — performance, capabilities, live simulation
+│       │   ├── layout.tsx               # Root layout with metadata
+│       │   └── globals.css              # Design system with CSS custom properties
 │       ├── components/
-│       │   └── AgentSimulation.tsx       # 🎮 Interactive 6-phase agent simulation (518 LOC)
+│       │   ├── Navbar.tsx               # Responsive nav with wallet, data source indicator
+│       │   ├── Footer.tsx               # Contract links, social, $UNIQ
+│       │   ├── ClientLayout.tsx         # Client wrapper with WalletProvider
+│       │   ├── AgentSimulation.tsx       # 🎮 Interactive 6-phase agent simulation
+│       │   ├── TokenScanner.tsx          # 🔍 Multi-source token risk scanner UI
+│       │   └── WhaleAlerts.tsx           # 🐋 Real-time BSC whale transfer alerts
 │       └── lib/
 │           ├── constants.ts             # Contract addresses & chain config
 │           ├── useLiveMarket.ts         # 🔴 LIVE CoinGecko + PancakeSwap price hook
 │           ├── useWallet.ts             # MetaMask wallet hook
 │           ├── useContracts.ts          # Contract read/write hooks (+ public RPC)
+│           ├── WalletContext.tsx         # Wallet connection context provider
 │           └── abis.ts                  # Full contract ABIs
 │
 ├── hardhat.config.ts                    # BSC Testnet + Sourcify verification
 ├── deployment.json                      # Deployed contract addresses
+├── ARCHITECTURE.md                      # Technical deep dive
+├── ROADMAP.md                           # 6-phase development roadmap
 ├── AI_BUILD_LOG.md                      # 🤖 Detailed AI usage documentation
+├── CONTRIBUTING.md                      # Development guidelines
+├── FOUNDER_GUIDE.md                     # Pitch materials
 └── README.md
 ```
 
@@ -301,8 +343,8 @@ aegis-protocol/
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/Tonyflam/rs.git
-cd rs
+git clone https://github.com/Tonyflam/aegis-protocol.git
+cd aegis-protocol
 npm install --legacy-peer-deps
 ```
 
@@ -310,7 +352,7 @@ npm install --legacy-peer-deps
 
 ```bash
 npx hardhat test
-# 54 passing ✓
+# 198 passing ✓
 ```
 
 ### 3. Run the E2E Demo (Local Hardhat)
@@ -426,10 +468,13 @@ struct RiskProfile {
 | **Ownership** | Renounced |
 | **LP** | Locked |
 
-**Upcoming Utility** (see [ROADMAP.md](./ROADMAP.md)):
-- Hold $UNIQ → reduced protocol fees (up to 80% discount)
+**On-Chain Utility** (Live on BSC Testnet via [AegisTokenGate](https://testnet.bscscan.com/address/0x672c5cC370085c3c6B5bcf2870e1A0Aa62Ff3D69)):
+- Hold $UNIQ → reduced protocol fees (up to 0.40% discount)
 - Holder tiers: Bronze (10K) / Silver (100K) / Gold (1M)
 - Register agents with $UNIQ at discounted rates
+- Tier-based UI display on Positions page
+
+**Upcoming** (see [ROADMAP.md](./ROADMAP.md)):
 - Staking rewards from protocol fee revenue (Phase 5)
 - Governance voting on protocol parameters
 
@@ -446,9 +491,9 @@ struct RiskProfile {
 | **DEX Integration** | PancakeSwap V2 Router + Factory (on-chain reads) |
 | **Risk Engine** | 5-vector weighted scoring, configurable thresholds |
 | **Live Data** | CoinGecko (price/volume), DeFiLlama (TVL/liquidity) |
-| **Frontend** | Next.js 14, Tailwind CSS, ethers.js v6, Vercel |
+| **Frontend** | Next.js 14, CSS design system, ethers.js v6, Vercel |
 | **Blockchain** | BNB Smart Chain (BSC Testnet), Sourcify verification |
-| **Testing** | Hardhat + Chai (54 tests) + 13-phase on-chain demo |
+| **Testing** | Hardhat + Chai (198 tests) + 13-phase on-chain demo |
 
 ---
 
@@ -468,15 +513,54 @@ struct RiskProfile {
 
 **Live at: [aegis-protocol-1.vercel.app](https://aegis-protocol-1.vercel.app/)**
 
-- **🎮 Interactive Agent Simulation**: Click "Run Agent Cycle" to watch Aegis execute a full 6-phase guardian loop (OBSERVE → ANALYZE → AI REASON → DEX VERIFY → DECIDE → EXECUTE) with animated phase timeline, typewriter terminal output, and real market data — see exactly how the AI agent works
-- **Live market data**: Real-time BNB price from CoinGecko + PancakeSwap V2 on-chain price, auto-refreshing every 30s
-- **Price oracle cross-verification**: Shows live delta between API and DEX prices with status indicators
+Professional multi-page architecture with 6 dedicated routes:
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/` | Landing | Hero, feature grid, contract cards, market ticker |
+| `/dashboard` | Dashboard | Protocol stats, risk overview, activity feed, AI analysis, oracle cross-check |
+| `/scanner` | Token Scanner | Scan any BSC token for honeypots, rug pulls, whale risks, contract security |
+| `/alerts` | Whale Alerts | Real-time monitoring of large ERC-20 transfers on BSC Mainnet |
+| `/positions` | Positions | Deposit BNB, authorize agent, manage $UNIQ tier benefits |
+| `/agent` | AI Agent | Agent performance, reputation, capabilities, live simulation |
+
+**Key Features:**
+- **Responsive Navbar** with active link highlighting, wallet connection, data source indicator, mobile hamburger menu
 - **No-wallet mode**: Reads on-chain data via public BSC RPC (no MetaMask required)
 - **Wallet mode**: Full interaction — deposit, authorize agent, set risk profile, withdraw
-- **AI Analysis display**: Real-time AI reasoning driven by live market data, sentiment, risk scores
-- **13 TX evidence table**: Every transaction clickable with BSCScan links
-- **Auto-refresh**: 30-second polling of on-chain state + market data
-- **Contract verification**: BSCScan links, Sourcify badges
+- **Live market data**: Real-time BNB price from CoinGecko + PancakeSwap V2, auto-refreshing every 30s
+- **Design system**: CSS custom properties (--accent, --bg-base, --border-subtle, etc.) for consistent dark theme
+- **🎮 Interactive Agent Simulation**: Watch a full 6-phase guardian cycle with animated timeline and real market data
+
+---
+
+## 🔍 Token Scanner
+
+The Token Scanner (`frontend/src/components/TokenScanner.tsx` + `agent/src/token-scanner.ts`) provides multi-source risk analysis for any BSC token:
+
+| Check | Source | Detection |
+|-------|--------|-----------|
+| **Honeypot Detection** | Honeypot.is API + bytecode analysis | Simulated buy/sell to detect traps |
+| **Contract Verification** | BSCScan API | Unverified contracts flagged as risky |
+| **Holder Concentration** | BSCScan top holders | Whale dominance + top 10 holder % |
+| **Liquidity Analysis** | PancakeSwap V2 on-chain | Liquidity depth, locked status |
+| **Tax Analysis** | Honeypot.is simulation | Buy/sell tax detection (>10% = warning) |
+| **Rug Pull Indicators** | Combined heuristic | Liquidity + holders + verification composite score |
+
+**Risk scoring**: 0-100 scale with color-coded severity (LOW/MEDIUM/HIGH/CRITICAL).
+
+---
+
+## 🐋 Whale Alerts
+
+Real-time monitoring of large ERC-20 transfers on BSC Mainnet (`frontend/src/components/WhaleAlerts.tsx`):
+
+- **5 tracked tokens**: WBNB, CAKE, USDT, BUSD, USDC
+- **Live BSC data**: Scans recent blocks for Transfer events above $100,000
+- **6 BSC RPC endpoints** with automatic rotation and retry on rate limits
+- **Severity classification**: LOW ($100K+), MEDIUM ($500K+), HIGH ($1M+), CRITICAL ($10M+)
+- **Known address labeling**: Binance hot/cold wallets, PancakeSwap Router
+- **Auto-refresh**: 60-second polling with manual refresh option
 
 ---
 
@@ -485,19 +569,22 @@ struct RiskProfile {
 Built with AI assistance as encouraged by the hackathon:
 
 1. **Competitive Analysis** — Analyzed 40+ competitor submissions to identify unique positioning
-2. **3-Contract Architecture** — Designed AegisRegistry + AegisVault + DecisionLogger system
-3. **1,326 LOC Solidity** — 3 contracts with 54/54 test coverage
+2. **5-Contract Architecture** — Designed AegisRegistry + AegisVault + DecisionLogger + AegisTokenGate + AegisScanner
+3. **1,971 LOC Solidity** — 5 contracts with 198/198 test coverage
 4. **5-Vector Risk Engine** — Weighted scoring with configurable thresholds
-5. **LLM AI Engine** — Groq/OpenAI integration for natural language threat analysis (381 LOC)
-6. **PancakeSwap Integration** — On-chain DEX price feeds for oracle cross-verification (300 LOC)
+5. **LLM AI Engine** — Groq/OpenAI integration for natural language threat analysis (380 LOC)
+6. **PancakeSwap Integration** — On-chain DEX price feeds for oracle cross-verification (299 LOC)
 7. **CoinGecko + DeFiLlama** — Real-time market data with graceful fallback
 8. **13-Phase On-Chain Demo** — Full threat lifecycle executed on BSC Testnet with clickable TX hashes
-9. **Next.js Dashboard** — Cyberpunk glassmorphism UI with live contract hooks
+9. **Multi-Page Dashboard** — Professional 6-page frontend with navbar, routing, design system
 10. **Brutal Self-Audit** — Identified and fixed 6 critical weaknesses mid-hackathon
-11. **BSC Testnet Deployment** — 3 contracts verified via Sourcify, 13 confirmed transactions with clickable TX hashes
-12. **Vercel Deployment** — Live dashboard with public RPC reads (no wallet needed)
-13. **Interactive Agent Simulation** — Visual 6-phase agent loop with typewriter terminal, animated timeline, and live market data
-14. **AI Build Log** — Comprehensive documentation of AI usage throughout development (see [AI_BUILD_LOG.md](./AI_BUILD_LOG.md))
+11. **BSC Testnet Deployment** — 4 contracts verified via Sourcify, 13 confirmed transactions
+12. **Token Scanner** — Multi-source honeypot/rug pull/whale risk analysis for any BSC token
+13. **Whale Alerts** — Real-time BSC Transfer event monitoring with RPC rotation and retry
+14. **$UNIQ Integration** — On-chain holder tiers, fee discounts, dual registration paths
+15. **Production Safety Audit** — Removed all fake/simulated data, real-time data only
+16. **Interactive Agent Simulation** — Visual 6-phase agent loop with typewriter terminal, animated timeline, and live market data
+17. **AI Build Log** — Comprehensive documentation of AI usage throughout development (see [AI_BUILD_LOG.md](./AI_BUILD_LOG.md))
 
 ---
 
@@ -507,6 +594,6 @@ Built with AI assistance as encouraged by the hackathon:
 
 *Your DeFi positions deserve a guardian that never sleeps.*
 
-[Live Dashboard](https://aegis-protocol-1.vercel.app/) · [BSCScan](https://testnet.bscscan.com/address/0xac77139C2856788b7EEff767969353adF95D335e) · [$UNIQ Token](https://bscscan.com/token/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777) · [Twitter](https://x.com/uniq_minds) · [Roadmap](./ROADMAP.md)
+[Live Dashboard](https://aegis-protocol-1.vercel.app/) · [BSCScan](https://testnet.bscscan.com/address/0x7908c25C63AbAB47cb82bE50DBD874ED807EE8fF) · [$UNIQ Token](https://bscscan.com/token/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777) · [Twitter](https://x.com/uniq_minds) · [Roadmap](./ROADMAP.md)
 
 </div>
