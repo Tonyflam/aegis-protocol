@@ -1,89 +1,71 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { ethers } from "ethers";
 import {
   Bell,
   AlertTriangle,
   TrendingDown,
   ArrowRightLeft,
   Droplets,
-  Skull,
   Shield,
   ExternalLink,
   ChevronDown,
   ChevronUp,
   Filter,
+  RefreshCw,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 
 // ─── Types ─────────────────────────────────────────────────────
-
-export type AlertType =
-  | "WHALE_SELL"
-  | "WHALE_MOVE"
-  | "LIQUIDITY_REMOVE"
-  | "LARGE_TRANSFER"
-  | "EXCHANGE_DEPOSIT"
-  | "RUG_SIGNAL"
-  | "HONEYPOT_DETECTED"
-  | "HIGH_RISK_TOKEN";
 
 export type AlertSeverity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO";
 
 export interface WhaleAlert {
   id: string;
-  type: AlertType;
   severity: AlertSeverity;
   token: string;
   tokenSymbol: string;
   from: string;
   to: string;
-  amount: string;
-  percentOfSupply: number;
+  amountRaw: string;
+  amountFormatted: string;
+  usdValue: number;
   message: string;
   timestamp: number;
-  txHash?: string;
+  txHash: string;
+  blockNumber: number;
 }
 
-// ─── Mock Alert Generator (simulates real-time whale alerts) ──
+// ─── Tracked Tokens (real BSC Mainnet addresses) ──────────────
 
-const SAMPLE_TOKENS = [
-  { symbol: "CAKE", address: "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82" },
-  { symbol: "DOGE", address: "0xbA2aE424d960c26247Dd6c32edC70B295c744C43" },
-  { symbol: "FLOKI", address: "0xfb5B838b6cfEEdC2873aB27866079AC55363D37E" },
-  { symbol: "SHIB", address: "0x2859e4544C4bB03966803b044A93563Bd2D0DD4D" },
-  { symbol: "PEPE", address: "0x25d887Ce7a35172C62FeBFD67a1856F20FaEbB00" },
-  { symbol: "BABYDOGE", address: "0xc748673057861a797275CD8A068AbB95A902e8de" },
+const TRACKED_TOKENS = [
+  { symbol: "WBNB", address: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", decimals: 18, priceUsd: 0 },
+  { symbol: "CAKE", address: "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", decimals: 18, priceUsd: 0 },
+  { symbol: "USDT", address: "0x55d398326f99059fF775485246999027B3197955", decimals: 18, priceUsd: 1 },
+  { symbol: "BUSD", address: "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56", decimals: 18, priceUsd: 1 },
+  { symbol: "USDC", address: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", decimals: 18, priceUsd: 1 },
 ];
 
-const ALERT_TEMPLATES: { type: AlertType; severity: AlertSeverity; msg: string }[] = [
-  { type: "WHALE_SELL", severity: "HIGH", msg: "Whale sold {amount} {symbol} via PancakeSwap" },
-  { type: "EXCHANGE_DEPOSIT", severity: "MEDIUM", msg: "Large deposit to Binance: {amount} {symbol}" },
-  { type: "LARGE_TRANSFER", severity: "MEDIUM", msg: "Whale transferred {amount} {symbol} to new wallet" },
-  { type: "LIQUIDITY_REMOVE", severity: "CRITICAL", msg: "Liquidity removed: {amount} {symbol} LP withdrawn" },
-  { type: "RUG_SIGNAL", severity: "CRITICAL", msg: "Potential rug: {symbol} liquidity dropped >50% in 1h" },
-  { type: "WHALE_MOVE", severity: "LOW", msg: "Top holder moved {amount} {symbol} between wallets" },
-];
+// Minimum USD value to qualify as a "whale" transfer
+const WHALE_THRESHOLD_USD = 100_000;
 
-function generateAlert(): WhaleAlert {
-  const token = SAMPLE_TOKENS[Math.floor(Math.random() * SAMPLE_TOKENS.length)];
-  const template = ALERT_TEMPLATES[Math.floor(Math.random() * ALERT_TEMPLATES.length)];
-  const amount = (Math.random() * 1000000 + 10000).toFixed(0);
-  const percent = Math.random() * 5 + 0.5;
+// Known exchange hot wallets (partial list for labeling)
+const KNOWN_ADDRESSES: Record<string, string> = {
+  "0x8894e0a0c962cb723c1ef8a1b63d28aaa26e8f6f": "Binance Hot Wallet",
+  "0xe2fc31f816a9b94326492132018c3aecc4a93ae1": "Binance Hot Wallet 2",
+  "0xf977814e90da44bfa03b6295a0616a897441acec": "Binance Cold Wallet",
+  "0x28c6c06298d514db089934071355e5743bf21d60": "Binance 14",
+  "0x21a31ee1afc51d94c2efccaa2092ad1028285549": "Binance 15",
+  "0x3c783c21a0383057d128bae431894a5c19f9cf06": "PancakeSwap Router",
+};
 
-  return {
-    id: `alert-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    type: template.type,
-    severity: template.severity,
-    token: token.address,
-    tokenSymbol: token.symbol,
-    from: `0x${Math.random().toString(16).slice(2, 42).padEnd(40, "0")}`,
-    to: `0x${Math.random().toString(16).slice(2, 42).padEnd(40, "0")}`,
-    amount,
-    percentOfSupply: percent,
-    message: template.msg.replace("{amount}", Number(amount).toLocaleString()).replace("{symbol}", token.symbol),
-    timestamp: Date.now(),
-  };
-}
+// ERC-20 Transfer event signature
+const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
+
+// BSC Mainnet provider
+const BSC_RPC = "https://bsc-dataseed1.binance.org";
 
 // ─── Helpers ───────────────────────────────────────────────────
 
@@ -107,17 +89,24 @@ function getSeverityBg(severity: AlertSeverity): string {
   }
 }
 
-function getAlertIcon(type: AlertType) {
-  switch (type) {
-    case "WHALE_SELL": return TrendingDown;
-    case "EXCHANGE_DEPOSIT": return ArrowRightLeft;
-    case "LARGE_TRANSFER": return ArrowRightLeft;
-    case "LIQUIDITY_REMOVE": return Droplets;
-    case "RUG_SIGNAL": return Skull;
-    case "WHALE_MOVE": return ArrowRightLeft;
-    case "HONEYPOT_DETECTED": return Skull;
-    case "HIGH_RISK_TOKEN": return AlertTriangle;
-  }
+function getAlertIcon(usdValue: number) {
+  if (usdValue >= 10_000_000) return TrendingDown;
+  if (usdValue >= 1_000_000) return AlertTriangle;
+  if (usdValue >= 500_000) return Droplets;
+  return ArrowRightLeft;
+}
+
+function classifySeverity(usdValue: number): AlertSeverity {
+  if (usdValue >= 10_000_000) return "CRITICAL";
+  if (usdValue >= 1_000_000) return "HIGH";
+  if (usdValue >= 500_000) return "MEDIUM";
+  return "LOW";
+}
+
+function labelAddress(addr: string): string {
+  const known = KNOWN_ADDRESSES[addr.toLowerCase()];
+  if (known) return known;
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
 function timeAgo(timestamp: number): string {
@@ -128,44 +117,140 @@ function timeAgo(timestamp: number): string {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
+function formatUsd(value: number): string {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
+  return `$${value.toFixed(0)}`;
+}
+
+// ─── Fetch real whale transfers from BSC ───────────────────────
+
+async function fetchWhaleTransfers(bnbPrice: number): Promise<WhaleAlert[]> {
+  const provider = new ethers.JsonRpcProvider(BSC_RPC);
+  const latestBlock = await provider.getBlockNumber();
+  // Scan last ~100 blocks (~5 minutes on BSC)
+  const fromBlock = latestBlock - 100;
+
+  const tokenMap = new Map(TRACKED_TOKENS.map((t) => [t.address.toLowerCase(), t]));
+
+  // Update WBNB price from live data
+  const wbnbToken = TRACKED_TOKENS.find((t) => t.symbol === "WBNB");
+  if (wbnbToken) wbnbToken.priceUsd = bnbPrice;
+  // CAKE approximate — a dedicated price feed could improve this
+  const cakeToken = TRACKED_TOKENS.find((t) => t.symbol === "CAKE");
+  if (cakeToken) cakeToken.priceUsd = 2.5;
+
+  // Fetch Transfer logs for all tracked tokens
+  const logs = await provider.getLogs({
+    fromBlock,
+    toBlock: latestBlock,
+    topics: [TRANSFER_TOPIC],
+    address: TRACKED_TOKENS.map((t) => t.address),
+  });
+
+  const alerts: WhaleAlert[] = [];
+
+  for (const log of logs) {
+    const tokenInfo = tokenMap.get(log.address.toLowerCase());
+    if (!tokenInfo) continue;
+
+    const from = "0x" + log.topics[1].slice(26);
+    const to = "0x" + log.topics[2].slice(26);
+    const amountRaw = BigInt(log.data);
+    const amountFormatted = Number(ethers.formatUnits(amountRaw, tokenInfo.decimals));
+
+    const usdValue = amountFormatted * tokenInfo.priceUsd;
+
+    // Only include whale-sized transfers
+    if (usdValue < WHALE_THRESHOLD_USD) continue;
+
+    const severity = classifySeverity(usdValue);
+    const fromLabel = labelAddress(from);
+    const toLabel = labelAddress(to);
+
+    alerts.push({
+      id: `${log.transactionHash}-${log.index}`,
+      severity,
+      token: tokenInfo.address,
+      tokenSymbol: tokenInfo.symbol,
+      from,
+      to,
+      amountRaw: amountRaw.toString(),
+      amountFormatted: amountFormatted.toLocaleString(undefined, { maximumFractionDigits: 2 }),
+      usdValue,
+      message: `${amountFormatted.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${tokenInfo.symbol} transferred (${formatUsd(usdValue)}) — ${fromLabel} → ${toLabel}`,
+      timestamp: Date.now(),
+      txHash: log.transactionHash,
+      blockNumber: log.blockNumber,
+    });
+  }
+
+  // Sort by USD value descending
+  alerts.sort((a, b) => b.usdValue - a.usdValue);
+  return alerts;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Component: WhaleAlerts
 // ═══════════════════════════════════════════════════════════════
 
-export default function WhaleAlerts() {
+export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
   const [alerts, setAlerts] = useState<WhaleAlert[]>([]);
   const [filter, setFilter] = useState<AlertSeverity | "ALL">("ALL");
-  const [isLive, setIsLive] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [criticalCount, setCriticalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [lastFetch, setLastFetch] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Generate initial alerts + simulate real-time feed
-  useEffect(() => {
-    // Generate some initial alerts
-    const initial: WhaleAlert[] = [];
-    for (let i = 0; i < 8; i++) {
-      const alert = generateAlert();
-      alert.timestamp = Date.now() - (i * 45000 + Math.random() * 30000);
-      initial.push(alert);
+  const fetchAlerts = useCallback(async () => {
+    if (loading) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const price = bnbPrice > 0 ? bnbPrice : 600;
+      const newAlerts = await fetchWhaleTransfers(price);
+
+      setAlerts((prev) => {
+        const existing = new Map(prev.map((a) => [a.id, a]));
+        for (const alert of newAlerts) {
+          existing.set(alert.id, alert);
+        }
+        return Array.from(existing.values())
+          .sort((a, b) => b.usdValue - a.usdValue)
+          .slice(0, 100);
+      });
+      setLastFetch(Date.now());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch whale transfers from BSC");
+    } finally {
+      setLoading(false);
     }
-    setAlerts(initial);
-    setCriticalCount(initial.filter((a) => a.severity === "CRITICAL" || a.severity === "HIGH").length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bnbPrice]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchAlerts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Simulate real-time feed
+  // Auto-refresh every 60s
   useEffect(() => {
-    if (!isLive) return;
-    const interval = setInterval(() => {
-      const newAlert = generateAlert();
-      setAlerts((prev) => [newAlert, ...prev].slice(0, 50));
-      if (newAlert.severity === "CRITICAL" || newAlert.severity === "HIGH") {
-        setCriticalCount((prev) => prev + 1);
-      }
-    }, 15000 + Math.random() * 25000);
-    return () => clearInterval(interval);
-  }, [isLive]);
+    if (!autoRefresh) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
+    }
+    intervalRef.current = setInterval(fetchAlerts, 60_000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [autoRefresh, fetchAlerts]);
 
   const filteredAlerts = filter === "ALL" ? alerts : alerts.filter((a) => a.severity === filter);
+  const criticalCount = alerts.filter((a) => a.severity === "CRITICAL" || a.severity === "HIGH").length;
 
   return (
     <div className="space-y-6">
@@ -175,40 +260,63 @@ export default function WhaleAlerts() {
           <h4 className="text-lg font-semibold flex items-center gap-2">
             <Bell className="w-5 h-5 text-[#00e0ff]" />
             Whale &amp; Risk Alerts
-            {isLive && (
-              <span className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-green-500/10 text-green-400 border border-green-500/20">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 pulse-live" />
-                LIVE
-              </span>
-            )}
+            <span className="text-xs px-2 py-1 rounded-md bg-[#00e0ff]/10 text-[#00e0ff] border border-[#00e0ff]/20">
+              BSC Mainnet
+            </span>
           </h4>
           <div className="flex items-center gap-3">
             {criticalCount > 0 && (
               <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-red-500/10 text-red-400 border border-red-500/20">
                 <AlertTriangle className="w-3 h-3" />
-                {criticalCount} Critical
+                {criticalCount} Critical/High
               </span>
             )}
             <button
-              onClick={() => setIsLive(!isLive)}
+              onClick={fetchAlerts}
+              disabled={loading}
+              className="text-xs px-3 py-1.5 rounded-lg transition-all bg-[#00e0ff]/10 text-[#00e0ff] border border-[#00e0ff]/20 hover:bg-[#00e0ff]/20 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3 h-3 inline mr-1 ${loading ? "animate-spin" : ""}`} />
+              {loading ? "Scanning..." : "Refresh"}
+            </button>
+            <button
+              onClick={() => setAutoRefresh(!autoRefresh)}
               className={`text-xs px-3 py-1.5 rounded-lg transition-all ${
-                isLive
+                autoRefresh
                   ? "bg-green-500/10 text-green-400 border border-green-500/20"
                   : "bg-gray-500/10 text-gray-400 border border-gray-500/20"
               }`}
             >
-              {isLive ? "Live" : "Paused"}
+              {autoRefresh ? <Wifi className="w-3 h-3 inline mr-1" /> : <WifiOff className="w-3 h-3 inline mr-1" />}
+              {autoRefresh ? "Auto" : "Paused"}
             </button>
           </div>
         </div>
 
+        {/* Data Source Notice */}
+        <div className="flex items-center gap-2 mb-4 p-2 rounded-lg" style={{ background: "rgba(0,224,255,0.04)", border: "1px solid rgba(0,224,255,0.08)" }}>
+          <Shield className="w-3 h-3 text-[#00e0ff] flex-shrink-0" />
+          <p className="text-xs text-gray-400">
+            Scanning real ERC-20 Transfer events on BSC Mainnet (last ~100 blocks). Minimum threshold: ${WHALE_THRESHOLD_USD.toLocaleString()}.
+            {lastFetch && <span className="text-gray-500"> Last scan: {timeAgo(lastFetch)}</span>}
+          </p>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="flex items-center gap-2 mb-4 p-3 rounded-lg" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)" }}>
+            <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+            <p className="text-xs text-red-400">{error}</p>
+          </div>
+        )}
+
         {/* Alert Stats */}
         <div className="grid grid-cols-4 gap-3 mb-4">
           {[
-            { label: "Total Alerts", value: alerts.length, color: "#00e0ff" },
+            { label: "Whale Transfers", value: alerts.length, color: "#00e0ff" },
             { label: "Critical", value: alerts.filter((a) => a.severity === "CRITICAL").length, color: "#ef4444" },
             { label: "High Risk", value: alerts.filter((a) => a.severity === "HIGH").length, color: "#f97316" },
-            { label: "Tokens Tracked", value: new Set(alerts.map((a) => a.token)).size, color: "#a855f7" },
+            { label: "Tokens Tracked", value: TRACKED_TOKENS.length, color: "#a855f7" },
           ].map((s) => (
             <div key={s.label} className="p-3 rounded-lg text-center" style={{ background: `${s.color}08`, borderLeft: `3px solid ${s.color}` }}>
               <p className="text-lg font-bold" style={{ color: s.color }}>{s.value}</p>
@@ -238,9 +346,29 @@ export default function WhaleAlerts() {
 
       {/* Alert Feed */}
       <div className="space-y-2">
-        {filteredAlerts.length > 0 ? (
+        {loading && alerts.length === 0 ? (
+          <div className="glass-card p-12 text-center" style={{ borderRadius: "12px" }}>
+            <RefreshCw className="w-8 h-8 text-[#00e0ff] mx-auto mb-3 animate-spin" />
+            <p className="text-gray-400">Scanning BSC Mainnet for whale transfers...</p>
+            <p className="text-xs text-gray-500 mt-1">Checking last ~100 blocks for large ERC-20 transfers</p>
+          </div>
+        ) : filteredAlerts.length === 0 ? (
+          <div className="glass-card p-12 text-center" style={{ borderRadius: "12px" }}>
+            <Shield className="w-8 h-8 text-gray-600 mx-auto mb-3" />
+            <p className="text-gray-400">
+              {filter !== "ALL"
+                ? `No ${filter} severity alerts found`
+                : "No whale transfers detected in recent blocks"}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {filter !== "ALL"
+                ? "Try selecting a different filter"
+                : `No transfers above $${(WHALE_THRESHOLD_USD / 1000).toFixed(0)}K in the last ~5 minutes. This is normal during low activity periods.`}
+            </p>
+          </div>
+        ) : (
           filteredAlerts.map((alert) => {
-            const Icon = getAlertIcon(alert.type);
+            const Icon = getAlertIcon(alert.usdValue);
             const isExpanded = expanded === alert.id;
 
             return (
@@ -257,15 +385,12 @@ export default function WhaleAlerts() {
                   onClick={() => setExpanded(isExpanded ? null : alert.id)}
                   className="w-full flex items-center gap-3 p-4 text-left"
                 >
-                  {/* Icon */}
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ background: getSeverityBg(alert.severity) }}
                   >
                     <Icon className="w-4 h-4" style={{ color: getSeverityColor(alert.severity) }} />
                   </div>
-
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-200 truncate">{alert.message}</p>
                     <div className="flex items-center gap-2 mt-1">
@@ -279,12 +404,10 @@ export default function WhaleAlerts() {
                         {alert.severity}
                       </span>
                       <span className="text-xs text-gray-500">{alert.tokenSymbol}</span>
-                      <span className="text-xs text-gray-600">·</span>
-                      <span className="text-xs text-gray-500">{timeAgo(alert.timestamp)}</span>
+                      <span className="text-xs text-gray-600">&middot;</span>
+                      <span className="text-xs text-gray-500">Block #{alert.blockNumber}</span>
                     </div>
                   </div>
-
-                  {/* Expand */}
                   {isExpanded ? (
                     <ChevronUp className="w-4 h-4 text-gray-500 flex-shrink-0" />
                   ) : (
@@ -292,46 +415,47 @@ export default function WhaleAlerts() {
                   )}
                 </button>
 
-                {/* Expanded Details */}
                 {isExpanded && (
                   <div className="px-4 pb-4 pt-0 border-t" style={{ borderColor: "rgba(255,255,255,0.03)" }}>
                     <div className="grid grid-cols-2 gap-3 mt-3">
                       <div>
                         <p className="text-xs text-gray-500">Token</p>
-                        <p className="text-sm font-mono text-white">{alert.tokenSymbol}</p>
+                        <p className="text-sm font-mono text-gray-300">{alert.tokenSymbol}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Amount</p>
-                        <p className="text-sm font-mono text-white">{Number(alert.amount).toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">USD Value</p>
+                        <p className="text-sm font-mono text-gray-300">{formatUsd(alert.usdValue)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">% of Supply</p>
-                        <p className={`text-sm font-mono ${alert.percentOfSupply > 2 ? "text-red-400" : "text-yellow-400"}`}>
-                          {alert.percentOfSupply.toFixed(2)}%
+                        <p className="text-xs text-gray-500">From</p>
+                        <p className="text-sm font-mono text-gray-300" title={alert.from}>
+                          {labelAddress(alert.from)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Type</p>
-                        <p className="text-sm font-mono text-gray-300">{alert.type.replace(/_/g, " ")}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="text-xs text-gray-500">From</p>
-                        <p className="text-xs font-mono text-gray-400 truncate">{alert.from}</p>
-                      </div>
-                      <div className="col-span-2">
                         <p className="text-xs text-gray-500">To</p>
-                        <p className="text-xs font-mono text-gray-400 truncate">{alert.to}</p>
+                        <p className="text-sm font-mono text-gray-300" title={alert.to}>
+                          {labelAddress(alert.to)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Amount</p>
+                        <p className="text-sm font-mono text-gray-300">{alert.amountFormatted} {alert.tokenSymbol}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Block</p>
+                        <p className="text-sm font-mono text-gray-300">#{alert.blockNumber}</p>
                       </div>
                     </div>
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.03)" }}>
                       <a
-                        href={`https://bscscan.com/token/${alert.token}`}
+                        href={`https://bscscan.com/tx/${alert.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1"
-                        style={{ background: "rgba(0,224,255,0.08)", color: "#00e0ff", border: "1px solid rgba(0,224,255,0.15)" }}
+                        className="flex items-center gap-1.5 text-xs text-[#00e0ff] hover:underline"
                       >
-                        View Token <ExternalLink className="w-3 h-3" />
+                        <ExternalLink className="w-3 h-3" />
+                        View on BSCScan: {alert.txHash.slice(0, 16)}...{alert.txHash.slice(-8)}
                       </a>
                     </div>
                   </div>
@@ -339,11 +463,6 @@ export default function WhaleAlerts() {
               </div>
             );
           })
-        ) : (
-          <div className="glass-card glow-border p-12 text-center" style={{ borderRadius: "16px" }}>
-            <Shield className="w-10 h-10 text-gray-600 mx-auto mb-3" />
-            <p className="text-gray-400 text-sm">No alerts matching your filter.</p>
-          </div>
         )}
       </div>
     </div>

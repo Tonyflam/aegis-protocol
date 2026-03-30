@@ -52,14 +52,19 @@ export class LiveMarketProvider {
       volumeChange: this.calculateVolumeChange(price?.volume24h),
       liquidity: tvl?.tvl ?? 2_000_000_000,
       liquidityChange: tvl?.change1d ?? 0,
-      holders: 1_520_000, // BSCScan API doesn't expose this freely; use estimate
-      topHolderPercent: 8.5, // Binance hot wallet — well known
+      holders: 1_520_000, // Estimate — BSCScan API requires paid key for holder count
+      topHolderPercent: 8.5, // Binance hot wallet — well known approximate value
     };
+
+    const sources: string[] = [];
+    if (!price) sources.push("price:fallback");
+    if (!tvl) sources.push("tvl:fallback");
+    sources.push("holders:estimate", "topHolder:estimate");
 
     this.lastData = data;
     this.lastFetchTime = Date.now();
 
-    console.log(`[LiveMarket] Fetched: BNB=$${data.price.toFixed(2)}, 24h=${data.priceChange24h > 0 ? '+' : ''}${data.priceChange24h.toFixed(2)}%, vol=$${(data.volume24h / 1e6).toFixed(0)}M`);
+    console.log(`[LiveMarket] Fetched: BNB=$${data.price.toFixed(2)}, 24h=${data.priceChange24h > 0 ? '+' : ''}${data.priceChange24h.toFixed(2)}%, vol=$${(data.volume24h / 1e6).toFixed(0)}M [${sources.join(", ")}]`);
     return data;
   }
 

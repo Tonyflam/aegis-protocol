@@ -32,7 +32,8 @@ interface TokenReport {
   totalSupply: string;
   riskScore: number;
   riskLevel: "SAFE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | "SCAM";
-  isHoneypot: boolean;
+  isHoneypot: boolean | null;
+  honeypotConfident: boolean;
   buyTax: number;
   sellTax: number;
   liquidity: number;
@@ -236,7 +237,7 @@ async function analyzeLiquidity(
 
 async function detectHoneypot(
   address: string
-): Promise<{ isHoneypot: boolean; buyTax: number; sellTax: number }> {
+): Promise<{ isHoneypot: boolean | null; buyTax: number; sellTax: number; confident: boolean }> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
@@ -248,12 +249,14 @@ async function detectHoneypot(
     const data = await res.json();
 
     return {
-      isHoneypot: data.honeypotResult?.isHoneypot ?? false,
+      isHoneypot: data.honeypotResult?.isHoneypot ?? null,
       buyTax: Math.round((data.simulationResult?.buyTax ?? 0) * 100),
       sellTax: Math.round((data.simulationResult?.sellTax ?? 0) * 100),
+      confident: true,
     };
   } catch {
-    return { isHoneypot: false, buyTax: 0, sellTax: 0 };
+    // API unavailable — return unknown, NOT safe
+    return { isHoneypot: null, buyTax: 0, sellTax: 0, confident: false };
   }
 }
 
@@ -270,6 +273,12 @@ function calculateRisk(report: Partial<TokenReport>): {
     score = 100;
     flags.push("HONEYPOT");
     return { score, flags };
+  }
+
+  // If honeypot detection failed, add uncertainty penalty
+  if (report.isHoneypot === null) {
+    score += 15;
+    flags.push("HONEYPOT_CHECK_FAILED");
   }
 
   if ((report.buyTax ?? 0) > 50 || (report.sellTax ?? 0) > 50) {
@@ -352,6 +361,7 @@ async function scanToken(
       riskScore: 0,
       riskLevel: "SAFE",
       isHoneypot: false,
+      honeypotConfident: true,
       buyTax: 0,
       sellTax: 0,
       liquidity: 999999999,
@@ -392,6 +402,7 @@ async function scanToken(
     decimals: Number(decimals),
     totalSupply: ethers.formatUnits(totalSupply, Number(decimals)),
     isHoneypot: honeypot.isHoneypot,
+    honeypotConfident: honeypot.confident,
     buyTax: honeypot.buyTax,
     sellTax: honeypot.sellTax,
     liquidity: liquidity.liquidityUsd,
@@ -402,7 +413,7 @@ async function scanToken(
     ownerCanBlacklist: security.ownerCanBlacklist,
     isContractRenounced: security.isRenounced,
     isLiquidityLocked: liquidity.isLpBurned,
-    isVerified: true, // BSCScan API would be needed for real check
+    isVerified: false, // Cannot verify without BSCScan API key
   };
 
   const { score, flags } = calculateRisk(partial);
@@ -638,9 +649,14 @@ export default function TokenScanner({
                 <div className="flex items-center gap-3 mb-2">
                   <h3 className="text-2xl font-bold text-white">{report.symbol}</h3>
                   <span className="text-sm text-gray-400">{report.name}</span>
-                  {report.isHoneypot && (
+                  {report.isHoneypot === true && (
                     <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-red-500/20 text-red-400 border border-red-500/30">
                       <Skull className="w-3 h-3" /> HONEYPOT
+                    </span>
+                  )}
+                  {report.isHoneypot === null && (
+                    <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                      <AlertTriangle className="w-3 h-3" /> HONEYPOT CHECK UNAVAILABLE
                     </span>
                   )}
                 </div>
@@ -707,18 +723,23 @@ export default function TokenScanner({
           {/* Detail Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {/* Honeypot */}
-            <div className="glass-card p-4" style={{ borderRadius: "12px", borderLeft: `3px solid ${report.isHoneypot ? "#ef4444" : "#22c55e"}` }}>
+            <div className="glass-card p-4" style={{ borderRadius: "12px", borderLeft: `3px solid ${report.isHoneypot === true ? "#ef4444" : report.isHoneypot === null ? "#eab308" : "#22c55e"}` }}>
               <div className="flex items-center gap-2 mb-2">
-                {report.isHoneypot ? (
+                {report.isHoneypot === true ? (
                   <Skull className="w-4 h-4 text-red-400" />
+                ) : report.isHoneypot === null ? (
+                  <AlertTriangle className="w-4 h-4 text-yellow-400" />
                 ) : (
                   <CheckCircle className="w-4 h-4 text-green-400" />
                 )}
                 <span className="text-xs text-gray-500">Honeypot</span>
               </div>
-              <p className={`text-lg font-bold ${report.isHoneypot ? "text-red-400" : "text-green-400"}`}>
-                {report.isHoneypot ? "DETECTED" : "Safe"}
+              <p className={`text-lg font-bold ${report.isHoneypot === true ? "text-red-400" : report.isHoneypot === null ? "text-yellow-400" : "text-green-400"}`}>
+                {report.isHoneypot === true ? "DETECTED" : report.isHoneypot === null ? "UNKNOWN" : "Safe"}
               </p>
+              {report.isHoneypot === null && (
+                <p className="text-xs text-yellow-500 mt-1">Detection API unavailable</p>
+              )}
             </div>
 
             {/* Tax */}

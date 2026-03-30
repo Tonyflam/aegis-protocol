@@ -185,6 +185,17 @@ export default function Home() {
         </div>
       </nav>
 
+      {/* Demo Mode Banner — prominent when BSC RPC unreachable */}
+      {dataSource === "demo" && (
+        <div className="mx-4 mt-2 px-4 py-3 rounded-xl flex items-center gap-3" style={{ background: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.2)" }}>
+          <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
+          <div>
+            <p className="text-sm text-yellow-400 font-medium">Demo Mode — BSC Testnet data unavailable</p>
+            <p className="text-xs text-gray-500">Protocol stats show zeros because the RPC is unreachable. Connect a wallet or wait for the network to respond. Token Scanner and Whale Alerts use BSC Mainnet and may still work.</p>
+          </div>
+        </div>
+      )}
+
       {/* ═══ HERO ═══ */}
       <section className="px-4 pt-16 pb-12 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6" style={{ background: "rgba(0,224,255,0.08)", border: "1px solid rgba(0,224,255,0.15)" }}>
@@ -305,7 +316,7 @@ export default function Home() {
             <TokenScanner bnbPrice={liveMarket.bnbPriceCoinGecko} />
           )}
           {activeTab === "alerts" && (
-            <WhaleAlerts />
+            <WhaleAlerts bnbPrice={liveMarket.bnbPriceCoinGecko} />
           )}
           {activeTab === "decisions" && (
             <DecisionsTab 
@@ -593,76 +604,6 @@ export default function Home() {
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* On-Chain Transaction Evidence */}
-          <div className="glass-card glow-border p-6" style={{ borderRadius: "16px" }}>
-            <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-[#00e0ff]" />
-              On-Chain Transaction Evidence
-              <span className="ml-auto text-xs px-2 py-1 rounded-md bg-green-500/10 text-green-400 border border-green-500/20">13 Verified TXs</span>
-            </h4>
-            <p className="text-sm text-gray-400 mb-4">Full threat lifecycle: Normal → Volatility Warning → Threat Detected → Protection Triggered → Recovery → Review</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-gray-500 border-b" style={{ borderColor: "rgba(0,224,255,0.05)" }}>
-                    <th className="px-4 py-2 text-left">#</th>
-                    <th className="px-4 py-2 text-left">Phase</th>
-                    <th className="px-4 py-2 text-left">Action</th>
-                    <th className="px-4 py-2 text-left">Risk</th>
-                    <th className="px-4 py-2 text-left">TX Hash</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { phase: "Setup", action: "Vault Deposit (0.005 tBNB)", risk: "—", hash: "0x3602f865ec5df8b7bcb389f0caea337cdbe7bd5da699bfe373d1176894216c7a" },
-                    { phase: "Config", action: "Risk Profile (Conservative)", risk: "—", hash: "0x4e2ddc3e04bee004d185574497b746ac5cc561ab1da362e1eb64f207bd126989" },
-                    { phase: "Normal", action: "AI Analysis → All Clear (92%)", risk: "NONE", hash: "0xf0922ad8ff51553d014ebad35c04b7b72e0ec2b216325d652f557e988765dbfb" },
-                    { phase: "Normal", action: "Risk Snapshot (15/100)", risk: "LOW", hash: "0xcd74298263c839ce58dd65d453dea8a88776fb5bb34029ad972eccd1ca584618" },
-                    { phase: "Escalation", action: "Volatility Warning (-4.2%)", risk: "LOW", hash: "0xeed6b6541031012209d9318fad7851db395304f1e2a2978ae3a98f91b02500ef" },
-                    { phase: "Escalation", action: "Risk Snapshot (38/100)", risk: "MED", hash: "0x60e7f39ebc63a4e585684f1d0fe21ab22d52a14700aa5e4ead21fc766441ddf4" },
-                    { phase: "Threat", action: "Abnormal Volume (+350%)", risk: "HIGH", hash: "0x8e8e1f31f29ab36d60d3cec4be03db00919abbded5ed54e48702d5658ba7d97d" },
-                    { phase: "Defense", action: "Aggressive Profile (0.3% slip)", risk: "—", hash: "0x7b7546b846181312fde544b2f89ee8e7e53ffd0002bada657a8c10848e0b6021" },
-                    { phase: "Defense", action: "Risk Snapshot (68/100)", risk: "HIGH", hash: "0x2a8c0b20cedebb1af168b5545f46911d79b98feeaa05d0e4e647055eb8c402d3" },
-                    { phase: "Protection", action: "Stop-Loss Triggered (95%)", risk: "CRIT", hash: "0xea98d417b4ae7aaf6d568f85bf2ba6fa1cb1b1ee5c30f08d59959aa69228ae11" },
-                    { phase: "Recovery", action: "Market Stabilized", risk: "LOW", hash: "0xbbc362118ad2040c44b6a680bc789a6b82f52227bb0a82f4511d525f69d4912c" },
-                    { phase: "Recovery", action: "Risk Normalized (18/100)", risk: "LOW", hash: "0x530f57e3d88c15d34fc5e57f3bf3788f0eeceec5df82ab7c2243baa4565b3eb6" },
-                    { phase: "Review", action: "Position Review (98%)", risk: "NONE", hash: "0x226c18891d7b6edfba75cde1701dc807b9cd42d6c697309b72ac524754fdfbab" },
-                  ].map((tx, i) => (
-                    <tr key={i} className="border-b hover:bg-white/[0.02]" style={{ borderColor: "rgba(0,224,255,0.03)" }}>
-                      <td className="px-4 py-2.5 text-gray-500 font-mono">{i + 1}</td>
-                      <td className="px-4 py-2.5">
-                        <span className={`text-xs px-2 py-0.5 rounded-md ${
-                          tx.phase === "Threat" || tx.phase === "Protection" ? "bg-red-500/10 text-red-400" :
-                          tx.phase === "Escalation" || tx.phase === "Defense" ? "bg-yellow-500/10 text-yellow-400" :
-                          tx.phase === "Recovery" ? "bg-green-500/10 text-green-400" :
-                          "bg-gray-500/10 text-gray-400"
-                        }`}>{tx.phase}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-gray-300 text-xs">{tx.action}</td>
-                      <td className="px-4 py-2.5">
-                        <span className={`text-xs font-mono ${
-                          tx.risk === "CRIT" ? "text-red-400" :
-                          tx.risk === "HIGH" ? "text-orange-400" :
-                          tx.risk === "MED" ? "text-yellow-400" :
-                          tx.risk === "LOW" ? "text-blue-400" :
-                          tx.risk === "NONE" ? "text-green-400" :
-                          "text-gray-500"
-                        }`}>{tx.risk}</span>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <a href={`https://testnet.bscscan.com/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"
-                          className="text-xs font-mono text-[#00e0ff] hover:underline flex items-center gap-1">
-                          {tx.hash.slice(0, 10)}...{tx.hash.slice(-6)}
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           </div>
 
           {/* Tech Stack Summary */}

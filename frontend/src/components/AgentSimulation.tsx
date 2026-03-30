@@ -87,13 +87,13 @@ function generateObserveData(market: LiveMarketData) {
   }
   return {
     lines: [
-      '> fetch("coingecko/bnb") → $612.50',
-      '> fetch("defillama/bsc") → TVL $4.20B',
-      '> fetch("pancakeswap/v2/price") → $612.38',
-      "> 24h Change: +1.82%",
-      "> Volume: $0.78B | Market Cap: $92.1B",
+      "> ⚠ Live data unavailable — using placeholder values",
+      '> fetch("coingecko/bnb") → [UNAVAILABLE]',
+      '> fetch("defillama/bsc") → [UNAVAILABLE]',
+      '> fetch("pancakeswap/v2/price") → [UNAVAILABLE]',
+      "> Connect to BSC or wait for API response",
     ],
-    summary: "Data collected: BNB at $612.50, BSC TVL $4.20B",
+    summary: "Data unavailable — API not reachable",
   };
 }
 
@@ -167,7 +167,7 @@ function generateDecideData(market: LiveMarketData) {
   const change = Math.abs(market.priceChange24h);
   const delta = market.priceDelta;
   const risk = change > 10 ? "CRITICAL" : change > 5 ? "HIGH" : change > 3 ? "MEDIUM" : delta > 1 ? "MEDIUM" : "LOW";
-  const confidence = Math.min(99, Math.round(85 + Math.random() * 12));
+  const confidence = Math.min(99, Math.round(85 + Math.abs(change) * 1.5));
   const action = risk === "CRITICAL" || risk === "HIGH" ? "PROTECT" : "MONITOR";
 
   return {
@@ -190,24 +190,24 @@ function generateExecuteData(action: string, risk: string) {
   if (action === "PROTECT") {
     return {
       lines: [
-        "> Executing on-chain protection...",
+        "> [SIMULATION] Would execute on-chain protection...",
         `> logDecision(type=2, risk=${risk}, confidence=96%)`,
-        `> TX: 0x${Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}...`,
-        "> ✓ Decision logged on DecisionLogger",
-        "> ✓ Stop-loss triggered on AegisVault",
+        "> → In production: TX submitted to DecisionLogger contract",
+        "> → In production: Stop-loss triggered on AegisVault",
+        "> ⚠ This is a demonstration — no real TX was sent",
       ],
-      summary: "Protection executed and logged on-chain",
+      summary: "Simulation complete — would execute protection on-chain",
     };
   }
   return {
     lines: [
       "> No action required — monitoring continues",
       `> logDecision(type=0, risk=${risk}, confidence=94%)`,
-      `> TX: 0x${Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}...`,
-      "> ✓ All-clear logged on DecisionLogger",
-      "> ⏳ Next cycle starts in 30 seconds...",
+      "> → In production: All-clear logged to DecisionLogger",
+      "> ⚠ This is a demonstration — no real TX was sent",
+      "> ⏳ Next cycle would start in 30 seconds...",
     ],
-    summary: "All-clear logged on-chain, cycle complete",
+    summary: "Simulation complete — all-clear cycle demonstrated",
   };
 }
 
@@ -324,7 +324,10 @@ export default function AgentSimulation({ market }: { market: LiveMarketData }) 
         <div>
           <h4 className="text-lg font-semibold flex items-center gap-2">
             <Shield className="w-5 h-5 text-[#00e0ff]" />
-            Live Agent Simulation
+            Agent Cycle Demo
+            <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+              SIMULATION
+            </span>
             {isRunning && (
               <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-green-500/10 text-green-400 border border-green-500/20">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -333,8 +336,9 @@ export default function AgentSimulation({ market }: { market: LiveMarketData }) 
             )}
           </h4>
           <p className="text-xs text-gray-500 mt-1">
-            Watch Aegis execute a full 6-phase guardian cycle with{" "}
-            {market.bnbPriceCoinGecko > 0 ? "live market data" : "simulated data"}
+            Demonstrates how Aegis analyzes markets in a 6-phase cycle using{" "}
+            {market.bnbPriceCoinGecko > 0 ? "live market data" : "sample data"}.
+            No real transactions are sent.
           </p>
         </div>
         <div className="flex items-center gap-3">

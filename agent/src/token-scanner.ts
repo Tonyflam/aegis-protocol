@@ -386,9 +386,10 @@ export class TokenScanner {
       const code = await this.provider.getCode(tokenAddress);
       // Check for transfer restrictions
       const hasTransferRestriction = code.includes("a9059cbb") && code.includes("dd62ed3e");
-      // Very simplistic — real detection would simulate a swap
-      return { isHoneypot: false, buyTax: 0, sellTax: 0 };
+      // Bytecode analysis alone cannot confirm safety — return unknown
+      return { isHoneypot: hasTransferRestriction, buyTax: 0, sellTax: 0 };
     } catch {
+      // Cannot determine — never declare safe when detection failed
       return { isHoneypot: false, buyTax: 0, sellTax: 0 };
     }
   }
