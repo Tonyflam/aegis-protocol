@@ -1,7 +1,7 @@
 # AEGIS PROTOCOL — FOUNDER'S GUIDE
 ## Everything You Need to Know to Own Every Conversation
 
-**Last Updated**: March 20, 2026
+**Last Updated**: March 30, 2026
 **For**: Tony (Solo Founder, Uniq Minds)
 **Purpose**: Your cheat-sheet for calls, AMAs, investor meetings, Twitter spaces, and everything in between. No code — just what you need to speak confidently.
 
@@ -108,11 +108,15 @@ This is important — you're not selling a whitepaper. You have working product.
 | What | Where | Status |
 |------|-------|--------|
 | **Dashboard** | [aegis-protocol-1.vercel.app](https://aegis-protocol-1.vercel.app/) | ✅ Live, anyone can try |
-| **Smart Contracts** | BSC Testnet (BNB Chain's test network) | ✅ 4 contracts deployed + verified |
+| **Smart Contracts** | BSC Testnet (BNB Chain's test network) | ✅ 5 contracts deployed + verified |
 | **AI Agent** | Backend engine | ✅ Functional, using Groq AI (Llama 3.3 70B) |
-| **Test Suite** | GitHub CI/CD | ✅ 150 tests, all passing |
+| **Test Suite** | GitHub CI/CD | ✅ 198 tests, all passing |
+| **Token Scanner** | Dashboard /scanner page | ✅ Live — paste any BSC token, get AI risk analysis |
+| **Whale Alerts** | Dashboard /alerts page | ✅ Live — real-time large-transfer tracking per token |
+| **Multi-Page Frontend** | 6 dedicated routes | ✅ Dashboard, Scanner, Alerts, Positions, Agent pages |
 | **$UNIQ Token** | BNB Chain Mainnet | ✅ Live, tradeable on flap.sh |
 | **On-Chain Proof** | BSCScan | ✅ 13 verified transactions showing full lifecycle |
+| **Production Audit** | All simulated data removed | ✅ 100% real data — no fakes anywhere |
 
 ### What "Verified on BSCScan" Means (Say This in Calls):
 > "Our smart contracts are verified — meaning anyone in the world can read the actual code running on the blockchain. Nothing is hidden. The source code matches what's deployed."
@@ -135,7 +139,7 @@ This is important — you're not selling a whitepaper. You have working product.
 
 ## 6. THE SMART CONTRACTS (WHAT THEY DO)
 
-You have **4 smart contracts**. Think of them as 4 programs running on the blockchain:
+You have **5 smart contracts**. Think of them as 5 programs running on the blockchain:
 
 ### 1. AegisRegistry (The Phone Book)
 - Every AI agent is registered here as an NFT (like a digital ID card)
@@ -158,12 +162,19 @@ You have **4 smart contracts**. Think of them as 4 programs running on the block
 - Stores a hash of the full AI analysis (proof of what the AI was thinking)
 - **Why it matters**: "Full transparency. If our AI makes a bad call, everyone can see exactly why"
 
-### 4. AegisTokenGate (The VIP Pass) — NEW in Phase 2
+### 4. AegisTokenGate (The VIP Pass)
 - Checks how many $UNIQ tokens you hold
 - Assigns you a tier: Bronze (10K), Silver (100K), Gold (1M)
 - Gives you a fee discount based on your tier
 - Works automatically — just hold $UNIQ, no staking needed
 - **Why it matters**: "Holding $UNIQ isn't just speculative — it gives you real protocol benefits"
+
+### 5. AegisScanner (The Token Detector)
+- Scans any BSC token address for risk signals
+- Checks holder concentration, liquidity depth, contract patterns
+- Returns a risk score from 0-100
+- Powers the Token Scanner page on the dashboard
+- **Why it matters**: "Before you buy any token, scan it — our AI tells you if it looks like a rug"
 
 ### Security Features Built In:
 - **ReentrancyGuard** — prevents a common hack where attackers re-enter a function
@@ -224,13 +235,18 @@ You have **4 smart contracts**. Think of them as 4 programs running on the block
 - Set up CI/CD (automated testing on every code change)
 - Twitter, dashboard, README all aligned
 
-### Phase 2 — $UNIQ Token Integration 🔧 IN PROGRESS (Now)
+### Phase 2 — $UNIQ Token Integration + Full Product Build ✅ COMPLETE
 - ✅ Created AegisTokenGate contract (holder tiers + fee discounts)
+- ✅ Created AegisScanner contract (on-chain token risk scoring)
 - ✅ Upgraded Vault with token-gated fees
 - ✅ Upgraded Registry with holder badges
-- ✅ Tests from 98 → 150 (all passing)
-- ✅ Frontend shows $UNIQ holder benefits
-- ⏳ Still to do: Deploy TokenGate to testnet, add $UNIQ balance display, agent engine awareness
+- ✅ All 5 contracts deployed + verified on BSC Testnet
+- ✅ Tests from 98 → 198 (all passing)
+- ✅ Token Scanner page — paste any BSC token, get AI risk analysis
+- ✅ Whale Alerts page — real-time large-transfer tracking
+- ✅ Multi-page frontend — 6 dedicated routes with navbar
+- ✅ Production data audit — all simulated/fake data removed
+- ✅ Multi-RPC rotation with 6 BSC endpoints for reliability
 
 ### Phase 3 — Security & BSC Mainnet Launch (Weeks 4-8)
 What's happening:
@@ -269,8 +285,8 @@ What's happening:
 | **Feb 2026** | Hackathon submission | ✅ Done |
 | **Early Mar** | Won Top 10 of 200 projects | ✅ Done |
 | **Mar W2** | Phase 1: Branding + Gas Optimization + 98 Tests | ✅ Done |
-| **Mar W3** | Phase 2: $UNIQ Integration + 150 Tests | 🔧 Now |
-| **Mar W4-Apr W1** | Phase 2 complete: Frontend $UNIQ + testnet deploy | Next |
+| **Mar W3** | Phase 2: $UNIQ Integration + 150 Tests | ✅ Done |
+| **Mar W4** | Phase 2: Scanner + Token Scanner + Whale Alerts + 198 Tests | ✅ Done |
 | **Apr** | Phase 3: Audit + Mainnet deploy + Soft launch | Planned |
 | **May** | Phase 4: Multi-protocol (PancakeSwap V3 + Venus) | Planned |
 | **Jun** | Phase 5: Staking + Revenue sharing + Governance | Planned |
@@ -285,9 +301,9 @@ Memorize these — they come up in every conversation:
 | Metric | Value | Context |
 |--------|-------|---------|
 | **Hackathon Rank** | #6 of Top 10 | Out of 200 projects, BNB Chain "Good Vibes Only" |
-| **Smart Contracts** | 4 | Registry, Vault, Logger, TokenGate |
-| **Lines of Code** | ~2,700+ | 1,326 LOC contracts + 1,422 LOC agent engine |
-| **Tests** | 150 / 150 passing | Comprehensive coverage, ran on every commit |
+| **Smart Contracts** | 5 | Registry, Vault, Logger, TokenGate, Scanner |
+| **Lines of Code** | ~9,300+ | 1,971 LOC contracts + 3,236 LOC agent + 4,154 LOC frontend |
+| **Tests** | 198 / 198 passing | Comprehensive coverage, ran on every commit |
 | **On-Chain Proofs** | 13 verified TXs | Full lifecycle demonstrated on BSC Testnet |
 | **$UNIQ Supply** | 1 billion | Renounced ownership, locked LP |
 | **$UNIQ Tax** | 3% | On buys and sells |
@@ -344,7 +360,7 @@ Founders who acknowledge risks look 10x more credible than those who say everyth
 
 | Risk | How We Handle It |
 |------|-----------------|
-| **Smart contract bug** | 150 tests, upcoming audit, bug bounty, gradual TVL caps, multisig |
+| **Smart contract bug** | 198 tests, upcoming audit, bug bounty, gradual TVL caps, multisig |
 | **AI makes a bad call** | Emergency withdrawal always works. User can override. All decisions logged for review. Heuristic fallback if AI APIs fail. |
 | **Low adoption** | $UNIQ fee incentives, free testnet access, community marketing |
 | **$UNIQ price drops** | Real utility (fee discounts are coded, not promises), buyback mechanism in Phase 5, LP locked, ownership renounced |
@@ -356,7 +372,7 @@ Founders who acknowledge risks look 10x more credible than those who say everyth
 ## 14. FAQs — POTENTIAL HARD QUESTIONS AND HOW TO ANSWER THEM
 
 ### "Is this just another memecoin project?"
-> "No. We have 4 deployed smart contracts, 150 passing tests, a live dashboard, 13 verified on-chain transactions, and won Top 10 at the BNB Chain hackathon. The token has real utility — it gives you fee discounts that are programmed into the smart contracts. It's not a promise, it's code."
+> "No. We have 5 deployed smart contracts, 198 passing tests, a live dashboard, 13 verified on-chain transactions, and won Top 10 at the BNB Chain hackathon. The token has real utility — it gives you fee discounts that are programmed into the smart contracts. It's not a promise, it's code."
 
 ### "Can the AI steal my funds?"
 > "No. The architecture is non-custodial — the AI agent can only execute protective actions (emergency withdraw, stop-loss) that send funds BACK to the user. It physically cannot transfer funds to any address other than the user's own. Plus, there's always an emergency withdrawal that bypasses the agent entirely."
@@ -383,7 +399,7 @@ Founders who acknowledge risks look 10x more credible than those who say everyth
 > "Real, coded utility: hold 10K $UNIQ, pay 0.40% instead of 0.50% on fees. Hold 1M, pay 0.10%. In Phase 5, stakers earn revenue share. In Phase 5, buyback mechanism creates buy pressure. It's not about hype — it's about protocol access."
 
 ### "Is this audited?"
-> "Not yet — we're in Phase 2. Phase 3 is the security audit. We're considering Code4rena (competitive audit) or Hacken/CertiK. We also have 150 tests covering all contracts, gas optimization, and we're launching a bug bounty on Immunefi. The responsible process is: build → test → audit → testnet → soft launch → mainnet. We're following that exactly."
+> "Not yet — Phase 2 is complete and Phase 3 is the security audit. We're considering Code4rena (competitive audit) or Hacken/CertiK. We have 198 tests covering all 5 contracts, gas optimization, and we're launching a bug bounty on Immunefi. The responsible process is: build → test → audit → testnet → soft launch → mainnet. We're following that exactly."
 
 ### "What happens if CoinGecko or Groq goes down?"
 > "We have fallbacks at every level. If Groq (our AI provider) goes down, we fall back to OpenAI. If that goes down, we fall back to pure heuristic analysis (no AI, just math). If CoinGecko goes down, we read prices directly from PancakeSwap on-chain data. The system is designed to degrade gracefully, not crash."
@@ -404,9 +420,10 @@ Save these in your phone notes. You'll share them constantly:
 | **$UNIQ on BSCScan** | https://bscscan.com/token/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777 |
 | **Twitter** | https://x.com/uniq_minds |
 | **GitHub** | https://github.com/Tonyflam/aegis-protocol |
-| **Registry (BSCScan)** | https://testnet.bscscan.com/address/0xac77139C2856788b7EEff767969353adF95D335e |
-| **Vault (BSCScan)** | https://testnet.bscscan.com/address/0x73CE32Ece5d21836824C55c5EDB9d09b07F3a56E |
-| **Logger (BSCScan)** | https://testnet.bscscan.com/address/0xEbfb45d0c075d8BdabD6421bdFB9A4b9570219ea |
+| **Registry (BSCScan)** | https://testnet.bscscan.com/address/0x7908c25C63AbAB47cb82bE50DBD874ED807EE8fF |
+| **Vault (BSCScan)** | https://testnet.bscscan.com/address/0x15Ef23024c2b90beA81E002349C70f0C2A09433F |
+| **Logger (BSCScan)** | https://testnet.bscscan.com/address/0x874d78947bd660665de237b16Ca05cd39b7feF6f |
+| **TokenGate (BSCScan)** | https://testnet.bscscan.com/address/0x672c5cC370085c3c6B5bcf2870e1A0Aa62Ff3D69 |
 | **Demo Video** | https://youtu.be/zEeFEduh6eg |
 | **Roadmap** | ROADMAP.md in the GitHub repo |
 
@@ -421,7 +438,7 @@ People don't invest in products, they invest in stories and founders. Here's you
 2. **Entered the hackathon**: BNB Chain's "Good Vibes Only: OpenClaw Edition" — 200 projects competing
 3. **Built it with AI**: Used AI as your engineering team (exactly what the hackathon encouraged)
 4. **Won Top 10**: Judges validated the architecture, code quality, and innovation
-5. **Now building in public**: $UNIQ token live, dashboard live, 150 tests, 4 smart contracts
+5. **Now building in public**: $UNIQ token live, dashboard live, 198 tests, 5 smart contracts
 6. **Roadmap to mainnet**: Audit → Bug bounty → Multisig → Soft launch → Public launch
 7. **Vision**: Become the default DeFi protection layer across every EVM chain
 
@@ -430,7 +447,7 @@ People don't invest in products, they invest in stories and founders. Here's you
 
 ### How to Handle the "No Coding Experience" Question:
 Don't hide it — lean into it:
-> "I'm not a traditional developer, and I think that's actually an advantage. I approach this from the user's perspective — what does a normal person need to feel safe in DeFi? The technical execution was done with AI assistance, but the product vision, architecture decisions, and every strategic choice is mine. The hackathon judges evaluated the code quality and we placed Top 10. The 150 passing tests don't lie."
+> "I'm not a traditional developer, and I think that's actually an advantage. I approach this from the user's perspective — what does a normal person need to feel safe in DeFi? The technical execution was done with AI assistance, but the product vision, architecture decisions, and every strategic choice is mine. The hackathon judges evaluated the code quality and we placed Top 10. The 198 passing tests don't lie."
 
 ---
 
@@ -471,7 +488,7 @@ Don't hide it — lean into it:
 
 ## FINAL NOTE
 
-You built something real. 200 projects entered that hackathon and you came Top 10. You have 4 smart contracts, 150 tests, a live dashboard, a live token, and a clear roadmap from testnet to mainnet.
+You built something real. 200 projects entered that hackathon and you came Top 10. You have 5 smart contracts, 198 tests, a live dashboard with 6 pages, a live token, and a clear roadmap from testnet to mainnet.
 
 When in doubt, come back to this:
 
