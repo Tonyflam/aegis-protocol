@@ -27,7 +27,25 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback(async () => {
+    // Revoke MetaMask permissions so next connect requires approval
+    try {
+      const ethereum = (window as any).ethereum;
+      if (ethereum) {
+        // Remove event listeners to prevent stale handlers
+        ethereum.removeAllListeners?.("accountsChanged");
+        ethereum.removeAllListeners?.("chainChanged");
+        // Revoke wallet permissions (MetaMask 11.4+)
+        await ethereum.request({
+          method: "wallet_revokePermissions",
+          params: [{ eth_accounts: {} }],
+        }).catch(() => {
+          // Fallback: not all wallets support revokePermissions
+        });
+      }
+    } catch {
+      // Silent — disconnect UI state regardless
+    }
     setAddress(null);
     setProvider(null);
     setSigner(null);

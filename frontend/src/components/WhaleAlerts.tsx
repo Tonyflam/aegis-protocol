@@ -49,7 +49,7 @@ const TRACKED_TOKENS = [
 ];
 
 // Minimum USD value to qualify as a "whale" transfer
-const WHALE_THRESHOLD_USD = 100_000;
+const WHALE_THRESHOLD_USD = 50_000;
 
 // Known exchange hot wallets (partial list for labeling)
 const KNOWN_ADDRESSES: Record<string, string> = {
@@ -64,12 +64,12 @@ const KNOWN_ADDRESSES: Record<string, string> = {
 // ERC-20 Transfer event signature
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 
-// BSC Mainnet providers — multiple endpoints to rotate through on rate limits
+// BSC Mainnet providers — PublicNode primary (supports getLogs), others as fallback
 const BSC_RPCS = [
+  "https://bsc-rpc.publicnode.com",
   "https://bsc-dataseed1.binance.org",
   "https://bsc-dataseed2.binance.org",
   "https://bsc-dataseed3.binance.org",
-  "https://bsc-dataseed4.binance.org",
   "https://bsc-dataseed1.defibit.io",
   "https://bsc-dataseed2.defibit.io",
 ];
@@ -104,9 +104,9 @@ function getAlertIcon(usdValue: number) {
 }
 
 function classifySeverity(usdValue: number): AlertSeverity {
-  if (usdValue >= 10_000_000) return "CRITICAL";
-  if (usdValue >= 1_000_000) return "HIGH";
-  if (usdValue >= 500_000) return "MEDIUM";
+  if (usdValue >= 5_000_000) return "CRITICAL";
+  if (usdValue >= 500_000) return "HIGH";
+  if (usdValue >= 100_000) return "MEDIUM";
   return "LOW";
 }
 
@@ -136,7 +136,7 @@ let rpcIndex = 0;
 
 function getProvider(): ethers.JsonRpcProvider {
   const url = BSC_RPCS[rpcIndex % BSC_RPCS.length];
-  return new ethers.JsonRpcProvider(url);
+  return new ethers.JsonRpcProvider(url, 56, { staticNetwork: true });
 }
 
 function rotateRpc(): void {
@@ -150,18 +150,18 @@ async function sleep(ms: number): Promise<void> {
 async function fetchLogsWithRetry(
   provider: ethers.JsonRpcProvider,
   filter: ethers.Filter,
-  maxRetries = 3
+  maxRetries = 4
 ): Promise<ethers.Log[]> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       return await provider.getLogs(filter);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      const isRateLimit = msg.includes("rate limit") || msg.includes("-32005") || msg.includes("Too Many");
+      const isRateLimit = msg.includes("rate limit") || msg.includes("-32005") || msg.includes("Too Many") || msg.includes("BAD_DATA");
       if (isRateLimit && attempt < maxRetries - 1) {
         rotateRpc();
         provider = getProvider();
-        await sleep(1000 * (attempt + 1)); // backoff: 1s, 2s, 3s
+        await sleep(1500 * (attempt + 1)); // backoff: 1.5s, 3s, 4.5s
         continue;
       }
       throw err;
@@ -173,8 +173,8 @@ async function fetchLogsWithRetry(
 async function fetchWhaleTransfers(bnbPrice: number): Promise<WhaleAlert[]> {
   let provider = getProvider();
   const latestBlock = await provider.getBlockNumber();
-  // Scan last ~50 blocks (~2.5 minutes on BSC) — smaller range to avoid rate limits
-  const fromBlock = latestBlock - 50;
+  // Scan last ~200 blocks (~10 minutes on BSC)
+  const fromBlock = latestBlock - 200;
 
   const tokenMap = new Map(TRACKED_TOKENS.map((t) => [t.address.toLowerCase(), t]));
 
@@ -355,7 +355,7 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
         <div className="flex items-center gap-2 mb-4 p-2 rounded-lg" style={{ background: "rgba(0,224,255,0.04)", border: "1px solid var(--accent-muted)" }}>
           <Shield className="w-3 h-3 text-[color:var(--accent)] flex-shrink-0" />
           <p className="text-xs text-gray-400">
-            Scanning real ERC-20 Transfer events on BSC Mainnet (last ~50 blocks). Minimum threshold: ${WHALE_THRESHOLD_USD.toLocaleString()}.
+            Scanning real ERC-20 Transfer events on BSC Mainnet (last ~200 blocks). Minimum threshold: ${WHALE_THRESHOLD_USD.toLocaleString()}.
             {lastFetch && <span className="text-gray-500"> Last scan: {timeAgo(lastFetch)}</span>}
           </p>
         </div>
@@ -408,7 +408,7 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
           <div className="card p-12 text-center" style={{ borderRadius: "12px" }}>
             <RefreshCw className="w-8 h-8 text-[color:var(--accent)] mx-auto mb-3 animate-spin" />
             <p className="text-gray-400">Scanning BSC Mainnet for whale transfers...</p>
-            <p className="text-xs text-gray-500 mt-1">Checking last ~50 blocks for large ERC-20 transfers</p>
+            <p className="text-xs text-gray-500 mt-1">Checking last ~200 blocks for large ERC-20 transfers</p>
           </div>
         ) : filteredAlerts.length === 0 ? (
           <div className="card p-12 text-center" style={{ borderRadius: "12px" }}>
@@ -421,7 +421,7 @@ export default function WhaleAlerts({ bnbPrice }: { bnbPrice: number }) {
             <p className="text-xs text-gray-500 mt-1">
               {filter !== "ALL"
                 ? "Try selecting a different filter"
-                : `No transfers above $${(WHALE_THRESHOLD_USD / 1000).toFixed(0)}K in the last ~5 minutes. This is normal during low activity periods.`}
+                : `No transfers above $${(WHALE_THRESHOLD_USD / 1000).toFixed(0)}K in the last ~10 minutes. This is normal during low activity periods.`}
             </p>
           </div>
         ) : (

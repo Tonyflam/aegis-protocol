@@ -12,7 +12,20 @@ export function useWallet() {
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback(async () => {
+    try {
+      const ethereum = (window as any).ethereum;
+      if (ethereum) {
+        ethereum.removeAllListeners?.("accountsChanged");
+        ethereum.removeAllListeners?.("chainChanged");
+        await ethereum.request({
+          method: "wallet_revokePermissions",
+          params: [{ eth_accounts: {} }],
+        }).catch(() => {});
+      }
+    } catch {
+      // Silent
+    }
     setAddress(null);
     setProvider(null);
     setSigner(null);
