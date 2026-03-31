@@ -250,13 +250,32 @@ async function detectHoneypot(
 
     return {
       isHoneypot: data.honeypotResult?.isHoneypot ?? null,
-      buyTax: Math.round((data.simulationResult?.buyTax ?? 0) * 100),
-      sellTax: Math.round((data.simulationResult?.sellTax ?? 0) * 100),
+      buyTax: Math.round(data.simulationResult?.buyTax ?? 0),
+      sellTax: Math.round(data.simulationResult?.sellTax ?? 0),
       confident: true,
     };
   } catch {
     // API unavailable — return unknown, NOT safe
     return { isHoneypot: null, buyTax: 0, sellTax: 0, confident: false };
+  }
+}
+
+// ─── Source Verification (GoPlusLabs) ──────────────────────────
+
+async function checkSourceVerified(address: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(
+      `https://api.gopluslabs.io/api/v1/token_security/56?contract_addresses=${address}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeout);
+    const data = await res.json();
+    const info = data?.result?.[address.toLowerCase()];
+    return info?.is_open_source === "1";
+  } catch {
+    return false;
   }
 }
 
@@ -381,7 +400,7 @@ async function scanToken(
   // Parallel deep analysis
   const contract = new ethers.Contract(address, ERC20_META_ABI, provider);
 
-  const [basics, security, liquidity, honeypot] = await Promise.all([
+  const [basics, security, liquidity, honeypot, verified] = await Promise.all([
     Promise.all([
       contract.name().catch(() => "Unknown"),
       contract.symbol().catch(() => "???"),
@@ -391,6 +410,7 @@ async function scanToken(
     analyzeContractSecurity(address, provider),
     analyzeLiquidity(address, provider, bnbPrice),
     detectHoneypot(address),
+    checkSourceVerified(address),
   ]);
 
   const [name, symbol, decimals, totalSupply] = basics;
@@ -413,7 +433,7 @@ async function scanToken(
     ownerCanBlacklist: security.ownerCanBlacklist,
     isContractRenounced: security.isRenounced,
     isLiquidityLocked: liquidity.isLpBurned,
-    isVerified: false, // Cannot verify without BSCScan API key
+    isVerified: verified,
   };
 
   const { score, flags } = calculateRisk(partial);

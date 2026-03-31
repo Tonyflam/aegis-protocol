@@ -373,8 +373,8 @@ export class TokenScanner {
         const data = (await response.json()) as { honeypotResult?: { isHoneypot?: boolean }; simulationResult?: { buyTax?: number; sellTax?: number } };
         return {
           isHoneypot: data.honeypotResult?.isHoneypot ?? false,
-          buyTax: (data.simulationResult?.buyTax ?? 0) * 100,
-          sellTax: (data.simulationResult?.sellTax ?? 0) * 100,
+          buyTax: data.simulationResult?.buyTax ?? 0,
+          sellTax: data.simulationResult?.sellTax ?? 0,
         };
       }
     } catch {
