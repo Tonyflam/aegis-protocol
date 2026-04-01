@@ -1,11 +1,11 @@
 "use client";
 
-import { useLiveMarketData } from "../../lib/useLiveMarket";
-import ShieldAgent from "../../components/agents/ShieldAgent";
+import { useWalletContext } from "../../lib/WalletContext";
+import WalletShield from "../../components/WalletShield";
 import { Shield } from "lucide-react";
 
 export default function ShieldPage() {
-  const liveMarket = useLiveMarketData(30000);
+  const { address, isConnected } = useWalletContext();
 
   return (
     <div className="min-h-screen relative z-10">
@@ -13,21 +13,23 @@ export default function ShieldPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <Shield className="w-6 h-6" style={{ color: "#a855f7" }} />
-              Shield Agent
+              <Shield className="w-6 h-6" style={{ color: "var(--accent)" }} />
+              Guardian Shield
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-              Deep contract analysis — bytecode scanning, honeypot detection, and security scoring
+              Real-time wallet protection and threat monitoring on BNB Chain
             </p>
           </div>
-          <span className="text-[11px] font-medium px-2.5 py-1 rounded-md" style={{ background: "rgba(240,185,11,0.08)", color: "var(--bnb)" }}>
-            BSC Mainnet
-          </span>
+          {isConnected && (
+            <span className="text-[11px] font-medium px-2.5 py-1 rounded-md flex items-center gap-1.5" style={{ background: "rgba(52,211,153,0.08)", color: "var(--green)" }}>
+              <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--green)" }} /> Connected
+            </span>
+          )}
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-14">
-        <ShieldAgent bnbPrice={liveMarket.bnbPriceCoinGecko} />
+        <WalletShield connectedAddress={address} />
       </div>
     </div>
   );

@@ -44,7 +44,7 @@ export default function AgentPage() {
               AI Agent
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-              Guardian agent details, performance, and live simulation
+              Guardian agent details, wallet protection performance, and live simulation
             </p>
           </div>
           {isLive && (
@@ -109,13 +109,13 @@ export default function AgentPage() {
             <div className="space-y-2">
               <h4 className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Capabilities</h4>
               {[
-                "Real-time DeFi monitoring (30s cycles)",
-                "LLM reasoning (Groq Llama 3.3 70B / GPT-4o)",
-                "PancakeSwap V2 on-chain price verification",
-                "CoinGecko + DeFiLlama live feeds",
-                "5-vector risk analysis engine",
-                "Autonomous stop-loss & emergency withdrawal",
+                "Real-time approval monitoring (BSC Mainnet)",
+                "AI risk-scoring (GoPlusLabs + on-chain analysis)",
+                "Contract verification & deployer history",
+                "Autonomous threat detection & auto-revoke",
+                "LLM reasoning (Groq Llama 3.3 70B)",
                 "On-chain decision attestation (keccak256 hash)",
+                "24/7 wallet protection — never sleeps",
               ].map((cap, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <CheckCircle className="w-3 h-3 flex-shrink-0" style={{ color: "var(--accent)" }} />
@@ -131,9 +131,9 @@ export default function AgentPage() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { name: "AegisRegistry", desc: "ERC-721 agent identity with 4-tier permissions and reputation scoring.", color: "var(--accent)" },
-                { name: "AegisVault", desc: "Non-custodial vault for BNB/ERC-20 with agent authorization and risk profiles.", color: "var(--purple)" },
+                { name: "AegisGuardian", desc: "Wallet protection vault with agent authorization and risk profiles.", color: "var(--purple)" },
                 { name: "DecisionLogger", desc: "Immutable audit trail — risk snapshots, threats, and reasoning hashes.", color: "var(--green)" },
-                { name: "AegisScanner", desc: "On-chain token risk registry. Agents push scans, users query before interacting.", color: "#f97316" },
+                { name: "AegisScanner", desc: "On-chain approval risk registry. Agents push scans, users query risk scores.", color: "#f97316" },
               ].map((c, i) => (
                 <div key={i} className="p-3 rounded-lg" style={{ background: "var(--bg-base)", borderLeft: `2px solid ${c.color}` }}>
                   <h4 className="font-mono text-xs font-semibold mb-1" style={{ color: c.color }}>{c.name}</h4>
@@ -148,15 +148,15 @@ export default function AgentPage() {
       {/* Agent Decision Loop */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
         <div className="card p-5">
-          <h3 className="text-sm font-semibold text-white mb-4">Decision Loop <span className="font-normal" style={{ color: "var(--text-muted)" }}>— 30s cycles</span></h3>
+          <h3 className="text-sm font-semibold text-white mb-4">Decision Loop <span className="font-normal" style={{ color: "var(--text-muted)" }}>— continuous monitoring</span></h3>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             {[
-              { label: "OBSERVE", sub: "CoinGecko + DeFiLlama", color: "var(--accent)" },
-              { label: "ANALYZE", sub: "5-Vector Risk", color: "var(--purple)" },
-              { label: "REASON", sub: "LLM (Groq/OpenAI)", color: "#f97316" },
-              { label: "VERIFY", sub: "PancakeSwap V2", color: "var(--bnb)" },
-              { label: "DECIDE", sub: "Threat + Confidence", color: "var(--red)" },
-              { label: "EXECUTE", sub: "On-Chain TX", color: "var(--green)" },
+              { label: "SCAN", sub: "BSC Approvals", color: "var(--accent)" },
+              { label: "ANALYZE", sub: "Contract Risk", color: "var(--purple)" },
+              { label: "REASON", sub: "LLM (Groq)", color: "#f97316" },
+              { label: "VERIFY", sub: "GoPlusLabs", color: "var(--bnb)" },
+              { label: "DECIDE", sub: "Threat Level", color: "var(--red)" },
+              { label: "PROTECT", sub: "Auto-Revoke", color: "var(--green)" },
             ].map((step, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className="px-3 py-2 rounded-md text-center" style={{ background: `${step.color}08`, border: `1px solid ${step.color}18` }}>
@@ -174,7 +174,7 @@ export default function AgentPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-14">
         <h2 className="text-lg font-bold tracking-tight mb-2 text-white">Live Agent Simulation</h2>
         <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
-          Watch a complete 6-phase decision cycle using real market data — the same loop that runs autonomously every 30 seconds.
+          Watch a complete decision cycle using real market data — the same AI logic that monitors wallet security autonomously.
         </p>
         <AgentSimulation market={liveMarket} />
       </div>
