@@ -5,17 +5,16 @@ import { usePathname } from "next/navigation";
 import { useWalletContext } from "../lib/WalletContext";
 import { usePublicContractData } from "../lib/useContracts";
 import {
-  Shield, ShieldCheck, Wallet, Search, Bell, BarChart3, Bot, Eye, Menu, X,
+  Shield, Wallet, BarChart3, ShieldCheck, Siren, Eye, Menu, X,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-  { href: "/scanner", label: "Scanner", icon: Search },
-  { href: "/wallet", label: "Security", icon: ShieldCheck },
-  { href: "/alerts", label: "Alerts", icon: Bell },
-  { href: "/positions", label: "Positions", icon: Eye },
-  { href: "/agent", label: "Agent", icon: Bot },
+  { href: "/sentinel", label: "Sentinel", icon: ShieldCheck },
+  { href: "/shield", label: "Shield", icon: Shield },
+  { href: "/rescue", label: "Rescue", icon: Siren },
+  { href: "/watchdog", label: "Watchdog", icon: Eye },
 ];
 
 export default function Navbar() {
