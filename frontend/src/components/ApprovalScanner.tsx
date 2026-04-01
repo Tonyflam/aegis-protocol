@@ -619,9 +619,43 @@ export default function ApprovalScanner({
           {/* Approval List */}
           <div className="space-y-2">
             {filteredApprovals.length === 0 ? (
-              <div className="card p-12 text-center" style={{ borderRadius: "12px" }}>
-                <ShieldCheck className="w-8 h-8 text-green-400 mx-auto mb-3" />
-                <p className="text-gray-400">{filter !== "ALL" ? `No ${filter} risk approvals` : "No active approvals found"}</p>
+              <div className="card p-8" style={{ borderRadius: "12px" }}>
+                {filter !== "ALL" ? (
+                  <div className="text-center">
+                    <ShieldCheck className="w-8 h-8 text-green-400 mx-auto mb-3" />
+                    <p className="text-gray-400">No {filter.toLowerCase()} risk approvals</p>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <ShieldCheck className="w-12 h-12 text-green-400 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-white mb-2">This Wallet is Clean!</h4>
+                    <p className="text-sm text-gray-400 max-w-md mx-auto mb-6">
+                      No active token approvals found. This wallet hasn&apos;t approved any contracts
+                      to spend its tokens — or all previous approvals have been revoked.
+                    </p>
+                    <div className="p-4 rounded-xl mb-4" style={{ background: "rgba(0,0,0,0.3)" }}>
+                      <p className="text-xs text-gray-500 mb-3">Try scanning a wallet with real approvals to see the full analysis:</p>
+                      <div className="flex flex-col sm:flex-row gap-2 items-center justify-center">
+                        {[
+                          { label: "Binance Hot Wallet", addr: "0x8894E0a0c962CB723c1ef8a1B63d28AAA26e8F6f" },
+                          { label: "Active DeFi User", addr: "0x7754Bc79E6A80D72689a0E0ae4Daa8bC84B31B0b" },
+                        ].map(demo => (
+                          <button key={demo.addr} onClick={() => { setTargetAddress(demo.addr); handleScan(demo.addr); }}
+                            disabled={scanning}
+                            className="text-xs px-3 py-2 rounded-lg flex items-center gap-2 transition-all hover:scale-105"
+                            style={{ background: "var(--accent-muted)", border: "1px solid var(--accent-border)", color: "var(--accent)" }}>
+                            <Eye className="w-3 h-3" />
+                            {demo.label}
+                            <span className="font-mono text-[10px] opacity-60">{demo.addr.slice(0, 6)}...{demo.addr.slice(-4)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-gray-600">
+                      The scanner checks ~2M BSC blocks for ERC-20 Approval events and verifies each spender contract.
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               filteredApprovals.map(approval => {
