@@ -1,224 +1,182 @@
 "use client";
 
+import { useEffect } from "react";
 import { useWalletContext } from "../../lib/WalletContext";
-import { useShieldContext } from "../../lib/ShieldContext";
-import Link from "next/link";
+import { useContractData, usePublicContractData } from "../../lib/useContracts";
+import { useLiveMarketData } from "../../lib/useLiveMarket";
+import { AGENT_TIERS } from "../../lib/constants";
+import AgentSimulation from "../../components/AgentSimulation";
 import {
-  Bot,
-  Shield,
-  Activity,
-  ArrowRight,
-  Search,
-  Eye,
-  Zap,
-  AlertTriangle,
-  Trash2,
-  Brain,
-  Cpu,
+  Bot, BarChart3, CheckCircle, ArrowRight,
 } from "lucide-react";
 
 export default function AgentPage() {
-  const { address, isConnected } = useWalletContext();
-  const shield = useShieldContext();
+  const { address, isConnected, provider } = useWalletContext();
+  const contractData = useContractData(provider);
+  const publicData = usePublicContractData();
+  const liveMarket = useLiveMarketData(30000);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { publicData.fetchPublicData(); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (isConnected && provider) contractData.fetchAll(address ?? undefined); }, [isConnected, provider, address]);
+
+  const isLive = contractData.isLive || publicData.isLive;
+  const agentInfo = contractData.agentInfo;
+  const agent = agentInfo ?? (publicData.isLive ? {
+    name: publicData.agentName || "Agent #0", operator: publicData.agentOperator || "—", tier: publicData.agentTier,
+    totalDecisions: publicData.agentTotalDecisions, successfulActions: publicData.agentSuccessfulActions,
+    totalValueProtected: publicData.agentTotalValueProtected, registeredAt: publicData.agentRegisteredAt,
+  } : { name: "Agent #0", operator: "—", tier: 0, totalDecisions: 0, successfulActions: 0, totalValueProtected: "0", registeredAt: 0 });
+
+  const reputation = contractData.reputation || publicData.agentReputation;
+  const successRate = contractData.successRate || publicData.agentSuccessRate;
+  const displayReputation = reputation > 0 ? reputation.toFixed(2) : "0.00";
+  const displaySuccessRate = successRate > 0 ? `${successRate.toFixed(1)}%` : "0%";
 
   return (
     <div className="min-h-screen relative z-10">
-      {/* Header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
               <Bot className="w-6 h-6" style={{ color: "var(--accent)" }} />
-              AI Guardian Agent
+              AI Agent
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-              Autonomous AI that protects your wallet on BNB Chain
+              Guardian agent details, performance, and live simulation
             </p>
           </div>
-          {shield.monitoring && (
+          {isLive && (
             <span className="text-[11px] font-medium px-2.5 py-1 rounded-md flex items-center gap-1.5" style={{ background: "rgba(52,211,153,0.08)", color: "var(--green)" }}>
-              <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--green)" }} /> Shield Active
+              <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--green)" }} /> Live Data
             </span>
           )}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-14 space-y-6">
-
-        {/* ── Agent Status Card ── */}
-        <div className="card p-6 relative overflow-hidden" style={{ borderRadius: "12px" }}>
-          <div className="absolute top-0 right-0 w-48 h-48 rounded-full blur-[80px] opacity-10" style={{ background: "var(--accent)" }} />
-
-          <div className="flex items-center gap-5 relative">
-            <div className="w-20 h-20 rounded-2xl flex items-center justify-center"
-              style={{ background: "var(--accent-muted)", border: "2px solid var(--accent-border)" }}>
-              <Bot className="w-10 h-10" style={{ color: "var(--accent)" }} />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-xl font-bold text-white mb-1">Aegis Guardian Agent</h3>
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                Autonomous AI security agent for BNB Chain wallets
-              </p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-[10px] px-2 py-0.5 rounded font-medium" style={{ background: "var(--accent-muted)", color: "var(--accent)" }}>
-                  v1.0
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded font-medium flex items-center gap-1"
-                  style={{ background: shield.monitoring ? "rgba(52,211,153,0.08)" : "rgba(239,68,68,0.08)", color: shield.monitoring ? "var(--green)" : "#ef4444" }}>
-                  <span className={`w-1 h-1 rounded-full ${shield.monitoring ? "pulse-live" : ""}`}
-                    style={{ background: shield.monitoring ? "var(--green)" : "#ef4444" }} />
-                  {shield.monitoring ? "Monitoring" : "Idle"}
-                </span>
-                {isConnected && (
-                  <span className="text-[10px] px-2 py-0.5 rounded font-mono" style={{ background: "rgba(255,255,255,0.03)", color: "var(--text-muted)" }}>
-                    {address?.slice(0, 6)}...{address?.slice(-4)}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-10">
+        <div className="grid lg:grid-cols-2 gap-4">
+          {/* Agent Info */}
+          <div className="card p-5">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "var(--accent-muted)" }}>
+                <Bot className="w-6 h-6" style={{ color: "var(--accent)" }} />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-white">{agent.name}</h3>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "var(--accent-muted)", color: "var(--accent)" }}>{AGENT_TIERS[agent.tier]}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-1" style={{ background: "rgba(52,211,153,0.08)", color: "var(--green)" }}>
+                    <span className="w-1 h-1 rounded-full pulse-live" style={{ background: "var(--green)" }} /> Active
                   </span>
-                )}
+                  {isLive && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(96,165,250,0.08)", color: "#60a5fa" }}>LIVE</span>}
+                </div>
               </div>
             </div>
-            {!shield.monitoring && isConnected && (
-              <button onClick={() => address && shield.startMonitoring(address)}
-                className="btn-primary flex items-center gap-2 px-5 py-2.5">
-                <Zap className="w-4 h-4" /> Activate
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ── What The Agent Does ── */}
-        <div className="card p-6" style={{ borderRadius: "12px" }}>
-          <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-5">
-            <Brain className="w-4 h-4" style={{ color: "var(--accent)" }} />
-            How The AI Agent Protects You
-          </h3>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              {
-                icon: Search,
-                title: "Approval Scanning",
-                desc: "Scans BSC for every ERC-20 Approval event from your wallet. Discovers all contracts you've granted token access to — even ones you forgot about.",
-                color: "var(--accent)",
-              },
-              {
-                icon: Eye,
-                title: "Contract Risk Analysis",
-                desc: "Each spender contract is analyzed: source verification, proxy detection, owner permissions, deployer history. Uses GoPlusLabs API + on-chain bytecode analysis.",
-                color: "#a78bfa",
-              },
-              {
-                icon: AlertTriangle,
-                title: "Threat Detection",
-                desc: "Identifies critical risks: unverified contracts, unlimited approvals, proxy contracts with mutable logic, contracts where owner can change balances.",
-                color: "#f97316",
-              },
-              {
-                icon: Activity,
-                title: "Real-Time Monitoring",
-                desc: "Watches every new BSC block for approval events and transfers involving your wallet. Detects suspicious patterns like rapid multiple transfers (drain attacks).",
-                color: "#22c55e",
-              },
-              {
-                icon: Trash2,
-                title: "One-Click Revoke",
-                desc: "Revoke dangerous approvals with a single click. Sends approve(spender, 0) on-chain to remove the contract's permission to move your tokens.",
-                color: "#ef4444",
-              },
-              {
-                icon: Shield,
-                title: "Continuous Protection",
-                desc: "Shield persists while you browse. Navigate between pages freely — your guardian keeps watching. No need to stay on one screen.",
-                color: "var(--accent)",
-              },
-            ].map(f => (
-              <div key={f.title} className="p-4 rounded-xl" style={{ background: "var(--bg-base)" }}>
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: `${f.color}10` }}>
-                  <f.icon className="w-4 h-4" style={{ color: f.color }} />
+            <div className="space-y-0">
+              {[
+                { label: "Agent ID", value: "#0 (ERC-721 NFT)" },
+                { label: "Operator", value: typeof agent.operator === "string" && agent.operator.length > 10 ? `${agent.operator.slice(0, 8)}...${agent.operator.slice(-4)}` : agent.operator },
+                { label: "Registered", value: new Date(agent.registeredAt * 1000).toLocaleDateString() },
+                { label: "Total Decisions", value: agent.totalDecisions.toLocaleString() },
+                { label: "Successful Actions", value: agent.successfulActions.toString() },
+                { label: "Success Rate", value: displaySuccessRate },
+                { label: "Value Protected", value: `${agent.totalValueProtected} BNB` },
+              ].map((item, i) => (
+                <div key={i} className="flex justify-between py-2.5 text-xs" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                  <span style={{ color: "var(--text-muted)" }}>{item.label}</span>
+                  <span className="font-mono text-white">{item.value}</span>
                 </div>
-                <h5 className="text-sm font-semibold text-white mb-1.5">{f.title}</h5>
-                <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>{f.desc}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* ── Decision Pipeline ── */}
-        <div className="card p-6" style={{ borderRadius: "12px" }}>
-          <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-5">
-            <Cpu className="w-4 h-4" style={{ color: "var(--accent)" }} />
-            Agent Decision Pipeline
-          </h3>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {[
-              { step: "01", label: "SCAN", desc: "Fetch Approval logs from BSC RPC", color: "var(--accent)" },
-              { step: "02", label: "DEDUPLICATE", desc: "Keep latest per token+spender pair", color: "#a78bfa" },
-              { step: "03", label: "VERIFY", desc: "Check current allowance on-chain", color: "#3b82f6" },
-              { step: "04", label: "ANALYZE", desc: "GoPlusLabs API + bytecode check", color: "#f97316" },
-              { step: "05", label: "SCORE", desc: "Calculate risk score (0-100)", color: "#ef4444" },
-              { step: "06", label: "ACT", desc: "Flag, alert, or auto-revoke", color: "#22c55e" },
-            ].map((s, i) => (
-              <div key={s.step} className="relative">
-                <div className="p-3 rounded-xl text-center" style={{ background: `${s.color}06`, border: `1px solid ${s.color}15` }}>
-                  <span className="text-2xl font-black block mb-1" style={{ color: s.color, opacity: 0.2 }}>{s.step}</span>
-                  <p className="text-xs font-bold mb-0.5" style={{ color: s.color }}>{s.label}</p>
-                  <p className="text-[10px] leading-tight" style={{ color: "var(--text-muted)" }}>{s.desc}</p>
+          {/* Performance */}
+          <div className="card p-5">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+              <BarChart3 className="w-4 h-4" style={{ color: "var(--accent)" }} /> Performance
+            </h3>
+            <div className="text-center mb-5 p-5 rounded-lg" style={{ background: "var(--bg-base)" }}>
+              <p className="text-4xl font-bold" style={{ color: "var(--accent)" }}>{displayReputation}</p>
+              <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>Reputation Score</p>
+              <div className="flex justify-center gap-0.5 mt-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <span key={star} className="text-sm" style={{ color: star <= Math.round(parseFloat(displayReputation)) ? "var(--yellow)" : "rgba(251,191,36,0.2)" }}>★</span>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Capabilities</h4>
+              {[
+                "Real-time DeFi monitoring (30s cycles)",
+                "LLM reasoning (Groq Llama 3.3 70B / GPT-4o)",
+                "PancakeSwap V2 on-chain price verification",
+                "CoinGecko + DeFiLlama live feeds",
+                "5-vector risk analysis engine",
+                "Autonomous stop-loss & emergency withdrawal",
+                "On-chain decision attestation (keccak256 hash)",
+              ].map((cap, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <CheckCircle className="w-3 h-3 flex-shrink-0" style={{ color: "var(--accent)" }} />
+                  <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{cap}</span>
                 </div>
-                {i < 5 && (
-                  <ArrowRight className="absolute top-1/2 -right-3 w-3 h-3 -translate-y-1/2 hidden lg:block" style={{ color: "var(--text-muted)", opacity: 0.3 }} />
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          {/* Contract Architecture */}
+          <div className="card p-5 lg:col-span-2">
+            <h3 className="text-sm font-semibold text-white mb-4">Contract Architecture</h3>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { name: "AegisRegistry", desc: "ERC-721 agent identity with 4-tier permissions and reputation scoring.", color: "var(--accent)" },
+                { name: "AegisVault", desc: "Non-custodial vault for BNB/ERC-20 with agent authorization and risk profiles.", color: "var(--purple)" },
+                { name: "DecisionLogger", desc: "Immutable audit trail — risk snapshots, threats, and reasoning hashes.", color: "var(--green)" },
+                { name: "AegisScanner", desc: "On-chain token risk registry. Agents push scans, users query before interacting.", color: "#f97316" },
+              ].map((c, i) => (
+                <div key={i} className="p-3 rounded-lg" style={{ background: "var(--bg-base)", borderLeft: `2px solid ${c.color}` }}>
+                  <h4 className="font-mono text-xs font-semibold mb-1" style={{ color: c.color }}>{c.name}</h4>
+                  <p className="text-[10px] leading-relaxed" style={{ color: "var(--text-muted)" }}>{c.desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* ── Tech Stack ── */}
-        <div className="card p-6" style={{ borderRadius: "12px" }}>
-          <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-            <Cpu className="w-4 h-4" style={{ color: "var(--accent)" }} />
-            Technology Stack
-          </h3>
-          <div className="grid sm:grid-cols-2 gap-x-8 gap-y-2">
+      {/* Agent Decision Loop */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold text-white mb-4">Decision Loop <span className="font-normal" style={{ color: "var(--text-muted)" }}>— 30s cycles</span></h3>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             {[
-              { label: "Blockchain", value: "BNB Smart Chain (Mainnet — Chain ID 56)" },
-              { label: "RPC Provider", value: "PublicNode BSC (bsc-rpc.publicnode.com)" },
-              { label: "Security API", value: "GoPlusLabs Approval Security API" },
-              { label: "On-Chain", value: "ethers.js v6 — getLogs, Contract, Signer" },
-              { label: "Scan Range", value: "~2M blocks (~70 days of BSC history)" },
-              { label: "Event Signature", value: "Approval(address,address,uint256)" },
-              { label: "Risk Factors", value: "Source verification, proxy, owner permissions" },
-              { label: "Monitoring", value: "6-second polling (every 2 BSC blocks)" },
-              { label: "Revoke Method", value: "ERC-20 approve(spender, 0) — on-chain tx" },
-              { label: "Frontend", value: "Next.js 14 + React 18 + Tailwind CSS" },
-            ].map(t => (
-              <div key={t.label} className="flex justify-between py-2 text-xs" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                <span style={{ color: "var(--text-muted)" }}>{t.label}</span>
-                <span className="font-mono text-right" style={{ color: "var(--text-secondary)" }}>{t.value}</span>
+              { label: "OBSERVE", sub: "CoinGecko + DeFiLlama", color: "var(--accent)" },
+              { label: "ANALYZE", sub: "5-Vector Risk", color: "var(--purple)" },
+              { label: "REASON", sub: "LLM (Groq/OpenAI)", color: "#f97316" },
+              { label: "VERIFY", sub: "PancakeSwap V2", color: "var(--bnb)" },
+              { label: "DECIDE", sub: "Threat + Confidence", color: "var(--red)" },
+              { label: "EXECUTE", sub: "On-Chain TX", color: "var(--green)" },
+            ].map((step, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="px-3 py-2 rounded-md text-center" style={{ background: `${step.color}08`, border: `1px solid ${step.color}18` }}>
+                  <p className="font-semibold" style={{ color: step.color }}>{step.label}</p>
+                  <p className="mt-0.5" style={{ color: "var(--text-muted)" }}>{step.sub}</p>
+                </div>
+                {i < 5 && <ArrowRight className="w-3 h-3 hidden md:block" style={{ color: "var(--text-muted)" }} />}
               </div>
             ))}
           </div>
         </div>
+      </div>
 
-        {/* ── Quick Actions ── */}
-        <div className="grid sm:grid-cols-3 gap-3">
-          {[
-            { icon: Search, label: "Scan Approvals", desc: "Discover all token permissions", href: "/approvals", color: "var(--accent)" },
-            { icon: Activity, label: "Activate Shield", desc: "Real-time threat monitoring", href: "/shield", color: "#22c55e" },
-            { icon: Shield, label: "Dashboard", desc: "Security overview & scan", href: "/dashboard", color: "#a78bfa" },
-          ].map(a => (
-            <Link key={a.href} href={a.href} className="card p-4 flex items-center gap-3 transition-all hover:scale-[1.02]" style={{ borderRadius: "12px" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${a.color}10` }}>
-                <a.icon className="w-5 h-5" style={{ color: a.color }} />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-white">{a.label}</p>
-                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{a.desc}</p>
-              </div>
-              <ArrowRight className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
-            </Link>
-          ))}
-        </div>
-
+      {/* Live Simulation */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-14">
+        <h2 className="text-lg font-bold tracking-tight mb-2 text-white">Live Agent Simulation</h2>
+        <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
+          Watch a complete 6-phase decision cycle using real market data — the same loop that runs autonomously every 30 seconds.
+        </p>
+        <AgentSimulation market={liveMarket} />
       </div>
     </div>
   );

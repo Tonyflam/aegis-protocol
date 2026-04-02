@@ -3,24 +3,29 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useWalletContext } from "../lib/WalletContext";
+import { usePublicContractData } from "../lib/useContracts";
 import {
-  Shield, Wallet, BarChart3, Bot, Activity, ShieldAlert, Menu, X,
+  Shield, Wallet, Search, Bell, BarChart3, Bot, Eye, Menu, X,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-  { href: "/approvals", label: "Approvals", icon: ShieldAlert },
-  { href: "/shield", label: "Shield", icon: Activity },
+  { href: "/scanner", label: "Scanner", icon: Search },
+  { href: "/alerts", label: "Alerts", icon: Bell },
+  { href: "/positions", label: "Positions", icon: Eye },
   { href: "/agent", label: "Agent", icon: Bot },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
   const { address, isConnected, connect, disconnect, isConnecting, switchToBsc, chainId } = useWalletContext();
+  const publicData = usePublicContractData();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  const dataSource = isConnected ? "wallet" : publicData.isLive ? "public-rpc" : "demo";
 
   return (
     <nav className="sticky top-0 z-50 border-b backdrop-blur-xl" style={{ borderColor: "var(--border-subtle)", background: "rgba(9,9,11,0.85)" }}>
@@ -31,7 +36,7 @@ export default function Navbar() {
             <Shield className="w-7 h-7" style={{ color: "var(--accent)" }} />
             <div className="leading-tight">
               <span className="text-base font-semibold tracking-tight text-white">Aegis</span>
-              <span className="text-base font-light tracking-tight text-white ml-0.5">Guardian</span>
+              <span className="text-base font-light tracking-tight text-white ml-0.5">Protocol</span>
             </div>
           </Link>
 
@@ -57,14 +62,15 @@ export default function Navbar() {
           {/* Right Side */}
           <div className="flex items-center gap-2.5">
             {/* Data source */}
-            {isConnected && (
-              <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium" style={{
-                background: "rgba(52,211,153,0.08)", color: "var(--green)",
-              }}>
-                <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--green)" }} />
-                Protected
-              </div>
-            )}
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium" style={{
+              background: dataSource === "wallet" ? "rgba(52,211,153,0.08)" : dataSource === "public-rpc" ? "var(--accent-muted)" : "rgba(251,191,36,0.08)",
+              color: dataSource === "wallet" ? "var(--green)" : dataSource === "public-rpc" ? "var(--accent)" : "var(--yellow)",
+            }}>
+              <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{
+                background: dataSource === "wallet" ? "var(--green)" : dataSource === "public-rpc" ? "var(--accent)" : "var(--yellow)",
+              }} />
+              {dataSource === "wallet" ? "Live" : dataSource === "public-rpc" ? "Read-Only" : "Demo"}
+            </div>
 
             {/* Wallet */}
             {isConnected ? (
