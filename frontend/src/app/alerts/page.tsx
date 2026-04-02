@@ -193,7 +193,7 @@ export default function AlertsPage() {
             <AlertTriangle className="w-8 h-8 mx-auto mb-3" style={{ color: "var(--yellow)" }} />
             <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>{error}</p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Make sure the Aegis API server is running on port 3001
+              Threat monitoring is initializing. Try scanning a specific token above.
             </p>
           </div>
         ) : filteredAlerts.length === 0 ? (

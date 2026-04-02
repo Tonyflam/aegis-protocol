@@ -144,7 +144,7 @@ export default function PositionsPage() {
             <AlertTriangle className="w-8 h-8 mx-auto mb-3" style={{ color: "var(--yellow)" }} />
             <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>{error}</p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Make sure the Aegis API server is running on port 3001
+              Try entering a wallet address above to view portfolio data.
             </p>
           </div>
         </div>

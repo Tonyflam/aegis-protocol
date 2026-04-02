@@ -1,9 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // Aegis Security OS — Frontend API Client
-// Connects to the Aegis API server (Express backend)
+// Uses Next.js API routes (same-origin) — no external server needed
+// Falls back to NEXT_PUBLIC_API_URL if set (for custom API server)
 // ═══════════════════════════════════════════════════════════════
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -187,7 +188,7 @@ export function getApiHealth(): Promise<{
   status: string;
   version: string;
   engines: string[];
-  uptime: number;
+  uptime?: number;
 }> {
-  return apiFetch("/health");
+  return apiFetch("/api/v1/health");
 }

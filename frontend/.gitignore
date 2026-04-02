@@ -36,3 +36,7 @@ yarn-error.log*
 next-env.d.ts
 README.md.bak
 *.bak
+agent/data/
+*.db
+*.db-shm
+*.db-wal

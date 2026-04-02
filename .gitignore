@@ -36,3 +36,9 @@ ignition/deployments/
 *.log
 npm-debug.log*
 .env
+
+# SQLite
+agent/data/
+*.db
+*.db-shm
+*.db-wal
