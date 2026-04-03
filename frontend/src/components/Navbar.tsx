@@ -3,29 +3,24 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useWalletContext } from "../lib/WalletContext";
-import { usePublicContractData } from "../lib/useContracts";
 import {
-  Shield, Wallet, Search, Bell, BarChart3, Bot, Eye, Menu, X,
+  Shield, Wallet, Search, Activity, Users, Code2, Menu, X,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const NAV_LINKS = [
-  { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/scanner", label: "Scanner", icon: Search },
-  { href: "/alerts", label: "Alerts", icon: Bell },
-  { href: "/positions", label: "Positions", icon: Eye },
-  { href: "/agent", label: "Agent", icon: Bot },
+  { href: "/oracle", label: "Oracle", icon: Activity },
+  { href: "/agents", label: "Agents", icon: Users },
+  { href: "/integrate", label: "Integrate", icon: Code2 },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
   const { address, isConnected, connect, disconnect, isConnecting, switchToBsc, chainId } = useWalletContext();
-  const publicData = usePublicContractData();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
-
-  const dataSource = isConnected ? "wallet" : publicData.isLive ? "public-rpc" : "demo";
 
   return (
     <nav className="sticky top-0 z-50 border-b backdrop-blur-xl" style={{ borderColor: "var(--border-subtle)", background: "rgba(9,9,11,0.85)" }}>
@@ -43,7 +38,7 @@ export default function Navbar() {
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1 ml-8">
             {NAV_LINKS.map((link) => {
-              const isActive = pathname === link.href;
+              const isActive = pathname === link.href || (link.href === "/scanner" && pathname?.startsWith("/scan/"));
               return (
                 <Link
                   key={link.href}
@@ -61,16 +56,12 @@ export default function Navbar() {
 
           {/* Right Side */}
           <div className="flex items-center gap-2.5">
-            {/* Data source */}
-            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium" style={{
-              background: dataSource === "wallet" ? "rgba(52,211,153,0.08)" : dataSource === "public-rpc" ? "var(--accent-muted)" : "rgba(251,191,36,0.08)",
-              color: dataSource === "wallet" ? "var(--green)" : dataSource === "public-rpc" ? "var(--accent)" : "var(--yellow)",
-            }}>
-              <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{
-                background: dataSource === "wallet" ? "var(--green)" : dataSource === "public-rpc" ? "var(--accent)" : "var(--yellow)",
-              }} />
-              {dataSource === "wallet" ? "Live" : dataSource === "public-rpc" ? "Read-Only" : "Demo"}
-            </div>
+            {/* Network badge */}
+            <span className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium"
+              style={{ background: "rgba(0,212,245,0.08)", color: "var(--accent)" }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />
+              BSC Testnet
+            </span>
 
             {/* Wallet */}
             {isConnected ? (

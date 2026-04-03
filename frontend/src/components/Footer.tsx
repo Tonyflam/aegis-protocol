@@ -1,4 +1,4 @@
-import { Shield, ExternalLink, Github } from "lucide-react";
+import { Shield, ExternalLink } from "lucide-react";
 import { CONTRACTS } from "../lib/constants";
 
 export default function Footer() {
@@ -14,26 +14,20 @@ export default function Footer() {
             </a>
           </span>
           <span style={{ color: "var(--border-subtle)" }}>·</span>
-          <a href={`https://bscscan.com/token/${CONTRACTS.UNIQ_TOKEN}`} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "var(--bnb)" }}>
-            $UNIQ
-          </a>
+          <span>Security Oracle Network on BNB Chain</span>
         </div>
         <div className="flex items-center gap-4 text-[11px]" style={{ color: "var(--text-muted)" }}>
+          <a href={`https://testnet.bscscan.com/address/${CONTRACTS.SCANNER}`} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+            Scanner <ExternalLink className="w-2.5 h-2.5" />
+          </a>
           <a href={`https://testnet.bscscan.com/address/${CONTRACTS.REGISTRY}`} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
             Registry <ExternalLink className="w-2.5 h-2.5" />
           </a>
-          <a href={`https://testnet.bscscan.com/address/${CONTRACTS.VAULT}`} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
-            Vault <ExternalLink className="w-2.5 h-2.5" />
-          </a>
-          <a href={`https://testnet.bscscan.com/address/${CONTRACTS.DECISION_LOGGER}`} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
-            Logger <ExternalLink className="w-2.5 h-2.5" />
-          </a>
-          <span style={{ color: "var(--border-subtle)" }}>|</span>
           <a href="https://github.com/Tonyflam/aegis-protocol" target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
-            <Github className="w-2.5 h-2.5" /> Source
+            GitHub <ExternalLink className="w-2.5 h-2.5" />
           </a>
-          <a href="https://x.com/uniq_minds" target="_blank" rel="noopener noreferrer" className="hover:underline">
-            @uniq_minds
+          <a href={`https://bscscan.com/token/${CONTRACTS.UNIQ_TOKEN}`} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1" style={{ color: "var(--bnb)" }}>
+            $UNIQ <ExternalLink className="w-2.5 h-2.5" />
           </a>
         </div>
       </div>

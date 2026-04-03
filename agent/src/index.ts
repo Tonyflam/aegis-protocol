@@ -9,6 +9,7 @@ import { RiskAnalyzer, RiskLevel, SuggestedAction } from "./analyzer";
 import { OnChainExecutor } from "./executor";
 import { AIReasoningEngine } from "./ai-engine";
 import { PancakeSwapProvider, BSC_TOKENS } from "./pancakeswap";
+import { AutoScanner } from "./auto-scanner";
 import { ethers } from "ethers";
 
 dotenv.config({ path: "../.env" });
@@ -24,6 +25,9 @@ const CONFIG = {
   agentId: parseInt(process.env.AGENT_ID || "0"),
   pollInterval: parseInt(process.env.POLL_INTERVAL || "30000"), // 30s default
   dryRun: process.env.DRY_RUN !== "false", // default to dry run
+  scannerAddress: process.env.SCANNER_ADDRESS || "",
+  autoScanEnabled: process.env.AUTO_SCAN !== "false", // default: true
+  factoryAddress: process.env.PANCAKE_FACTORY || "",
 };
 
 // ─── ASCII Banner ─────────────────────────────────────────────
@@ -99,6 +103,7 @@ class AegisAgent {
   private executor: OnChainExecutor;
   private aiEngine: AIReasoningEngine;
   private pancakeSwap: PancakeSwapProvider;
+  private autoScanner: AutoScanner | null = null;
   private isRunning = false;
   private cycleCount = 0;
   private startTime = Date.now();
@@ -134,6 +139,19 @@ class AegisAgent {
       },
       this.monitor.getProvider()
     );
+
+    // Initialize Auto-Scanner (PairCreated monitor → on-chain submit)
+    if (CONFIG.autoScanEnabled && CONFIG.scannerAddress && ethers.isAddress(CONFIG.scannerAddress)) {
+      this.autoScanner = new AutoScanner({
+        rpcUrl: CONFIG.rpcUrl,
+        privateKey: CONFIG.privateKey,
+        scannerAddress: CONFIG.scannerAddress,
+        dryRun: CONFIG.dryRun,
+        ...(CONFIG.factoryAddress && ethers.isAddress(CONFIG.factoryAddress)
+          ? { factoryAddress: CONFIG.factoryAddress }
+          : {}),
+      });
+    }
   }
 
   /**
@@ -150,9 +168,17 @@ class AegisAgent {
     console.log(`  Operator: ${this.executor.getOperatorAddress()}`);
     console.log(`  AI Engine: ${this.aiEngine.isEnabled() ? "LLM-Powered ✓" : "Heuristic Fallback"}`);
     console.log(`  PancakeSwap: Connected ✓`);
+    console.log(`  Auto-Scanner: ${this.autoScanner ? "Enabled ✓" : "Disabled (no SCANNER_ADDRESS)"}`);
     console.log("");
 
     this.isRunning = true;
+
+    // Start Auto-Scanner in background (runs its own loop)
+    if (this.autoScanner) {
+      this.autoScanner.start().catch((err: any) =>
+        console.error(`[AutoScanner] Fatal: ${err.message}`)
+      );
+    }
 
     // Initial scan for existing deposits
     try {
@@ -304,6 +330,7 @@ class AegisAgent {
 
   stop(): void {
     this.isRunning = false;
+    if (this.autoScanner) this.autoScanner.stop();
     console.log("\n[Aegis Agent] Shutting down...");
   }
 

@@ -1,0 +1,19 @@
+{
+  "name": "@aegis-protocol/agent-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for building custom Aegis Protocol scanner agents on BNB Chain",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "ethers": "^6.0.0"
+  },
+  "devDependencies": {
+    "ethers": "^6.16.0",
+    "typescript": "^5.0.0"
+  }
+}

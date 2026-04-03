@@ -1,8 +1,22 @@
-# AEGIS PROTOCOL — DETAILED LAUNCH ROADMAP
-## Uniq Minds | From Hackathon Winner to Production DeFi Protocol
+# AEGIS PROTOCOL — SECURITY ORACLE NETWORK ROADMAP
+## Uniq Minds | The On-Chain Security Data Layer for BNB Chain
 
-**Last Updated**: March 30, 2026
-**Status**: Phase 2 — COMPLETE ✅ | Phase 3 — NEXT 🔧
+**Last Updated**: April 2026
+**Vision**: Transform Aegis from a DeFi vault guardian into the **BNB Chain Security Oracle Network** — the programmatically-queryable, on-chain security data layer that every protocol, wallet, and agent consults before executing.
+**Status**: Phase 1-2 COMPLETE ✅ | Phase 3 — NEXT 🔧 | Mainnet Target — Phase 5 🚀
+
+---
+
+## THE THESIS
+
+No on-chain, programmatically-queryable security data layer exists on BNB Chain today. GoPlus, De.Fi, and TokenSniffer are off-chain APIs — they can go down, censor, or change terms. The AegisScanner contract already stores risk data on-chain. This is the seed of something much bigger than a vault.
+
+**The shift**: Aegis is not a vault with an AI watcher. It is **a decentralized security intelligence network** where:
+- AI agents continuously scan, score, and attest token risk on-chain
+- Any smart contract can query `IAegisScanner.getTokenRisk()` before executing a swap
+- Any wallet can check `isTokenSafe()` before approving a token
+- Agents stake $UNIQ to participate, earn fees when their data is queried
+- The vault becomes ONE consumer of this data layer, not the whole product
 
 ---
 
@@ -12,7 +26,7 @@
 |-----------|--------|---------|
 | Smart Contracts | ✅ BSC Testnet | 5 contracts (Registry, Vault, Logger, TokenGate, Scanner), Sourcify verified |
 | Tests | ✅ 198/198 passing | Registry (52), Vault (59), Logger (25), TokenGate (34), Scanner (28) |
-| Frontend | ✅ Live on Vercel | aegis-protocol-1.vercel.app — 6-page professional UI |
+| Frontend | ✅ Live on Vercel | aegisguardian.xyz — 6-page professional UI |
 | Agent Engine | ✅ Functional | Groq + OpenAI + heuristic fallback, 3,236 LOC |
 | Token Scanner | ✅ Live | Multi-source honeypot/rug pull/whale risk analysis |
 | Whale Alerts | ✅ Live | Real-time BSC Transfer event monitoring |
@@ -20,6 +34,7 @@
 | $UNIQ Integration | ✅ On-chain | AegisTokenGate deployed, holder tiers + fee discounts live |
 | On-chain Demo | ✅ 13 TXs verified | Full threat lifecycle demonstrated |
 | Production Audit | ✅ Complete | All fake/simulated data removed |
+| AegisScanner | ✅ Deployed | On-chain token risk registry — **the Oracle seed** |
 
 ---
 
@@ -233,39 +248,237 @@ Changes to `agent/src/`:
 
 ---
 
-# PHASE 3: SECURITY & BSC MAINNET LAUNCH (Week 4-8)
+# PHASE 3: SECURITY ORACLE FOUNDATION (Weeks 1-6) — BSC TESTNET
 
-> **Goal**: Battle-test everything, audit, and deploy to mainnet with real money.
+> **Goal**: Upgrade AegisScanner into a full oracle, build the auto-scan pipeline, and publish the `IAegisScanner` interface — all battle-tested on BSC Testnet before touching mainnet.
 
-## 3.1 — Security Audit Preparation (Week 4-5)
+## 3.1 — AegisScanner Oracle Upgrade (Week 1-2)
 
-- [ ] **Internal audit checklist** — Go through every function:
-  - Reentrancy protection on all external calls ✓ (ReentrancyGuard)
+- [ ] **Upgrade AegisScanner.sol** for production oracle role
+  - Add `IAegisScanner` public interface (EIP-165 compliant):
+    ```solidity
+    interface IAegisScanner {
+        function getTokenRisk(address token) external view returns (
+            uint8 riskScore,        // 0-100
+            uint256 lastUpdated,    // timestamp
+            address attestedBy,     // agent that submitted
+            bytes32 reasoningHash   // IPFS hash of full analysis
+        );
+        function isTokenSafe(address token) external view returns (bool);
+        function getTokenFlags(address token) external view returns (
+            bool isHoneypot,
+            bool hasHighTax,
+            bool isUnverified,
+            bool hasConcentratedOwnership,
+            bool hasLowLiquidity
+        );
+    }
+    ```
+  - Add staleness check — `isTokenSafe()` returns `false` if data older than 24h
+  - Add batch query: `getTokenRiskBatch(address[] tokens)` for gas efficiency
+  - Add event: `TokenRiskUpdated(address indexed token, uint8 riskScore, address indexed agent)`
+  - Emit `OracleQueried(address indexed querier, address indexed token)` for fee tracking
+  - Deploy upgraded Scanner to BSC Testnet, verify on Sourcify + BSCScan
+
+- [ ] **Vault V2**: Upgrade to consume Scanner oracle data
+  - Before any protection execution, vault checks `getTokenRisk()` for involved tokens
+  - Risk-adjusted fee: riskier positions pay higher fees (incentivizes safe tokens)
+  - Auto-protection: vault automatically increases vigilance when Oracle flags new threats
+  - Multi-token vault: protect any BSC token, not just BNB
+
+- [ ] **Test expansion** — Target: 240+ tests
+  - IAegisScanner interface tests (batch queries, staleness, flags)
+  - Vault V2 oracle integration tests
+  - End-to-end: agent scans → oracle stores → vault consumes
+
+## 3.2 — Auto-Scan Agent Pipeline (Week 2-4)
+
+- [ ] **New agent module**: `agent/src/auto-scanner.ts`
+  - Monitor PancakeSwap Factory for `PairCreated` events
+  - On every new pair: trigger full risk analysis pipeline
+  - Pipeline: honeypot.is check → GoPlusLabs verification → liquidity depth → holder concentration → LLM reasoning
+  - Submit result to `AegisScanner.submitRisk()` on-chain
+  - Target: scan every new BSC token within 60 seconds of pair creation
+
+- [ ] **Scan queue & rate management**
+  - Priority queue: new pairs first, then periodic re-scans of existing tokens
+  - Re-scan interval: high-risk tokens every 1h, medium every 6h, low every 24h
+  - API rate management across honeypot.is, GoPlusLabs, CoinGecko
+  - Fallback: heuristic-only scan if all APIs are down
+
+- [ ] **IPFS reasoning attestation**
+  - Full AI analysis (prompt + response + data sources) stored on IPFS
+  - `reasoningHash` stored on-chain via DecisionLogger
+  - Anyone can verify WHY a token was scored the way it was
+  - This is the transparency moat — no other scanner shows their work
+
+## 3.3 — Oracle Query Interface (Week 4-5)
+
+- [ ] **Developer documentation**
+  - `docs/integration-guide.md` — How to integrate IAegisScanner
+  - Example: PancakeSwap router wrapper that checks `isTokenSafe()` before swap
+  - Example: Wallet guard contract that blocks approval of flagged tokens
+  - NPM package: `@aegis-protocol/scanner-sdk` with ABI + TypeScript types
+
+- [ ] **Query fee mechanism** (deployed to testnet)
+  - Free tier: 100 queries/day per address (encourage adoption)
+  - Paid tier: Unlimited queries, pay in $UNIQ per query (micro-fees)
+  - Protocol integrations: flat monthly $UNIQ fee for unlimited access
+  - Fees route to: 40% agent rewards, 30% stakers, 20% treasury, 10% buyback
+
+## 3.4 — Frontend: Oracle Dashboard (Week 5-6)
+
+- [ ] **Public Scanner page upgrade**
+  - Real-time feed: "Token X just scanned → Risk Score: 87/100 🔴"
+  - Searchable database of all scanned tokens
+  - Full scan report with IPFS-linked reasoning
+  - Shareable scan URLs: `aegisguardian.xyz/scan/0x...`
+  - Embed widget code for other sites
+
+- [ ] **Oracle stats dashboard**
+  - Total tokens scanned (lifetime)
+  - Scans in last 24h
+  - Threats detected before rug pull
+  - Query volume graph
+  - "Testnet" badge — visible indicator this is testnet data
+
+### Phase 3 Deliverables
+- [ ] AegisScanner upgraded with `IAegisScanner` interface on BSC Testnet
+- [ ] Vault V2 consuming oracle data on BSC Testnet
+- [ ] Auto-scan pipeline catching every new BSC pair within 60 seconds
+- [ ] IPFS reasoning attestation for full transparency
+- [ ] Developer integration guide + NPM SDK
+- [ ] Query fee mechanism tested on testnet
+- [ ] Public oracle dashboard with shareable scan reports
+- [ ] 240+ tests passing
+
+---
+
+# PHASE 4: AGENT NETWORK & INTEGRATION SDK (Weeks 7-12) — BSC TESTNET
+
+> **Goal**: Open the network to third-party agents. Multiple agents scan → consensus scoring → higher accuracy → stronger oracle. Everything tested on testnet before mainnet.
+
+## 4.1 — Multi-Agent Consensus Protocol
+
+- [ ] **Agent staking** — Upgrade AegisRegistry
+  - Agents must stake $UNIQ to submit scan results (skin in the game)
+  - Stake tiers: Scout (10K $UNIQ) → Guardian (100K) → Sentinel (500K) → Archon (1M)
+  - Higher stake = more weight in consensus scoring
+  - Slashing: agents that submit provably wrong data lose stake
+
+- [ ] **Consensus mechanism**
+  - Minimum 3 agent attestations before a token risk score is finalized
+  - Weighted average by agent reputation + stake amount
+  - Outlier detection: if one agent deviates >30 points from median, flag for review
+  - Dispute resolution: any agent can challenge a score by staking additional $UNIQ
+
+- [ ] **Agent rewards**
+  - Scanner query fees distributed proportionally to contributing agents
+  - Bonus for first-to-scan (incentivizes speed)
+  - Monthly accuracy bonus: agents whose scores are validated by post-hoc events
+  - Penalty for inactivity: agents must submit ≥100 scans/month to earn rewards
+
+## 4.2 — Third-Party Agent Registration
+
+- [ ] **Open registration flow**
+  - Anyone can register an agent via AegisRegistry
+  - Minimum $UNIQ stake required
+  - Initial probation period: 30 days, reduced weight in consensus
+  - Graduated trust: reputation score increases with accurate scans over time
+
+- [ ] **Agent SDK**: `@aegis-protocol/agent-sdk`
+  - TypeScript SDK for building custom scanner agents
+  - Standard interfaces: `IScanner`, `IAnalyzer`, `ISubmitter`
+  - Pre-built adapters: honeypot.is, GoPlusLabs, De.Fi, custom
+  - Docker template for quick deployment
+  - Example agents: basic scanner, whale watcher, LP monitor
+
+- [ ] **Agent leaderboard**
+  - Ranked by: accuracy, speed, volume, uptime
+  - Public profiles with scan history
+  - Reputation NFTs for top performers
+  - Frontend page: `/agents` — browse all registered agents
+
+## 4.3 — Protocol Integration SDK
+
+- [ ] **Smart contract integration patterns**
+  ```solidity
+  // Any DEX router can add this modifier:
+  modifier aegisSafe(address token) {
+      require(
+          IAegisScanner(AEGIS_SCANNER).isTokenSafe(token),
+          "Aegis: token flagged as unsafe"
+      );
+      _;
+  }
+
+  function swap(address tokenIn, address tokenOut, uint256 amount)
+      external aegisSafe(tokenOut) {
+      // ... normal swap logic
+  }
+  ```
+
+- [ ] **Integration partnerships** (testnet demos)
+  - PancakeSwap: risk badge on token pages
+  - BNB Chain ecosystem wallets: pre-swap safety check
+  - Telegram trading bots: inline risk score before buy
+  - DEX aggregators: route avoidance for flagged tokens
+
+- [ ] **Security Certification NFTs**
+  - Tokens that pass continuous scanning earn "Aegis Certified" NFT
+  - Revocable: if risk score increases, certification is burned
+  - Projects can display certification badge
+  - Certification fee: paid in $UNIQ → treasury
+
+### Phase 4 Deliverables
+- [ ] Multi-agent consensus protocol tested on BSC Testnet
+- [ ] Third-party agent registration open with SDK
+- [ ] Agent leaderboard on frontend
+- [ ] Protocol integration SDK with smart contract examples
+- [ ] Security Certification NFT system tested on testnet
+- [ ] Vault V2 + Oracle + Agent Network fully integrated on testnet
+- [ ] Integration partnership MOUs signed (testnet demos delivered)
+- [ ] 280+ tests passing
+- [ ] **All contracts finalized and frozen** — ready for audit
+
+---
+
+# PHASE 5: SECURITY AUDIT & BSC MAINNET LAUNCH (Weeks 13-18)
+
+> **Goal**: Audit everything built in Phase 3-4, deploy the complete Aegis Security Oracle Network to BSC Mainnet. Beta first, then public launch. This is the big announcement: **"Aegis is LIVE on mainnet."**
+
+## 5.1 — Security Audit (Week 13-15)
+
+- [ ] **Internal audit checklist** — Go through every contract function:
+  - Reentrancy protection on all external calls (ReentrancyGuard)
   - Access control on all state-changing functions
-  - Integer overflow/underflow (Solidity 0.8.24 handles, but verify)
-  - Front-running vectors on `executeProtection()`
-  - Oracle manipulation resistance (PancakeSwap cross-check)
-  - Emergency pause mechanism tested
+  - Integer overflow/underflow (Solidity 0.8.24 handles, but verify edge cases)
+  - Front-running vectors on `executeProtection()` and `submitRisk()`
+  - Oracle manipulation resistance (multi-agent consensus mitigates)
+  - Emergency pause mechanism on every contract
   - Fee calculation precision (no rounding exploits)
+  - Staleness check correctness on `isTokenSafe()`
+  - Slashing logic edge cases in agent staking
 
 - [ ] **Static analysis**
-  - Run `slither` on all contracts
+  - Run `slither` on all contracts (AegisScanner V2, Vault V2, Registry V2, Logger, TokenGate)
   - Run `mythril` for symbolic execution
   - Fix all high/medium findings
   - Document accepted low findings with justification
 
-- [ ] **External audit** (options by budget)
-  - **Budget option**: Code4rena competitive audit (~$5K-15K)
-  - **Mid option**: Hacken or CertiK lite (~$10K-30K)
-  - **Premium option**: Trail of Bits, OpenZeppelin (~$50K+)
-  - Alternative: Apply for BNB Chain MVB grants (may cover audit costs)
+- [ ] **External audit** (by budget)
+  - Budget option: Code4rena competitive audit (~$5K-15K)
+  - Mid option: Hacken or CertiK lite (~$10K-30K)
+  - Apply for BNB Chain MVB grants (may cover audit costs)
+  - Scope: ALL contracts including new oracle, staking, and consensus logic
 
 - [ ] **Bug bounty program**
   - Set up on Immunefi (BSC ecosystem standard)
   - Tiered rewards: Low ($100) → Critical ($5,000)
-  - Scope: All 4 contracts (Registry, Vault, Logger, TokenGate)
+  - Scope: All contracts + Scanner oracle interface
+  - Launch bug bounty BEFORE mainnet deployment
 
-## 3.2 — Mainnet Infrastructure (Week 5-6)
+## 5.2 — Mainnet Infrastructure (Week 15-16)
 
 - [ ] **Multisig wallet** — Gnosis Safe on BSC
   - 2-of-3 initially (can expand to 3-of-5 later)
@@ -275,291 +488,318 @@ Changes to `agent/src/`:
 
 - [ ] **Mainnet RPC setup**
   - Primary: Ankr or QuickNode (paid, reliable)
-  - Fallback: Public BSC RPC (free, rate-limited)
-  - Add to `hardhat.config.ts`:
-    ```typescript
-    bscMainnet: {
-      url: process.env.BSC_MAINNET_RPC || "https://bsc-dataseed1.binance.org",
-      chainId: 56,
-      accounts: [process.env.PRIVATE_KEY!],
-      gasPrice: 3000000000, // 3 gwei (BSC is cheap)
-    }
-    ```
+  - Fallback: PublicNode BSC RPC
+  - Agent requires 24/7 RPC with no rate limits
 
 - [ ] **Monitoring & alerting**
   - Set up Tenderly for transaction monitoring
-  - Configure alerts: failed TXs, large withdrawals, unusual gas
-  - Agent health dashboard (uptime, response times)
-  - Set up PagerDuty/Discord webhook for critical alerts
+  - Configure alerts: failed TXs, large withdrawals, unusual gas, oracle manipulation attempts
+  - Agent health dashboard (uptime, response times, scan throughput)
+  - Discord/Telegram webhook for critical alerts
 
 - [ ] **Backend hosting for Agent**
   - Option A: Railway.app (easy, $5/mo)
   - Option B: AWS EC2 t3.micro (free tier eligible)
   - Option C: VPS (Hetzner, $4/mo)
   - Must run 24/7 with auto-restart on crash
-  - `DRY_RUN=false` in production
+  - `DRY_RUN=false` in production environment
 
-## 3.3 — Mainnet Deployment (Week 6-7)
+## 5.3 — Mainnet Deployment (Week 16-17)
 
-- [ ] **Deploy script update** — `scripts/deploy-mainnet.ts`
+- [ ] **Deploy script** — `scripts/deploy-mainnet.ts`
   ```
-  1. Deploy AegisRegistry
-  2. Deploy AegisVault (ref: Registry)
-  3. Deploy DecisionLogger
-  4. Deploy AegisTokenGate (ref: $UNIQ token address)
-  5. Set permissions:
-     - Vault authorized in Registry
+  1. Deploy AegisRegistry V2 (with agent staking + consensus)
+  2. Deploy AegisScanner V2 (IAegisScanner oracle interface)
+  3. Deploy AegisVault V2 (oracle-consuming, multi-token)
+  4. Deploy DecisionLogger
+  5. Deploy AegisTokenGate (ref: $UNIQ mainnet address)
+  6. Set permissions:
+     - Scanner authorized agents
+     - Vault linked to Scanner oracle
      - Operator authorized in Vault
      - Logger authorized in DecisionLogger
      - TokenGate set in Vault + Registry
-  6. Transfer ownership to Gnosis Safe multisig
-  7. Verify all on BSCScan
+  7. Transfer ownership to Gnosis Safe multisig
+  8. Verify ALL contracts on BSCScan
   ```
 
 - [ ] **Frontend mainnet switch**
-  - File: `frontend/src/lib/constants.ts`
-  - Update `CHAIN_ID` to 56 (BSC Mainnet)
+  - Update `CHAIN_ID` to 56 (BSC Mainnet) in `constants.ts`
   - Update all contract addresses
   - Update RPC URL
   - Add mainnet/testnet toggle (keep testnet for demos)
+  - "MAINNET LIVE" badge on dashboard
 
 - [ ] **Agent mainnet config**
   - Update contract addresses in `.env`
   - Set `DRY_RUN=false`
   - Configure mainnet RPC
-  - Test with small amounts first
+  - Start auto-scan pipeline pointing at mainnet PancakeSwap Factory
 
-## 3.4 — Soft Launch (Week 7-8)
+## 5.4 — Beta Launch (Week 17)
 
-- [ ] **Invite-only launch**
-  - Whitelist: Top $UNIQ holders + active community members
-  - Limits: Max $1,000 per user, $10,000 total protocol TVL
+- [ ] **Invite-only beta** — Controlled rollout
+  - Whitelist: Top $UNIQ holders + active community members + testnet power users
+  - Limits: Max $1,000 deposit per user, $10,000 total protocol TVL
   - Duration: 1-2 weeks of monitoring
+  - Feedback channel: dedicated Discord/Telegram group
 
-- [ ] **Monitoring checklist** during soft launch:
-  - [ ] All deposits tracked correctly
+- [ ] **Beta monitoring checklist**:
+  - [ ] All deposits tracked correctly on mainnet
+  - [ ] Oracle scans producing accurate results on real tokens
   - [ ] Risk assessments logging to DecisionLogger
-  - [ ] Fee calculations accurate
-  - [ ] $UNIQ discounts applying correctly
+  - [ ] Fee calculations accurate + $UNIQ discounts applying
   - [ ] Emergency withdrawal works on mainnet
-  - [ ] Agent making sensible decisions (not false positives)
-  - [ ] Gas costs within expected range
+  - [ ] Agent making sensible decisions (no false positives on mainnet tokens)
+  - [ ] Gas costs within expected range on BSC (should be ~$0.03-0.10/tx)
+  - [ ] Auto-scan catching new PancakeSwap pairs in real time
+  - [ ] IPFS attestations accessible and verifiable
+  - [ ] No security incidents
 
-- [ ] **Public launch prep**
-  - Remove whitelist (or raise limits)
+## 5.5 — Public Mainnet Launch (Week 18)
+
+- [ ] **Remove limits + go public**
+  - Remove whitelist
   - Gradual cap increases: $10K → $50K → $100K → uncapped
-  - Announcement thread + AMA
-  - Dashboard: Add "Mainnet LIVE" indicator
+  - Enable third-party agent registration on mainnet
+  - Enable oracle query fees (paid tier)
 
-### Phase 3 Deliverables
-- [ ] Security audit report (internal + external)
-- [ ] Bug bounty live on Immunefi
-- [ ] Gnosis Safe multisig controlling all contracts
-- [ ] All 4 contracts deployed + verified on BSC Mainnet
-- [ ] Frontend pointing to mainnet with toggle
-- [ ] Agent running 24/7 with monitoring
-- [ ] Soft launch completed with real users + real funds
-- [ ] Public launch announcement
+- [ ] **Launch announcement** 🚀
+  - Twitter thread: "Aegis Protocol is LIVE on BSC Mainnet"
+  - Include: contract addresses, what's new (oracle, auto-scan, agent network)
+  - First integration announcements (any partnerships from Phase 4)
+  - Community AMA: live walkthrough of mainnet features
+  - CoinGecko/CMC listing update for $UNIQ (add utility description)
 
----
-
-# PHASE 4: MULTI-PROTOCOL SUPPORT (Month 2)
-
-> **Goal**: Protect more than just BNB — support lending, LP positions, and any BSC token.
-
-## 4.1 — PancakeSwap V3 Integration
-
-- [ ] **New adapter**: `agent/src/adapters/pancakeswap-v3.ts`
-  - Concentrated liquidity position tracking
-  - Range-based risk analysis (out-of-range detection)
-  - Impermanent loss calculation
-  - Auto-rebalance suggestions
-
-- [ ] **Contract update**: Add V3 position types to Vault
-  - NFT-based positions (PancakeSwap V3 uses NFTs for LP)
-  - Range tracking in risk profiles
-
-## 4.2 — Venus Protocol Integration (Lending)
-
-- [ ] **New adapter**: `agent/src/adapters/venus.ts`
-  - Track supply/borrow positions
-  - Monitor health factor in real-time
-  - Liquidation threshold alerts
-  - Auto-repay or auto-withdraw on health factor drop
-
-- [ ] **Contract update**: Add lending action types
-  - `ActionType.RepayDebt` — Auto-repay to avoid liquidation
-  - `ActionType.WithdrawCollateral` — Pull collateral before liquidation
-
-## 4.3 — Arbitrary BSC Token Monitoring
-
-- [ ] **Token scanner**: `agent/src/adapters/token-scanner.ts`
-  - Auto-detect all BSC tokens in user's wallet
-  - Per-token risk profile configuration
-  - Honeypot detection (simulate sell on PancakeSwap)
-  - Liquidity depth check
-  - Contract verification status check
-
-- [ ] **Frontend: Multi-token dashboard**
-  - Portfolio view: All tokens with risk scores
-  - Per-token protection settings
-  - One-click "protect all" configuration
-
-## 4.4 — Adapter Architecture
-
-Refactor agent to support pluggable protocol adapters:
-
-```
-agent/src/
-├── adapters/
-│   ├── base-adapter.ts         # Interface all adapters implement
-│   ├── pancakeswap-v2.ts       # Existing (refactor from pancakeswap.ts)
-│   ├── pancakeswap-v3.ts       # New
-│   ├── venus.ts                # New
-│   └── token-scanner.ts        # New
-├── index.ts                    # Core loop (unchanged)
-├── ai-engine.ts                # Enhanced with adapter data
-└── analyzer.ts                 # Enhanced with protocol-specific risk
-```
-
-### Phase 4 Deliverables
-- [ ] PancakeSwap V3 positions tracked and protected
-- [ ] Venus lending positions monitored with liquidation protection
-- [ ] Any BSC token auto-detected and risk-scored
-- [ ] Adapter architecture documented for future integrations
-- [ ] 140+ tests passing
-
----
-
-# PHASE 5: STAKING & REVENUE SHARE (Month 3)
-
-> **Goal**: Create sustainable tokenomics — stake $UNIQ, earn from protocol activity.
-
-## 5.1 — New Contract: AegisStaking.sol
-
-```solidity
-// contracts/AegisStaking.sol
-contract AegisStaking is ReentrancyGuard, Ownable {
-    IERC20 public uniqToken;
-
-    struct StakeInfo {
-        uint256 amount;
-        uint256 stakeTimestamp;
-        uint256 lastClaimTimestamp;
-        uint256 accumulatedRewards;
-    }
-
-    // Stake $UNIQ → earn share of protocol fees
-    function stake(uint256 amount) external;
-    function unstake(uint256 amount) external; // 7-day cooldown
-    function emergencyUnstake() external;       // Instant, 10% penalty
-    function claimRewards() external;
-    function compound() external;               // Reinvest rewards
-
-    // Revenue distribution
-    function distributeRevenue() external;      // Called by Vault on fee collection
-}
-```
-
-**Revenue Split**:
-| Destination | Share | Purpose |
-|-------------|-------|---------|
-| Stakers | 30% | Revenue share rewards |
-| Treasury | 30% | Development fund (multisig) |
-| Buyback | 20% | Buy $UNIQ from market → burn or redistribute |
-| Operations | 20% | Servers, APIs, team costs |
-
-## 5.2 — AegisVault Revenue Integration
-
-- [ ] Modify fee collection to route to AegisStaking
-- [ ] Add `distributeRevenue()` call after each fee collection
-- [ ] Track total fees collected (new public counter)
-- [ ] Track total fees distributed to stakers
-
-## 5.3 — Frontend: Staking Dashboard
-
-- [ ] **Staking page** (new route or tab)
-  - Stake/unstake $UNIQ with amount input
-  - Current APY display (calculated from fee volume)
-  - Your staked amount + pending rewards
-  - Claim / compound buttons
-  - Cooldown timer display
-  - Protocol-wide stats: Total staked, TVP, fee volume
-
-## 5.4 — Governance (Lightweight)
-
-- [ ] **Snapshot.org integration** for off-chain voting
-  - Space: aegis-protocol.eth (or .bnb)
-  - Strategy: $UNIQ balance + staked $UNIQ
-  - Initial proposals: Fee adjustments, new chain selection, feature priorities
+- [ ] **First integration targets** (mainnet)
+  - Telegram bots calling `getTokenRisk()` via mainnet RPC
+  - Wallet providers embedding safety check
+  - DEX aggregators adding risk flags
+  - Co-marketing with integration partners
 
 ### Phase 5 Deliverables
-- [ ] AegisStaking.sol deployed and audited
-- [ ] Revenue distribution flowing to stakers
-- [ ] Staking dashboard live on frontend
-- [ ] Snapshot governance space active
-- [ ] 160+ tests passing
+- [ ] Security audit report (internal + external) with all findings resolved
+- [ ] Bug bounty live on Immunefi
+- [ ] Gnosis Safe multisig controlling all contracts
+- [ ] ALL contracts deployed + verified on BSC Mainnet (Scanner V2, Vault V2, Registry V2, Logger, TokenGate)
+- [ ] Agent running 24/7 on mainnet with auto-scan pipeline
+- [ ] Beta completed successfully with real users + real funds
+- [ ] Public mainnet launch with announcement + first integrations
+- [ ] Frontend pointing to mainnet with toggle
+- [ ] 300+ tests passing
 
 ---
 
-# PHASE 6: MULTI-CHAIN EXPANSION (Month 4+)
+# PHASE 6: DATA MARKETPLACE & PREMIUM TIERS (Weeks 19-24)
 
-> **Goal**: Bring Aegis protection to every major EVM chain.
+> **Goal**: Monetize the live mainnet security data layer. Free tier drives adoption, premium tier drives revenue. Launch staking for $UNIQ holders.
 
-## 6.1 — Target Chains (Priority Order)
+## 6.1 — Tiered Data Access
 
-| Chain | TVL | DEX | Lending | Priority |
-|-------|-----|-----|---------|----------|
-| **Ethereum** | $50B+ | Uniswap V3 | Aave V3 | High |
-| **Arbitrum** | $3B+ | Uniswap V3, Camelot | Aave V3, Radiant | High |
-| **Base** | $2B+ | Aerodrome | Moonwell | Medium |
-| **Polygon** | $1B+ | QuickSwap | Aave V3 | Medium |
+| Tier | Access | Price | Target |
+|------|--------|-------|--------|
+| **Public** | `isTokenSafe()` — boolean only | Free (100/day) | Wallets, small bots |
+| **Standard** | Full risk score + flags + last updated | 1 $UNIQ/query | DEX aggregators, trading bots |
+| **Premium** | Full analysis + reasoning + historical data | 10 $UNIQ/query | Institutional, analytics platforms |
+| **Enterprise** | Unlimited + webhook alerts + custom feeds | 1M $UNIQ/month flat | Exchanges, large protocols |
 
-## 6.2 — Cross-Chain Architecture
+- [ ] **On-chain access control**
+  - PayPerQuery contract: deduct $UNIQ per query based on tier
+  - Subscription contract: monthly $UNIQ lockup for unlimited access
+  - Free tier: rate-limited by address, no $UNIQ required
 
-- [ ] **Unified deploy script** — Same contracts, chain-specific configs
-- [ ] **Chain-specific adapters** — Each chain gets its own DEX/lending adapter
-- [ ] **Single frontend** — Chain selector dropdown, aggregated portfolio view
-- [ ] **$UNIQ bridge** — LayerZero OFT or Wormhole for cross-chain $UNIQ
-  - Native on BSC
-  - Bridged version on other chains
-  - Staking remains on BSC (canonical)
+- [ ] **Premium data feeds**
+  - Historical risk score changes over time (track token degradation)
+  - Whale movement correlation with risk events
+  - Liquidity drain velocity (predict rug in progress)
+  - Cross-token pattern analysis (same deployer, same code = same risk)
 
-## 6.3 — Per-Chain Agent Instances
+## 6.2 — Staking & Revenue Share
 
-Each chain gets its own agent instance:
-```
-Agent (BSC)      → Monitors BSC positions    → Executes on BSC
-Agent (Ethereum) → Monitors ETH positions    → Executes on ETH
-Agent (Arbitrum) → Monitors ARB positions    → Executes on ARB
-```
+- [ ] **New contract: AegisStaking.sol**
+  ```solidity
+  contract AegisStaking is ReentrancyGuard, Ownable {
+      IERC20 public uniqToken;
 
-Unified dashboard aggregates all.
+      struct StakeInfo {
+          uint256 amount;
+          uint256 stakeTimestamp;
+          uint256 lastClaimTimestamp;
+          uint256 accumulatedRewards;
+      }
+
+      function stake(uint256 amount) external;
+      function unstake(uint256 amount) external; // 7-day cooldown
+      function emergencyUnstake() external;       // Instant, 10% penalty
+      function claimRewards() external;
+      function compound() external;
+
+      function distributeRevenue() external;
+  }
+  ```
+
+- [ ] **Revenue distribution model**
+
+  | Source | Amount | Distribution |
+  |--------|--------|-------------|
+  | Scanner query fees | Per query | 40% agents, 30% stakers, 20% treasury, 10% buyback |
+  | Vault protection fees | 0.5% per protection | 30% stakers, 30% treasury, 20% buyback, 20% ops |
+  | Agent registration fees | One-time $UNIQ | 50% treasury, 50% burn |
+  | Certification NFT fees | Per certification | 40% stakers, 40% treasury, 20% burn |
+  | Enterprise subscriptions | Monthly $UNIQ | 30% stakers, 30% agents, 20% treasury, 20% ops |
+
+## 6.3 — Frontend: Data Marketplace
+
+- [ ] **Marketplace page** (new route: `/marketplace`)
+  - Browse available data tiers
+  - Purchase queries or subscribe
+  - API key management for off-chain integrations
+  - Usage dashboard: queries consumed, cost breakdown
+
+- [ ] **Staking page** (new route: `/staking`)
+  - Stake/unstake $UNIQ
+  - Real-time APY based on protocol revenue
+  - Pending rewards + claim/compound buttons
+  - Cooldown timer display
+  - Protocol stats: total staked, TVL, fee volume
+
+## 6.4 — Governance
+
+- [ ] **Snapshot.org integration** for off-chain voting
+  - Strategy: $UNIQ balance + staked $UNIQ weight
+  - Proposal types: fee adjustments, new chain selection, slashing parameters, treasury allocation
+  - Minimum proposal threshold: 100K staked $UNIQ
 
 ### Phase 6 Deliverables
-- [ ] Aegis live on 2+ chains
-- [ ] Cross-chain portfolio dashboard
-- [ ] $UNIQ bridged to at least 1 additional chain
-- [ ] Chain-specific adapters for top DEX/lending per chain
+- [ ] Tiered data access live on mainnet with PayPerQuery + Subscription contracts
+- [ ] Premium data feeds available (historical, whale, cross-token)
+- [ ] AegisStaking.sol deployed to mainnet with revenue distribution
+- [ ] Staking dashboard + marketplace UI live
+- [ ] Governance via Snapshot active
+- [ ] Protocol generating sustainable revenue
+- [ ] 340+ tests passing
 
 ---
 
-# GROWTH & MARKETING TIMELINE
+# PHASE 7: AUTONOMOUS SECURITY NETWORK (Weeks 25+)
 
-| Week | Action |
-|------|--------|
-| **Week 0** | Win AMA, announce roadmap, update branding |
-| **Week 1** | $UNIQ utility announcement thread, token integration begins |
-| **Week 2** | "Hold $UNIQ, pay less fees" campaign, testnet demo with token |
-| **Week 3** | Security audit begins, bug bounty launch |
-| **Week 4** | Audit progress update, community AMA #2 |
-| **Week 5** | Mainnet deployment prep, infrastructure setup |
-| **Week 6** | Soft launch (invite-only), first real protection on mainnet |
-| **Week 7** | Soft launch monitoring, gather feedback |
-| **Week 8** | PUBLIC MAINNET LAUNCH, PR push |
-| **Month 2** | Multi-protocol integrations, partnership announcements |
-| **Month 3** | Staking launch, governance activation |
-| **Month 4+** | Multi-chain expansion begins |
+> **Goal**: Full decentralization. Aegis becomes the security standard for all EVM chains — a network, not a product.
+
+## 7.1 — Multi-Chain Expansion
+
+| Chain | TVL | Priority | Oracle Use Case |
+|-------|-----|----------|-----------------|
+| **Ethereum** | $50B+ | High | UniSwap token safety, MEV protection data |
+| **Arbitrum** | $3B+ | High | Camelot token risk, bridge safety |
+| **Base** | $2B+ | Medium | Emerging tokens, high rug-pull rate |
+| **Polygon** | $1B+ | Medium | QuickSwap token screening |
+
+- [ ] **Cross-chain Scanner deployment**
+  - Same `IAegisScanner` interface on every chain
+  - Chain-specific agent instances monitoring local DEXs
+  - Canonical staking remains on BSC, cross-chain rewards via LayerZero
+
+- [ ] **$UNIQ bridge** — LayerZero OFT or Wormhole
+  - Native on BSC
+  - Bridged version on expansion chains
+  - Query fees payable in bridged $UNIQ on any chain
+
+## 7.2 — Predictive Security Intelligence
+
+- [ ] **Rug pull prediction engine**
+  - Pattern matching: deployer history, code similarity, liquidity patterns
+  - Pre-emptive alerts BEFORE the rug happens (not after)
+  - Public "Aegis Predicted This" dashboard — tracks predictions vs outcomes
+  - This is the viral loop: every correct prediction is a marketing event
+
+- [ ] **Risk contagion mapping**
+  - If token A rugs and deployer also deployed token B, auto-flag token B
+  - Shared liquidity pool analysis: if LP is pulled from A, what else is affected?
+  - Network graph visualization of connected risk
+
+## 7.3 — Full Decentralization
+
+- [ ] **On-chain governance** — Replace Snapshot with Governor contract
+  - $UNIQ voting with time-weighted staking multiplier
+  - Govern: fee parameters, slashing thresholds, chain expansion, treasury
+  - Timelock on all parameter changes (48h delay)
+
+- [ ] **Permissionless agent registration**
+  - Remove owner-required approval
+  - Reputation-only gatekeeping: low-rep agents have reduced weight
+  - Community can vote to ban malicious agents
+
+- [ ] **Treasury diversification**
+  - Protocol-owned liquidity (POL) on PancakeSwap
+  - Treasury yield strategies (Venus, Alpaca)
+  - Grants program for ecosystem builders
+
+## 7.4 — The Endgame Vision
+
+```
+┌──────────────────── AEGIS SECURITY ORACLE NETWORK ────────────────────┐
+│                                                                        │
+│  ┌─────────────┐    ┌──────────────┐    ┌──────────────────────┐      │
+│  │ Agent Network│───▶│ AegisScanner │───▶│ On-Chain Risk Data    │      │
+│  │ (100+ agents)│    │ (Oracle Core)│    │ (queryable by anyone) │      │
+│  └─────────────┘    └──────────────┘    └──────────┬───────────┘      │
+│                                                     │                  │
+│    ┌────────────────────────────────────────────────┤                  │
+│    │                    │                 │          │                  │
+│    ▼                    ▼                 ▼          ▼                  │
+│  ┌──────┐    ┌──────────────┐   ┌──────────┐  ┌──────────┐           │
+│  │Wallets│    │DEX Aggregators│   │ Protocols│  │AegisVault│           │
+│  │(check │    │(route around  │   │(pre-swap │  │(auto-     │           │
+│  │before │    │flagged tokens)│   │ safety)  │  │protect)  │           │
+│  │approve│    └──────────────┘   └──────────┘  └──────────┘           │
+│  └──────┘                                                              │
+│                                                                        │
+│  Revenue: Query fees + Vault fees + Certifications + Enterprise subs   │
+│  Security: Multi-agent consensus + Staking + Slashing + Governance     │
+│  Token: $UNIQ = work token (stake to participate) + fee medium         │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 7 Deliverables
+- [ ] Aegis Scanner live on 2+ EVM chains
+- [ ] Cross-chain $UNIQ bridge operational
+- [ ] Rug pull prediction engine with public track record
+- [ ] On-chain governance replacing Snapshot
+- [ ] Permissionless agent registration
+- [ ] Network processing 10,000+ queries/day
+- [ ] 380+ tests passing
+
+---
+
+# $UNIQ TOKEN — WORK TOKEN MODEL
+
+$UNIQ is no longer just a fee-discount token. It is a **work token** — required to participate in the network at every level:
+
+| Use Case | $UNIQ Required | Mechanism |
+|----------|---------------|-----------|
+| **Agent staking** | 10K-1M per agent | Stake to submit scan data, earn query fees |
+| **Query payment** | 1-10 per query | Pay to access risk data (Standard/Premium) |
+| **Enterprise access** | 1M/month flat | Unlimited queries for protocols |
+| **Certification** | Per token | Projects pay for "Aegis Certified" badge |
+| **Governance** | Staked $UNIQ | Vote on protocol parameters |
+| **Vault fee discount** | 10K-1M held | Original utility preserved (Bronze/Silver/Gold) |
+| **Agent registration** | One-time fee | Price of entry to the agent network |
+
+**Demand drivers**: Every new agent, every query, every integration, every certification = $UNIQ demand.
+**Supply pressure**: Buyback from revenue, burn from registration fees, staking lockup.
+
+---
+
+# COMPETITIVE MOATS
+
+| Moat | Description | Why Others Can't Copy |
+|------|-------------|----------------------|
+| **Data network effect** | More scans → better data → more integrations → more scans | First-mover on BSC on-chain security data |
+| **Agent network effect** | More agents → better consensus → more trust → more agents | Staking + reputation makes switching costly |
+| **Integration lock-in** | Protocols embed `IAegisScanner` in their contracts | Smart contract integration is permanent |
+| **$UNIQ necessity** | Can't participate without the token | Work token model creates structural demand |
+| **Transparency moat** | IPFS-linked reasoning — anyone can verify | GoPlus/De.Fi are black boxes |
+| **Decision audit trail** | DecisionLogger stores immutable on-chain decisions | No competitor has this |
 
 ---
 
@@ -568,36 +808,72 @@ Unified dashboard aggregates all.
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | Smart contract exploit | Critical | Audit + bug bounty + gradual TVL caps |
-| AI makes wrong call | High | Emergency withdrawal always available, dry-run first |
-| Low adoption | Medium | $UNIQ incentives, reduced fees, community marketing |
-| $UNIQ price collapse | Medium | Real utility drives demand, buyback mechanism |
-| Competitor launches first | Medium | Focus on UX + transparency, not just tech |
+| AI makes wrong risk score | High | Multi-agent consensus, slashing for bad data |
+| Low agent participation | High | $UNIQ rewards + first-mover incentives |
+| Oracle data staleness | High | 24h expiry + re-scan queue + staleness flag |
+| $UNIQ price collapse | Medium | Real utility (work token), buyback from revenue |
+| Low integration adoption | Medium | Free tier + integration SDK + first partnerships |
+| Competitor launches on-chain oracle | Medium | Network effects + integration lock-in |
 | BNB Chain issues | Low | Multi-chain roadmap diversifies |
 | API rate limits (Groq/CoinGecko) | Low | Heuristic fallback, multiple providers |
 
 ---
 
-# KEY METRICS TO TRACK
+# KEY METRICS
 
-| Metric | Phase 2 Target | Phase 3 Target | Phase 5 Target |
-|--------|---------------|---------------|---------------|
-| $UNIQ Holders | 500 | 1,000 | 5,000 |
-| Twitter Followers | 500 | 2,000 | 10,000 |
-| Total Value Protected | $0 (testnet) | $50,000 | $500,000 |
-| Active Agents | 5 (testnet) | 25 | 200 |
-| Tests Passing | 198 ✅ | 220+ | 260+ |
-| Protocol Revenue | $0 | First fees | $5,000/mo |
-| Staked $UNIQ | N/A | N/A | 50M+ |
+| Metric | Phase 3 (Testnet) | Phase 4 (Testnet) | Phase 5 (Mainnet Launch) | Phase 6 (Marketplace) | Phase 7 (Multi-Chain) |
+|--------|-------------------|-------------------|--------------------------|----------------------|----------------------|
+| Tokens Scanned | 500 (testnet) | 2,000 (testnet) | 5,000 (mainnet) | 50,000 | 200,000 |
+| Oracle Queries/Day | 50 (testnet) | 200 (testnet) | 1,000 | 5,000 | 10,000+ |
+| Active Agents | 1 (Aegis core) | 3-5 (testnet) | 5-10 (mainnet) | 25+ | 100+ |
+| Protocol Integrations | 0 | 1-2 (testnet MOUs) | 2-3 (mainnet live) | 10+ | 25+ |
+| $UNIQ Staked (agents) | 0 | 100K (testnet) | 500K | 5M | 50M+ |
+| $UNIQ Staked (holders) | N/A | N/A | N/A | 10M | 100M+ |
+| Protocol Revenue/Month | $0 | $0 | First real fees | $10,000 | $50,000+ |
+| Total Value Protected | $0 | $0 | $50,000 (beta+public) | $500,000 | $2M+ |
+| Tests Passing | 240+ | 280+ | 300+ | 340+ | 380+ |
+| Chains Live | 0 (testnet only) | 0 (testnet only) | 1 (BSC Mainnet) | 1-2 | 3+ |
 
 ---
 
-# IMMEDIATE NEXT STEPS (This Week)
+# GROWTH & ADOPTION STRATEGY
 
-1. **Today**: Host Win Recap AMA
-2. **Tomorrow**: Post AMA recording + summary thread
-3. **Day 3-4**: README rebrand + frontend branding update
-4. **Day 5-6**: Set up CI/CD pipeline + begin gas optimization
-5. **Day 7**: Begin `AegisTokenGate.sol` development (Phase 2 kickoff)
+| Phase | Trigger | Retention | Viral Loop |
+|-------|---------|-----------|------------|
+| **Phase 3** | Public testnet scan reports for trending tokens | Free oracle queries drive habitual checking | Shareable scan URLs → Twitter embeds |
+| **Phase 4** | Agent SDK launch → developer community buzz | Integration SDK → protocols start building on Aegis | Every testnet integration demo = co-marketing |
+| **Phase 5** | **MAINNET LAUNCH** → "Aegis is LIVE" announcement | Real money protection → sticky users | Beta users become evangelists, first rug prediction goes viral |
+| **Phase 6** | Premium data + staking APY → institutional attention | Revenue share → diamond hands stakers | Staking APY attracts yield seekers |
+| **Phase 7** | Correct rug prediction → massive PR | Multi-chain coverage → can't leave | "Aegis predicted this" becomes meme |
+
+**The killer adoption trigger**: Aegis publicly calls a token unsafe → that token rugs 48 hours later → screenshot goes viral → everyone asks "which tokens has Aegis flagged?" → adoption spike. Every rug pull we predict correctly is a marketing event we don't pay for.
+
+---
+
+# DEVELOPMENT TIMELINE OVERVIEW
+
+```
+Phase 1   ████████████████ COMPLETE ✅ (Foundation & Branding)
+Phase 2   ████████████████ COMPLETE ✅ ($UNIQ Token Integration)
+Phase 3   ░░░░░░░░░░░░░░░░ Weeks 1-6   (Oracle Foundation — TESTNET)
+Phase 4   ░░░░░░░░░░░░░░░░ Weeks 7-12  (Agent Network — TESTNET)
+Phase 5   ░░░░░░░░░░░░░░░░ Weeks 13-18 (AUDIT → BETA → MAINNET LAUNCH 🚀)
+Phase 6   ░░░░░░░░░░░░░░░░ Weeks 19-24 (Data Marketplace & Staking)
+Phase 7   ░░░░░░░░░░░░░░░░ Weeks 25+   (Multi-Chain & Decentralization)
+```
+
+**Key milestone**: Phase 5, Week 18 — **Public BSC Mainnet Launch**
+Everything before Week 18 is building + testing. Everything after is growth.
+
+---
+
+# IMMEDIATE NEXT STEPS
+
+1. **This week**: Upgrade AegisScanner.sol with `IAegisScanner` interface + batch queries (testnet)
+2. **Next week**: Build auto-scan agent pipeline (PancakeSwap Factory listener on testnet)
+3. **Week 3**: IPFS reasoning attestation integration
+4. **Week 4**: Vault V2 oracle integration + developer docs
+5. **Week 5-6**: Oracle dashboard frontend + query fee testing on testnet
 
 ---
 

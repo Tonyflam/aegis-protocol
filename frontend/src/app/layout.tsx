@@ -11,14 +11,14 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://aegisguardian.xyz"),
-  title: "Aegis Protocol — AI-Powered DeFi Guardian on BNB Chain",
+  title: "Aegis Protocol — On-Chain Security Oracle for BNB Chain",
   description:
-    "Autonomous AI agent that monitors your DeFi positions on BNB Chain 24/7, detects risks in real-time using LLM reasoning + PancakeSwap DEX verification, and executes protective on-chain transactions.",
-  keywords: ["DeFi", "AI Agent", "BNB Chain", "PancakeSwap", "DeFi Guardian", "Autonomous Agent", "Smart Contract", "Risk Management"],
+    "The programmable security data layer for BNB Chain. On-chain token risk scoring, honeypot detection, multi-agent consensus oracle. Any smart contract can query isTokenSafe() before executing.",
+  keywords: ["Security Oracle", "BNB Chain", "Token Scanner", "Honeypot Detection", "Smart Contract Security", "DeFi Security", "On-Chain Oracle"],
   authors: [{ name: "Uniq Minds" }],
   openGraph: {
-    title: "Aegis Protocol by Uniq Minds — AI-Powered DeFi Guardian",
-    description: "Autonomous AI agent protecting your DeFi positions on BNB Chain 24/7. LLM reasoning + PancakeSwap DEX verification + on-chain execution.",
+    title: "Aegis Protocol — On-Chain Security Oracle for BNB Chain",
+    description: "The programmable security data layer for BNB Chain. On-chain token risk scoring, multi-agent consensus, contract-queryable oracle.",
     url: "https://aegisguardian.xyz",
     siteName: "Aegis Protocol",
     type: "website",
@@ -27,8 +27,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Aegis Protocol by Uniq Minds — AI-Powered DeFi Guardian",
-    description: "Autonomous AI agent protecting your DeFi positions on BNB Chain 24/7. $UNIQ token utility. LLM reasoning + PancakeSwap DEX verification.",
+    title: "Aegis Protocol — On-Chain Security Oracle for BNB Chain",
+    description: "The programmable security data layer for BNB Chain. On-chain token risk scoring, multi-agent consensus, contract-queryable oracle.",
     images: ["/og-image.svg"],
   },
   icons: {
