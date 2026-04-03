@@ -359,10 +359,10 @@ export default function ScannerPage() {
         {!loading && !isLive && recentScans.length === 0 && (
           <div className="card p-12 text-center">
             <Shield className="w-6 h-6 mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
-            <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>Scanner contract not yet deployed</p>
+            <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>Connecting to AegisScanner oracle...</p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Set <span className="font-mono">NEXT_PUBLIC_SCANNER_ADDRESS</span> to connect to a live instance.
-              The oracle interface is fully tested with 356 passing tests.
+              Reading from BSC Testnet. If no scans appear, the scan agent service may be offline.
+              Use the search bar above to query any token address.
             </p>
           </div>
         )}

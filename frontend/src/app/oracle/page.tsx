@@ -8,6 +8,21 @@ import {
   ExternalLink, Layers, Cpu, CheckCircle,
 } from "lucide-react";
 
+const DEPLOYED_CONTRACTS = [
+  { name: "AegisScanner", address: CONTRACTS.SCANNER, desc: "Oracle registry — token risk storage, query interface, batch operations", color: "var(--accent)" },
+  { name: "AegisStaking", address: CONTRACTS.STAKING, desc: "$UNIQ staking — 4 tiers (Scout→Archon), slashing, cooldown unstake", color: "var(--green)" },
+  { name: "AegisConsensus", address: CONTRACTS.CONSENSUS, desc: "Multi-agent attestation rounds, weighted scoring, outlier detection", color: "var(--purple)" },
+  { name: "AegisCertification", address: CONTRACTS.CERTIFICATION, desc: "Soulbound ERC-721 'Certified' NFT, revocable if risk increases", color: "#f97316" },
+  { name: "AegisRegistry", address: CONTRACTS.REGISTRY, desc: "ERC-721 agent identity, 4-tier reputation, on-chain profiles", color: "var(--bnb)" },
+  { name: "AegisVault", address: CONTRACTS.VAULT, desc: "Fee collection, protocol treasury, authorized withdrawals", color: "var(--yellow)" },
+  { name: "DecisionLogger", address: CONTRACTS.LOGGER, desc: "Immutable decision audit trail, agent action logging", color: "var(--text-secondary)" },
+  { name: "AegisTokenGate", address: CONTRACTS.TOKEN_GATE, desc: "$UNIQ holder tiers, fee discounts, protocol access control", color: "var(--text-secondary)" },
+];
+
+function shortenAddress(addr: string): string {
+  return addr.slice(0, 6) + "…" + addr.slice(-4);
+}
+
 export default function OraclePage() {
   const { stats, loading, isLive, fetchStats } = useScannerData();
 
@@ -160,29 +175,25 @@ export default function OraclePage() {
 
       {/* Contract Architecture */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
-        <h3 className="text-sm font-semibold text-white mb-3">Protocol Contracts</h3>
+        <h3 className="text-sm font-semibold text-white mb-3">Deployed Contracts — BSC Testnet</h3>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[
-            { name: "AegisScanner", desc: "Oracle registry — token risk storage, query interface, batch operations", color: "var(--accent)", testnet: true },
-            { name: "AegisConsensus", desc: "Multi-agent attestation rounds, weighted scoring, outlier detection", color: "var(--purple)", testnet: false },
-            { name: "AegisStaking", desc: "$UNIQ staking — 4 tiers (Scout→Archon), slashing, cooldown unstake", color: "var(--green)", testnet: false },
-            { name: "AegisCertification", desc: "Soulbound ERC-721 'Certified' NFT, revocable if risk increases", color: "#f97316", testnet: false },
-            { name: "AegisRegistry", desc: "ERC-721 agent identity, 4-tier reputation, on-chain profiles", color: "var(--bnb)", testnet: true },
-            { name: "AegisTokenGate", desc: "$UNIQ holder tiers, fee discounts, protocol access control", color: "var(--text-secondary)", testnet: true },
-          ].map((c, i) => (
+          {DEPLOYED_CONTRACTS.map((c, i) => (
             <div key={i} className="card p-4 flex items-start gap-3">
               <span className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: c.color }} />
-              <div>
-                <div className="flex items-center gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono text-xs font-semibold" style={{ color: c.color }}>{c.name}</span>
                   <span className="text-[9px] px-1.5 py-0.5 rounded"
-                    style={{
-                      background: c.testnet ? "rgba(52,211,153,0.08)" : "rgba(255,255,255,0.03)",
-                      color: c.testnet ? "var(--green)" : "var(--text-muted)",
-                    }}>
-                    {c.testnet ? "Testnet" : "Tested"}
+                    style={{ background: "rgba(52,211,153,0.08)", color: "var(--green)" }}>
+                    Deployed
                   </span>
                 </div>
+                <a href={`https://testnet.bscscan.com/address/${c.address}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="font-mono text-[10px] hover:underline block mt-0.5 truncate"
+                  style={{ color: "var(--accent)" }}>
+                  {shortenAddress(c.address)}
+                </a>
                 <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{c.desc}</p>
               </div>
             </div>

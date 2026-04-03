@@ -235,6 +235,10 @@ contract MyDex {
             {[
               { name: "AegisScanner", address: CONTRACTS.SCANNER, primary: true },
               { name: "AegisRegistry", address: CONTRACTS.REGISTRY, primary: false },
+              { name: "AegisStaking", address: CONTRACTS.STAKING, primary: false },
+              { name: "AegisConsensus", address: CONTRACTS.CONSENSUS, primary: false },
+              { name: "AegisCertification", address: CONTRACTS.CERTIFICATION, primary: false },
+              { name: "DecisionLogger", address: CONTRACTS.LOGGER, primary: false },
               { name: "AegisTokenGate", address: CONTRACTS.TOKEN_GATE, primary: false },
               { name: "$UNIQ Token", address: CONTRACTS.UNIQ_TOKEN, primary: false },
             ].map((c, i) => (
@@ -277,8 +281,9 @@ contract MyDex {
 const agent = new AegisAgent({
   rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545",
   privateKey: process.env.AGENT_KEY,
-  consensusAddress: "0x...",
-  stakingAddress: "0x...",
+  consensusAddress: "${CONTRACTS.CONSENSUS}",
+  stakingAddress: "${CONTRACTS.STAKING}",
+  scannerAddress: "${CONTRACTS.SCANNER}",
 });
 
 agent.addScanner(new GoPlusAdapter());
@@ -291,8 +296,9 @@ const result = await agent.scanAndAttest("0xTokenAddress");`} />
 const agent = new AegisAgent({
   rpcUrl: "https://data-seed-prebsc-...",
   privateKey: process.env.AGENT_KEY,
-  consensusAddress: "0x...",
-  stakingAddress: "0x...",
+  consensusAddress: "${CONTRACTS.CONSENSUS.slice(0, 8)}...",
+  stakingAddress: "${CONTRACTS.STAKING.slice(0, 8)}...",
+  scannerAddress: "${CONTRACTS.SCANNER.slice(0, 8)}...",
 });
 
 agent.addScanner(new GoPlusAdapter());
