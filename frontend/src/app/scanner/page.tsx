@@ -147,10 +147,9 @@ export default function ScannerPage() {
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => {
-    if (!isLive) return;
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
-  }, [isLive, fetchStats]);
+  }, [fetchStats]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();

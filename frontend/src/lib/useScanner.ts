@@ -53,8 +53,16 @@ export interface ScannerStats {
 
 // ─── RPC Provider ────────────────────────────────────────────
 
+let rpcIndex = 0;
+
 function getReadProvider(): ethers.JsonRpcProvider {
-  return new ethers.JsonRpcProvider(CHAIN_CONFIG.bscTestnet.rpcUrls[0]);
+  const urls = CHAIN_CONFIG.bscTestnet.rpcUrls;
+  const url = urls[rpcIndex % urls.length];
+  return new ethers.JsonRpcProvider(url, undefined, { staticNetwork: true });
+}
+
+function rotateRpc(): void {
+  rpcIndex = (rpcIndex + 1) % CHAIN_CONFIG.bscTestnet.rpcUrls.length;
 }
 
 function getScannerContract(provider: ethers.JsonRpcProvider | ethers.BrowserProvider): ethers.Contract | null {
@@ -142,8 +150,11 @@ export function useScannerData() {
         setRecentScans(results[1].value.map(parseScan));
       }
 
-      setIsLive(true);
+      // Only mark live if at least the stats call succeeded
+      const anySucceeded = results.some(r => r.status === "fulfilled");
+      setIsLive(anySucceeded);
     } catch {
+      rotateRpc();
       setIsLive(false);
     } finally {
       setLoading(false);
@@ -163,7 +174,7 @@ async function goplusLiveScan(token: string): Promise<TokenScan | null> {
     for (const chainId of [97, 56]) {
       const resp = await fetch(
         `https://api.gopluslabs.com/api/v1/token_security/${chainId}?contract_addresses=${token}`,
-        { signal: AbortSignal.timeout(10000) }
+        { signal: AbortSignal.timeout(20000) }
       );
       if (!resp.ok) continue;
       const json = await resp.json();
@@ -261,6 +272,7 @@ export function useTokenLookup() {
             return;
           }
         } catch {
+          rotateRpc();
           // Oracle read failed — fall through to live scan
         }
       }

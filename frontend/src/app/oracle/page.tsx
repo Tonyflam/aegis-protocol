@@ -28,10 +28,10 @@ export default function OraclePage() {
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => {
-    if (!isLive) return;
+    // Retry every 30s whether live or not (handles RPC recovery)
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
-  }, [isLive, fetchStats]);
+  }, [fetchStats]);
 
   const scannerDeployed = CONTRACTS.SCANNER !== "0x0000000000000000000000000000000000000000";
 
@@ -89,7 +89,7 @@ export default function OraclePage() {
                 { label: "Contract Status", value: scannerDeployed ? "Deployed" : "Not Deployed", color: scannerDeployed ? "var(--green)" : "var(--yellow)" },
                 { label: "Network", value: "BSC Testnet (97)", color: "var(--accent)" },
                 { label: "Data Feed", value: isLive ? "Active" : "Offline", color: isLive ? "var(--green)" : "var(--text-muted)" },
-                { label: "Phase", value: "4 / 5", color: "var(--purple)" },
+                { label: "Chain ID", value: "97", color: "var(--purple)" },
               ].map((item, i) => (
                 <div key={i} className="p-3 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
                   <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>{item.label}</p>
@@ -135,7 +135,7 @@ export default function OraclePage() {
                 <p className="text-3xl font-bold tracking-tight mb-1" style={{ color: "var(--text-muted)" }}>—</p>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</p>
                 <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>
-                  {loading ? "Loading..." : "Awaiting deployment"}
+                  {loading ? "Loading..." : "Connecting to BSC Testnet..."}
                 </p>
               </div>
             ))}
