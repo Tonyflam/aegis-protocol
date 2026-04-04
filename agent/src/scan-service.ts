@@ -19,8 +19,10 @@ const CONFIG = {
   registryAddress: process.env.REGISTRY_ADDRESS || "",
   loggerAddress: process.env.LOGGER_ADDRESS || "",
   agentId: parseInt(process.env.AGENT_ID || "0"),
-  pollInterval: parseInt(process.env.POLL_INTERVAL || "15000"),
+  pollInterval: parseInt(process.env.POLL_INTERVAL || "30000"),
   dryRun: process.env.DRY_RUN === "true",
+  // Manual token to scan on startup (skip event listening)
+  manualToken: process.env.SCAN_TOKEN || "",
   // PancakeSwap Factory — BSC Testnet has limited activity,
   // so also accept a manual factory override
   factoryAddress: process.env.PANCAKE_FACTORY || "0x6725F303b657a9451d8BA641348b6761A6CC7a17",
@@ -121,6 +123,8 @@ class ScanService {
   private lastBlock = 0;
   private rpcIndex = 0;
   private scannedTokens = new Set<string>();
+  private consecutiveRateLimits = 0;
+  private backoffMs = 5000;
 
   private stats = {
     startedAt: Date.now(),
@@ -148,6 +152,15 @@ class ScanService {
     await this.validate();
 
     this.isRunning = true;
+
+    // Manual token scan mode — scan a specific token and exit
+    if (CONFIG.manualToken && ethers.isAddress(CONFIG.manualToken)) {
+      console.log(`\n[ScanService] Manual scan mode: ${CONFIG.manualToken}`);
+      await this.scanAndSubmit(CONFIG.manualToken.toLowerCase());
+      this.printStats();
+      return;
+    }
+
     this.lastBlock = await this.provider.getBlockNumber();
 
     console.log(`\n[ScanService] Listening from block ${this.lastBlock}`);
@@ -157,6 +170,9 @@ class ScanService {
       try {
         this.stats.tickCount++;
         await this.tick();
+        // Reset backoff on successful tick
+        this.consecutiveRateLimits = 0;
+        this.backoffMs = 5000;
       } catch (err: any) {
         console.error(`[ScanService] Tick error: ${err.message}`);
         await this.handleRpcFailure();
@@ -202,9 +218,17 @@ class ScanService {
         }
       }
     } catch (err: any) {
-      if (err.message?.includes("rate") || err.message?.includes("limit")) {
-        console.warn(`[ScanService] Rate limited, backing off...`);
-        await this.sleep(5000);
+      const msg = err.message?.toLowerCase() || "";
+      if (msg.includes("rate") || msg.includes("limit") || msg.includes("429") || msg.includes("too many") || msg.includes("exceeded")) {
+        this.consecutiveRateLimits++;
+        this.backoffMs = Math.min(this.backoffMs * 1.5, 120000);
+        console.warn(`[ScanService] Rate limited (${this.consecutiveRateLimits}x), backing off ${Math.round(this.backoffMs / 1000)}s...`);
+        await this.sleep(this.backoffMs);
+        // Rotate RPC after 3 consecutive rate limits
+        if (this.consecutiveRateLimits >= 3) {
+          await this.handleRpcFailure();
+          this.consecutiveRateLimits = 0;
+        }
       } else {
         throw err;
       }

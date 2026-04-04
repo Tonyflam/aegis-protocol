@@ -5,7 +5,7 @@ import { useScannerData } from "../../lib/useScanner";
 import { CONTRACTS } from "../../lib/constants";
 import {
   Activity, Shield, AlertTriangle, Database,
-  ExternalLink, Layers, Cpu, CheckCircle,
+  ExternalLink, Layers, Cpu,
 } from "lucide-react";
 
 const DEPLOYED_CONTRACTS = [
@@ -201,40 +201,7 @@ export default function OraclePage() {
         </div>
       </div>
 
-      {/* Development Status */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-10">
-        <div className="card p-6">
-          <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-            <CheckCircle className="w-4 h-4" style={{ color: "var(--green)" }} />
-            Development Status
-          </h3>
-          <div className="space-y-3">
-            {[
-              { phase: "Phase 1–2", label: "Foundation", status: "Complete", items: "Registry, Vault, Logger, TokenGate — 5 contracts, 198 tests", color: "var(--green)" },
-              { phase: "Phase 3", label: "Security Oracle", status: "Complete", items: "AegisScanner V2, IAegisScanner interface, integration examples — 158 tests", color: "var(--green)" },
-              { phase: "Phase 4", label: "Agent Network", status: "Complete", items: "Staking, Consensus, Certification, Agent SDK — 356 total tests", color: "var(--green)" },
-              { phase: "Phase 5", label: "Audit & Mainnet", status: "Next", items: "Static analysis, external audit, BSC mainnet deployment, beta launch", color: "var(--yellow)" },
-            ].map((p, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
-                <span className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: p.color }} />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-white">{p.phase}: {p.label}</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded font-medium"
-                      style={{
-                        background: p.status === "Complete" ? "rgba(52,211,153,0.08)" : "rgba(251,191,36,0.08)",
-                        color: p.color,
-                      }}>
-                      {p.status}
-                    </span>
-                  </div>
-                  <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{p.items}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 }

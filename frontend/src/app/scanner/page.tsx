@@ -190,7 +190,7 @@ export default function ScannerPage() {
             ) : (
               <span className="text-[11px] font-medium px-2.5 py-1 rounded-md"
                 style={{ background: "rgba(251,191,36,0.08)", color: "var(--yellow)" }}>
-                Scanner not deployed
+                Connecting...
               </span>
             )}
           </div>
@@ -263,6 +263,12 @@ export default function ScannerPage() {
                         color: tokenLookup.safe ? "var(--green)" : "var(--red)",
                       }}>
                       {tokenLookup.safe ? "✓ isTokenSafe = true" : "✗ isTokenSafe = false"}
+                    </span>
+                  )}
+                  {tokenLookup.isLiveScan && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                      style={{ background: "rgba(139,92,246,0.1)", color: "var(--purple)" }}>
+                      Live Scan (GoPlusLabs)
                     </span>
                   )}
                 </div>

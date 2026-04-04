@@ -155,6 +155,67 @@ export function useScannerData() {
 
 // ─── Token Lookup Hook ───────────────────────────────────────
 
+// ─── GoPlusLabs Live Scan ────────────────────────────────────
+
+async function goplusLiveScan(token: string): Promise<TokenScan | null> {
+  try {
+    // Query BSC Testnet (97) first, fall back to BSC Mainnet (56)
+    for (const chainId of [97, 56]) {
+      const resp = await fetch(
+        `https://api.gopluslabs.com/api/v1/token_security/${chainId}?contract_addresses=${token}`,
+        { signal: AbortSignal.timeout(10000) }
+      );
+      if (!resp.ok) continue;
+      const json = await resp.json();
+      const data = json?.result?.[token.toLowerCase()];
+      if (!data) continue;
+
+      const buyTax = Math.round(parseFloat(data.buy_tax || "0") * 10000);
+      const sellTax = Math.round(parseFloat(data.sell_tax || "0") * 10000);
+      const isHoneypot = data.is_honeypot === "1";
+      const isOpenSource = data.is_open_source === "1";
+      const ownerCanChange = data.owner_change_balance === "1";
+      const hiddenOwner = data.hidden_owner === "1";
+
+      let riskScore = 30;
+      if (isHoneypot) riskScore = 100;
+      if (buyTax > 1000) riskScore = Math.min(100, riskScore + 20);
+      if (sellTax > 1000) riskScore = Math.min(100, riskScore + 20);
+      if (!isOpenSource) riskScore = Math.min(100, riskScore + 15);
+      if (ownerCanChange) riskScore = Math.min(100, riskScore + 25);
+      if (hiddenOwner) riskScore = Math.min(100, riskScore + 10);
+      if (!isHoneypot && isOpenSource && buyTax < 500 && sellTax < 500 && !ownerCanChange && !hiddenOwner) {
+        riskScore = Math.max(0, riskScore - 20);
+      }
+
+      return {
+        token,
+        riskScore,
+        liquidity: "0",
+        holderCount: parseInt(data.holder_count || "0"),
+        topHolderPercent: 0,
+        buyTax,
+        sellTax,
+        isHoneypot,
+        ownerCanMint: false,
+        ownerCanPause: false,
+        ownerCanBlacklist: false,
+        isContractRenounced: data.can_take_back_ownership !== "1",
+        isLiquidityLocked: false,
+        isVerified: isOpenSource,
+        scanTimestamp: Math.floor(Date.now() / 1000),
+        scannedBy: "0x0000000000000000000000000000000000000000",
+        flags: "LIVE_SCAN",
+        reasoningHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+        scanVersion: 0,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function useTokenLookup() {
   const [scan, setScan] = useState<TokenScan | null>(null);
   const [riskData, setRiskData] = useState<TokenRiskData | null>(null);
@@ -162,6 +223,7 @@ export function useTokenLookup() {
   const [safe, setSafe] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLiveScan, setIsLiveScan] = useState(false);
 
   const lookup = useCallback(async (tokenAddress: string) => {
     if (!ethers.isAddress(tokenAddress)) {
@@ -174,26 +236,43 @@ export function useTokenLookup() {
     setRiskData(null);
     setFlags(null);
     setSafe(null);
+    setIsLiveScan(false);
 
     try {
       const provider = getReadProvider();
       const scanner = getScannerContract(provider);
-      if (!scanner) { setError("Scanner not deployed"); setLoading(false); return; }
 
-      const scanned = await scanner.isScanned(tokenAddress);
-      if (!scanned) { setError("Token not scanned"); setLoading(false); return; }
+      // Try on-chain oracle first
+      if (scanner) {
+        try {
+          const scanned = await scanner.isScanned(tokenAddress);
+          if (scanned) {
+            const results = await Promise.allSettled([
+              scanner.getTokenScan(tokenAddress),
+              scanner.getTokenRisk(tokenAddress),
+              scanner.getTokenFlags(tokenAddress),
+              scanner.isTokenSafe(tokenAddress),
+            ]);
+            if (results[0].status === "fulfilled") setScan(parseScan(results[0].value));
+            if (results[1].status === "fulfilled") setRiskData(parseRiskData(results[1].value));
+            if (results[2].status === "fulfilled") setFlags(parseFlags(results[2].value));
+            if (results[3].status === "fulfilled") setSafe(results[3].value);
+            setLoading(false);
+            return;
+          }
+        } catch {
+          // Oracle read failed — fall through to live scan
+        }
+      }
 
-      const results = await Promise.allSettled([
-        scanner.getTokenScan(tokenAddress),
-        scanner.getTokenRisk(tokenAddress),
-        scanner.getTokenFlags(tokenAddress),
-        scanner.isTokenSafe(tokenAddress),
-      ]);
-
-      if (results[0].status === "fulfilled") setScan(parseScan(results[0].value));
-      if (results[1].status === "fulfilled") setRiskData(parseRiskData(results[1].value));
-      if (results[2].status === "fulfilled") setFlags(parseFlags(results[2].value));
-      if (results[3].status === "fulfilled") setSafe(results[3].value);
+      // Fall back to GoPlusLabs live scan
+      const liveScan = await goplusLiveScan(tokenAddress);
+      if (liveScan) {
+        setScan(liveScan);
+        setIsLiveScan(true);
+      } else {
+        setError("Token not found — not on oracle or GoPlusLabs");
+      }
     } catch {
       setError("Failed to fetch scan data");
     } finally {
@@ -207,7 +286,8 @@ export function useTokenLookup() {
     setFlags(null);
     setSafe(null);
     setError(null);
+    setIsLiveScan(false);
   }, []);
 
-  return { scan, riskData, flags, safe, loading, error, lookup, clear };
+  return { scan, riskData, flags, safe, loading, error, isLiveScan, lookup, clear };
 }
