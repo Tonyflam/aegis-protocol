@@ -7,32 +7,34 @@
 
 import * as dotenv from "dotenv";
 import { ethers } from "ethers";
+import * as http from "http";
 
 dotenv.config({ path: "../.env" });
 
 // ─── Configuration ────────────────────────────────────────────
 
 const CONFIG = {
-  rpcUrl: process.env.BSC_RPC || "https://data-seed-prebsc-1-s1.binance.org:8545",
+  rpcUrl: process.env.BSC_RPC || "https://bsc-testnet-rpc.publicnode.com",
   privateKey: process.env.PRIVATE_KEY || "",
   scannerAddress: process.env.SCANNER_ADDRESS || "",
   registryAddress: process.env.REGISTRY_ADDRESS || "",
   loggerAddress: process.env.LOGGER_ADDRESS || "",
   agentId: parseInt(process.env.AGENT_ID || "0"),
-  pollInterval: parseInt(process.env.POLL_INTERVAL || "30000"),
+  pollInterval: parseInt(process.env.POLL_INTERVAL || "15000"),
   dryRun: process.env.DRY_RUN === "true",
-  // Manual token to scan on startup (skip event listening)
-  manualToken: process.env.SCAN_TOKEN || "",
-  // PancakeSwap Factory — BSC Testnet has limited activity,
-  // so also accept a manual factory override
-  factoryAddress: process.env.PANCAKE_FACTORY || "0x6725F303b657a9451d8BA641348b6761A6CC7a17",
+  // PancakeSwap V2 Factory — BSC Testnet
+  factoryAddress: process.env.PANCAKE_FACTORY || "0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc",
+  // HTTP port for manual scan requests from frontend
+  httpPort: parseInt(process.env.SCAN_SERVICE_PORT || "3001"),
+  // How many blocks to look back on startup for recent PairCreated events
+  lookbackBlocks: parseInt(process.env.LOOKBACK_BLOCKS || "5000"),
 };
 
 // BSC Testnet RPC fallbacks
 const RPC_FALLBACKS = [
+  "https://bsc-testnet-rpc.publicnode.com",
   "https://data-seed-prebsc-1-s1.binance.org:8545",
   "https://data-seed-prebsc-2-s1.binance.org:8545",
-  "https://bsc-testnet-rpc.publicnode.com",
 ];
 
 // Well-known base tokens on BSC Testnet (don't scan these)
@@ -85,29 +87,53 @@ interface GoPlusResult {
   canTakeBackOwnership: boolean;
 }
 
-async function queryGoPlus(token: string, chainId: number = 56): Promise<GoPlusResult | null> {
-  try {
-    const resp = await fetch(
-      `https://api.gopluslabs.com/api/v1/token_security/${chainId}?contract_addresses=${token}`,
-      { signal: AbortSignal.timeout(10000) }
-    );
-    if (!resp.ok) return null;
-    const json = (await resp.json()) as any;
-    const data = json?.result?.[token.toLowerCase()];
-    if (!data) return null;
-    return {
-      isHoneypot: data.is_honeypot === "1",
-      buyTax: parseFloat(data.buy_tax || "0") * 100,
-      sellTax: parseFloat(data.sell_tax || "0") * 100,
-      isOpenSource: data.is_open_source === "1",
-      holderCount: parseInt(data.holder_count || "0"),
-      ownerCanChangeBalance: data.owner_change_balance === "1",
-      hiddenOwner: data.hidden_owner === "1",
-      canTakeBackOwnership: data.can_take_back_ownership === "1",
-    };
-  } catch {
-    return null;
+async function queryGoPlus(token: string, chainId: number = 97): Promise<GoPlusResult | null> {
+  const maxRetries = 3;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const resp = await fetch(
+        `https://api.gopluslabs.com/api/v1/token_security/${chainId}?contract_addresses=${token}`,
+        { signal: AbortSignal.timeout(10000) }
+      );
+      if (resp.status === 429) {
+        // Rate limited — exponential backoff
+        const wait = Math.pow(2, attempt + 1) * 1000;
+        console.warn(`[GoPlus] Rate limited, retrying in ${wait / 1000}s (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise((r) => setTimeout(r, wait));
+        continue;
+      }
+      if (!resp.ok) {
+        if (attempt < maxRetries - 1) {
+          const wait = Math.pow(2, attempt) * 1000;
+          await new Promise((r) => setTimeout(r, wait));
+          continue;
+        }
+        return null;
+      }
+      const json = (await resp.json()) as any;
+      const data = json?.result?.[token.toLowerCase()];
+      if (!data) return null;
+      return {
+        isHoneypot: data.is_honeypot === "1",
+        buyTax: parseFloat(data.buy_tax || "0") * 100,
+        sellTax: parseFloat(data.sell_tax || "0") * 100,
+        isOpenSource: data.is_open_source === "1",
+        holderCount: parseInt(data.holder_count || "0"),
+        ownerCanChangeBalance: data.owner_change_balance === "1",
+        hiddenOwner: data.hidden_owner === "1",
+        canTakeBackOwnership: data.can_take_back_ownership === "1",
+      };
+    } catch (err: any) {
+      if (attempt < maxRetries - 1) {
+        const wait = Math.pow(2, attempt) * 1000;
+        console.warn(`[GoPlus] Request failed (attempt ${attempt + 1}/${maxRetries}): ${err.message}`);
+        await new Promise((r) => setTimeout(r, wait));
+        continue;
+      }
+      return null;
+    }
   }
+  return null;
 }
 
 // ─── Scan Service Class ───────────────────────────────────────
@@ -123,8 +149,9 @@ class ScanService {
   private lastBlock = 0;
   private rpcIndex = 0;
   private scannedTokens = new Set<string>();
-  private consecutiveRateLimits = 0;
-  private backoffMs = 5000;
+  private emptyPollCount = 0;
+  private lowActivityWarned = false;
+  private httpServer: http.Server | null = null;
 
   private stats = {
     startedAt: Date.now(),
@@ -134,6 +161,7 @@ class ScanService {
     honeypotsFound: 0,
     rpcFailures: 0,
     tickCount: 0,
+    manualScans: 0,
   };
 
   constructor() {
@@ -153,26 +181,27 @@ class ScanService {
 
     this.isRunning = true;
 
-    // Manual token scan mode — scan a specific token and exit
-    if (CONFIG.manualToken && ethers.isAddress(CONFIG.manualToken)) {
-      console.log(`\n[ScanService] Manual scan mode: ${CONFIG.manualToken}`);
-      await this.scanAndSubmit(CONFIG.manualToken.toLowerCase());
-      this.printStats();
-      return;
-    }
+    // Look back to catch recent historical PairCreated events
+    const currentBlock = await this.provider.getBlockNumber();
+    this.lastBlock = Math.max(0, currentBlock - CONFIG.lookbackBlocks);
 
-    this.lastBlock = await this.provider.getBlockNumber();
+    console.log(`\n[ScanService] Current block: ${currentBlock}`);
+    console.log(`[ScanService] Looking back ${CONFIG.lookbackBlocks} blocks from ${this.lastBlock}`);
+    console.log(`[ScanService] Polling every ${CONFIG.pollInterval / 1000}s`);
 
-    console.log(`\n[ScanService] Listening from block ${this.lastBlock}`);
-    console.log(`[ScanService] Polling every ${CONFIG.pollInterval / 1000}s\n`);
+    // Start HTTP server for manual scan requests
+    this.startHttpServer();
+
+    // Fast historical catch-up with larger block ranges
+    console.log(`[ScanService] Scanning historical blocks ${this.lastBlock}..${currentBlock}...`);
+    await this.catchUpHistory(currentBlock);
+
+    console.log("");
 
     while (this.isRunning) {
       try {
         this.stats.tickCount++;
         await this.tick();
-        // Reset backoff on successful tick
-        this.consecutiveRateLimits = 0;
-        this.backoffMs = 5000;
       } catch (err: any) {
         console.error(`[ScanService] Tick error: ${err.message}`);
         await this.handleRpcFailure();
@@ -183,8 +212,54 @@ class ScanService {
 
   stop(): void {
     this.isRunning = false;
+    if (this.httpServer) {
+      this.httpServer.close();
+      console.log("[ScanService] HTTP server closed");
+    }
     console.log("[ScanService] Stopping...");
     this.printStats();
+  }
+
+  // ─── Historical Catch-Up ─────────────────────────────────
+
+  private async catchUpHistory(currentBlock: number): Promise<void> {
+    const BATCH_SIZE = 1000; // larger range for historical catch-up
+    let from = this.lastBlock + 1;
+
+    while (from <= currentBlock && this.isRunning) {
+      const to = Math.min(currentBlock, from + BATCH_SIZE - 1);
+      try {
+        const filter = this.factory.filters.PairCreated();
+        const events = await this.factory.queryFilter(filter, from, to);
+        if (events.length > 0) {
+          console.log(`[CatchUp] Found ${events.length} PairCreated events in blocks ${from}-${to}`);
+          for (const event of events) {
+            const log = event as ethers.EventLog;
+            const token0 = (log.args[0] as string).toLowerCase();
+            const token1 = (log.args[1] as string).toLowerCase();
+            const pair = log.args[2] as string;
+            console.log(`[PairCreated] token0=${token0.slice(0, 10)}... token1=${token1.slice(0, 10)}... pair=${pair.slice(0, 10)}... block=${log.blockNumber}`);
+            this.stats.pairsDetected++;
+            if (!BASE_TOKENS.has(token0) && !this.scannedTokens.has(token0)) {
+              await this.scanAndSubmit(token0);
+            }
+            if (!BASE_TOKENS.has(token1) && !this.scannedTokens.has(token1)) {
+              await this.scanAndSubmit(token1);
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[CatchUp] Error scanning blocks ${from}-${to}: ${err.message?.slice(0, 80)}`);
+        await this.sleep(3000);
+        // Don't advance — retry same range on next iteration
+        continue;
+      }
+      from = to + 1;
+      // Small delay between batches to avoid rate limiting
+      if (from <= currentBlock) await this.sleep(500);
+    }
+    this.lastBlock = currentBlock;
+    console.log(`[CatchUp] Historical scan complete. Now at block ${this.lastBlock}`);
   }
 
   // ─── Main Tick ──────────────────────────────────────────────
@@ -194,11 +269,25 @@ class ScanService {
     if (currentBlock <= this.lastBlock) return;
 
     const fromBlock = this.lastBlock + 1;
-    const toBlock = Math.min(currentBlock, fromBlock + 100); // conservative cap
+    const toBlock = Math.min(currentBlock, fromBlock + 50); // conservative cap for public RPCs
 
     try {
       const filter = this.factory.filters.PairCreated();
       const events = await this.factory.queryFilter(filter, fromBlock, toBlock);
+
+      if (events.length === 0) {
+        this.emptyPollCount++;
+        if (this.emptyPollCount >= 5 && !this.lowActivityWarned) {
+          this.lowActivityWarned = true;
+          console.warn(`\n⚠ [ScanService] No PairCreated events detected in ${this.emptyPollCount} polling intervals.`);
+          console.warn(`  Liquidity activity may be low on BSC Testnet.`);
+          console.warn(`  Manual scans can be submitted via POST http://localhost:${CONFIG.httpPort}/scan`);
+          console.warn(`  The service will continue polling.\n`);
+        }
+      } else {
+        this.emptyPollCount = 0;
+        this.lowActivityWarned = false;
+      }
 
       for (const event of events) {
         const log = event as ethers.EventLog;
@@ -218,17 +307,9 @@ class ScanService {
         }
       }
     } catch (err: any) {
-      const msg = err.message?.toLowerCase() || "";
-      if (msg.includes("rate") || msg.includes("limit") || msg.includes("429") || msg.includes("too many") || msg.includes("exceeded")) {
-        this.consecutiveRateLimits++;
-        this.backoffMs = Math.min(this.backoffMs * 1.5, 120000);
-        console.warn(`[ScanService] Rate limited (${this.consecutiveRateLimits}x), backing off ${Math.round(this.backoffMs / 1000)}s...`);
-        await this.sleep(this.backoffMs);
-        // Rotate RPC after 3 consecutive rate limits
-        if (this.consecutiveRateLimits >= 3) {
-          await this.handleRpcFailure();
-          this.consecutiveRateLimits = 0;
-        }
+      if (err.message?.includes("rate") || err.message?.includes("limit") || err.message?.includes("429") || err.code === "SERVER_ERROR") {
+        console.warn(`[ScanService] RPC rate limited (${err.message?.slice(0, 80)}), backing off...`);
+        await this.sleep(5000);
       } else {
         throw err;
       }
@@ -423,20 +504,134 @@ class ScanService {
     return { riskScore: Math.min(100, Math.max(0, score)), flags, boolFlags };
   }
 
+  // ─── Manual Scan (from HTTP endpoint) ───────────────────────
+
+  async scanManual(token: string): Promise<{ success: boolean; message: string; riskScore?: number }> {
+    const addr = token.toLowerCase().trim();
+
+    if (!ethers.isAddress(addr)) {
+      return { success: false, message: "Invalid address" };
+    }
+
+    // Check if already scanned on-chain
+    try {
+      const alreadyScanned = await this.scanner.isScanned(addr);
+      if (alreadyScanned) {
+        this.scannedTokens.add(addr);
+        return { success: true, message: "Already scanned on-chain" };
+      }
+    } catch {
+      // Continue — submit regardless
+    }
+
+    if (this.scannedTokens.has(addr)) {
+      return { success: true, message: "Already scanned this session" };
+    }
+
+    console.log(`[ManualScan] Triggered for ${addr}`);
+    this.stats.manualScans++;
+
+    try {
+      await this.scanAndSubmit(addr);
+      return { success: true, message: "Scan submitted to oracle", riskScore: undefined };
+    } catch (err: any) {
+      return { success: false, message: err.message };
+    }
+  }
+
+  // ─── HTTP Server for Manual Scans ───────────────────────────
+
+  private startHttpServer(): void {
+    this.httpServer = http.createServer(async (req, res) => {
+      // CORS headers for frontend
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+      if (req.method === "OPTIONS") {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      if (req.method === "POST" && req.url === "/scan") {
+        let body = "";
+        req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
+        req.on("end", async () => {
+          try {
+            const { token } = JSON.parse(body);
+            if (!token || typeof token !== "string") {
+              res.writeHead(400, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ success: false, message: "Missing token address" }));
+              return;
+            }
+            const result = await this.scanManual(token);
+            res.writeHead(result.success ? 200 : 500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ success: false, message: "Invalid JSON body" }));
+          }
+        });
+        return;
+      }
+
+      if (req.method === "GET" && req.url === "/status") {
+        const uptime = Math.round((Date.now() - this.stats.startedAt) / 1000);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          running: this.isRunning,
+          uptime,
+          ...this.stats,
+          tokensTracked: this.scannedTokens.size,
+          lastBlock: this.lastBlock,
+          factory: CONFIG.factoryAddress,
+        }));
+        return;
+      }
+
+      res.writeHead(404);
+      res.end("Not found");
+    });
+
+    this.httpServer.listen(CONFIG.httpPort, () => {
+      console.log(`[ScanService] HTTP server listening on port ${CONFIG.httpPort}`);
+      console.log(`  POST /scan  {"token":"0x..."} — trigger manual scan`);
+      console.log(`  GET  /status                  — service status`);
+    });
+  }
+
   // ─── RPC Fallback ───────────────────────────────────────────
 
   private async handleRpcFailure(): Promise<void> {
     this.stats.rpcFailures++;
     this.rpcIndex = (this.rpcIndex + 1) % RPC_FALLBACKS.length;
     const newRpc = RPC_FALLBACKS[this.rpcIndex];
-    console.warn(`[ScanService] Switching RPC to ${newRpc}`);
+    console.warn(`[ScanService] RPC failure #${this.stats.rpcFailures} — switching to ${newRpc}`);
 
-    this.provider = new ethers.JsonRpcProvider(newRpc);
-    this.wallet = new ethers.Wallet(CONFIG.privateKey, this.provider);
-    this.factory = new ethers.Contract(CONFIG.factoryAddress, FACTORY_ABI, this.provider);
-    this.scanner = new ethers.Contract(CONFIG.scannerAddress, SCANNER_ABI, this.wallet);
-    if (CONFIG.loggerAddress && ethers.isAddress(CONFIG.loggerAddress)) {
-      this.logger = new ethers.Contract(CONFIG.loggerAddress, LOGGER_ABI, this.wallet);
+    try {
+      this.provider = new ethers.JsonRpcProvider(newRpc);
+      // Validate new provider is reachable
+      await this.provider.getBlockNumber();
+      this.wallet = new ethers.Wallet(CONFIG.privateKey, this.provider);
+      this.factory = new ethers.Contract(CONFIG.factoryAddress, FACTORY_ABI, this.provider);
+      this.scanner = new ethers.Contract(CONFIG.scannerAddress, SCANNER_ABI, this.wallet);
+      if (CONFIG.loggerAddress && ethers.isAddress(CONFIG.loggerAddress)) {
+        this.logger = new ethers.Contract(CONFIG.loggerAddress, LOGGER_ABI, this.wallet);
+      }
+      console.log(`[ScanService] Successfully switched to ${newRpc}`);
+    } catch {
+      // Current fallback also failed — try next one
+      console.warn(`[ScanService] Fallback ${newRpc} unreachable, trying next...`);
+      this.rpcIndex = (this.rpcIndex + 1) % RPC_FALLBACKS.length;
+      const nextRpc = RPC_FALLBACKS[this.rpcIndex];
+      this.provider = new ethers.JsonRpcProvider(nextRpc);
+      this.wallet = new ethers.Wallet(CONFIG.privateKey, this.provider);
+      this.factory = new ethers.Contract(CONFIG.factoryAddress, FACTORY_ABI, this.provider);
+      this.scanner = new ethers.Contract(CONFIG.scannerAddress, SCANNER_ABI, this.wallet);
+      if (CONFIG.loggerAddress && ethers.isAddress(CONFIG.loggerAddress)) {
+        this.logger = new ethers.Contract(CONFIG.loggerAddress, LOGGER_ABI, this.wallet);
+      }
     }
 
     await this.sleep(3000);
@@ -454,9 +649,19 @@ class ScanService {
       throw new Error("SCANNER_ADDRESS must be a valid address in .env");
     }
 
-    // Chain ID
+    // Chain ID — must be BSC Testnet (97)
     const network = await this.provider.getNetwork();
     console.log(`[ScanService] Chain ID: ${network.chainId}`);
+    if (Number(network.chainId) !== 97) {
+      throw new Error(`Expected BSC Testnet (chain 97) but connected to chain ${network.chainId}`);
+    }
+
+    // Verify factory contract exists
+    const factoryCode = await this.provider.getCode(CONFIG.factoryAddress);
+    if (factoryCode.length <= 2) {
+      throw new Error(`Factory contract not found at ${CONFIG.factoryAddress} — wrong address?`);
+    }
+    console.log(`[ScanService] Factory: ${CONFIG.factoryAddress} (verified on-chain)`);
 
     // Balance
     const balance = await this.provider.getBalance(this.wallet.address);
@@ -501,6 +706,7 @@ class ScanService {
     console.log(`  Scans submitted: ${this.stats.scansSubmitted}`);
     console.log(`  Scans failed:    ${this.stats.scansFailed}`);
     console.log(`  Honeypots found: ${this.stats.honeypotsFound}`);
+    console.log(`  Manual scans:    ${this.stats.manualScans}`);
     console.log(`  RPC failures:    ${this.stats.rpcFailures}`);
     console.log(`  Tokens tracked:  ${this.scannedTokens.size}`);
     console.log(`  Ticks:           ${this.stats.tickCount}\n`);

@@ -33,11 +33,7 @@ export const CHAIN_CONFIG = {
     chainIdDecimal: 97,
     chainName: "BNB Smart Chain Testnet",
     nativeCurrency: { name: "tBNB", symbol: "tBNB", decimals: 18 },
-    rpcUrls: [
-      "https://bsc-testnet-rpc.publicnode.com",
-      "https://data-seed-prebsc-1-s1.binance.org:8545",
-      "https://data-seed-prebsc-2-s1.binance.org:8545",
-    ],
+    rpcUrls: ["https://data-seed-prebsc-1-s1.binance.org:8545"],
     blockExplorerUrls: ["https://testnet.bscscan.com"],
   },
   bscMainnet: {
@@ -45,10 +41,7 @@ export const CHAIN_CONFIG = {
     chainIdDecimal: 56,
     chainName: "BNB Smart Chain",
     nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
-    rpcUrls: [
-      "https://bsc-dataseed1.binance.org",
-      "https://bsc-dataseed2.binance.org",
-    ],
+    rpcUrls: ["https://bsc-dataseed1.binance.org"],
     blockExplorerUrls: ["https://bscscan.com"],
   },
 };

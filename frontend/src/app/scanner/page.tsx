@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useScannerData, useTokenLookup } from "../../lib/useScanner";
 import type { TokenScan } from "../../lib/useScanner";
 import Link from "next/link";
@@ -34,14 +34,6 @@ function timeAgo(ts: number): string {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return `${Math.floor(diff / 86400)}d ago`;
 }
-
-// Example BSC Mainnet tokens for live scanning via GoPlusLabs
-const EXAMPLE_TOKENS = [
-  { name: "CAKE", address: "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82" },
-  { name: "WBNB", address: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c" },
-  { name: "USDT", address: "0x55d398326f99059fF775485246999027B3197955" },
-  { name: "BUSD", address: "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56" },
-];
 
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text).catch(() => {});
@@ -152,20 +144,50 @@ export default function ScannerPage() {
   const [query, setQuery] = useState("");
   const [expandedScan, setExpandedScan] = useState<string | null>(null);
   const [riskFilter, setRiskFilter] = useState<"all" | "high" | "medium" | "low">("all");
+  const [manualScanLoading, setManualScanLoading] = useState(false);
+  const [manualScanMsg, setManualScanMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => {
+    if (!isLive) return;
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
-  }, [fetchStats]);
+  }, [isLive, fetchStats]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
+    setManualScanMsg(null);
     const trimmed = query.trim();
     if (trimmed.length === 42 && trimmed.startsWith("0x")) {
       tokenLookup.lookup(trimmed);
     }
   }
+
+  const requestManualScan = useCallback(async () => {
+    const addr = query.trim();
+    if (!/^0x[0-9a-fA-F]{40}$/.test(addr)) return;
+    setManualScanLoading(true);
+    setManualScanMsg(null);
+    try {
+      const resp = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: addr }),
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setManualScanMsg({ ok: true, text: data.message || "Scan submitted — re-query in a few seconds" });
+        // Re-query after a short delay to show the result
+        setTimeout(() => { tokenLookup.lookup(addr); fetchStats(); }, 5000);
+      } else {
+        setManualScanMsg({ ok: false, text: data.message || "Scan request failed" });
+      }
+    } catch {
+      setManualScanMsg({ ok: false, text: "Scan service unavailable — is scan-service running?" });
+    } finally {
+      setManualScanLoading(false);
+    }
+  }, [query, tokenLookup, fetchStats]);
 
   const filtered = recentScans.filter((s) => {
     if (riskFilter === "high") return s.riskScore >= 70;
@@ -197,7 +219,7 @@ export default function ScannerPage() {
             ) : (
               <span className="text-[11px] font-medium px-2.5 py-1 rounded-md"
                 style={{ background: "rgba(251,191,36,0.08)", color: "var(--yellow)" }}>
-                Connecting...
+                Scanner not deployed
               </span>
             )}
           </div>
@@ -246,20 +268,24 @@ export default function ScannerPage() {
           {tokenLookup.error && (
             <div className="mt-3 flex items-center gap-2 text-xs" style={{ color: "var(--red)" }}>
               <XCircle className="w-3.5 h-3.5" /> {tokenLookup.error}
+              {tokenLookup.error.toLowerCase().includes("not scanned") && query.length === 42 && (
+                <button
+                  onClick={requestManualScan}
+                  disabled={manualScanLoading}
+                  className="ml-2 px-3 py-1 rounded-md text-[11px] font-medium transition-colors"
+                  style={{ background: "var(--accent-muted)", color: "var(--accent)", border: "1px solid var(--accent)" }}
+                >
+                  {manualScanLoading ? "Requesting..." : "Request Scan"}
+                </button>
+              )}
             </div>
           )}
-
-          {/* Example tokens */}
-          <div className="mt-3 flex items-center gap-2 flex-wrap">
-            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Try:</span>
-            {EXAMPLE_TOKENS.map((t) => (
-              <button key={t.name} onClick={() => { setQuery(t.address); tokenLookup.lookup(t.address); }}
-                className="text-[10px] px-2 py-1 rounded-md font-mono hover:opacity-80 transition-opacity"
-                style={{ background: "var(--bg-elevated)", color: "var(--accent)", border: "1px solid var(--border-subtle)" }}>
-                {t.name}
-              </button>
-            ))}
-          </div>
+          {manualScanMsg && (
+            <div className="mt-2 flex items-center gap-2 text-xs" style={{ color: manualScanMsg.ok ? "var(--green)" : "var(--red)" }}>
+              {manualScanMsg.ok ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+              {manualScanMsg.text}
+            </div>
+          )}
         </form>
       </div>
 
@@ -282,12 +308,6 @@ export default function ScannerPage() {
                         color: tokenLookup.safe ? "var(--green)" : "var(--red)",
                       }}>
                       {tokenLookup.safe ? "✓ isTokenSafe = true" : "✗ isTokenSafe = false"}
-                    </span>
-                  )}
-                  {tokenLookup.isLiveScan && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                      style={{ background: "rgba(139,92,246,0.1)", color: "var(--purple)" }}>
-                      Live Scan (GoPlusLabs)
                     </span>
                   )}
                 </div>

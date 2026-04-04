@@ -31,13 +31,10 @@ function useAgentRegistry() {
   const [loading, setLoading] = useState(false);
   const [isLive, setIsLive] = useState(false);
 
-  let rpcIdx = 0;
-
   const fetchAgents = useCallback(async () => {
     setLoading(true);
     try {
-      const urls = CHAIN_CONFIG.bscTestnet.rpcUrls;
-      const provider = new ethers.JsonRpcProvider(urls[rpcIdx % urls.length], undefined, { staticNetwork: true });
+      const provider = new ethers.JsonRpcProvider(CHAIN_CONFIG.bscTestnet.rpcUrls[0]);
       const registry = new ethers.Contract(CONTRACTS.REGISTRY, REGISTRY_ABI, provider);
 
       const agentCount = Number(await registry.getAgentCount());
@@ -75,7 +72,6 @@ function useAgentRegistry() {
       setAgents(fetched);
       setIsLive(true);
     } catch {
-      rpcIdx++;
       setIsLive(false);
     } finally {
       setLoading(false);
@@ -102,10 +98,6 @@ export default function AgentsPage() {
   const { agents, count, loading, isLive, fetchAgents } = useAgentRegistry();
 
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
-  useEffect(() => {
-    const interval = setInterval(fetchAgents, 30000);
-    return () => clearInterval(interval);
-  }, [fetchAgents]);
 
   const registryDeployed = CONTRACTS.REGISTRY !== "0x0000000000000000000000000000000000000000";
 
