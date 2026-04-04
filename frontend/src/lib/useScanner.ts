@@ -170,8 +170,8 @@ export function useScannerData() {
 
 async function goplusLiveScan(token: string): Promise<TokenScan | null> {
   try {
-    // Query BSC Testnet (97) first, fall back to BSC Mainnet (56)
-    for (const chainId of [97, 56]) {
+    // Query BSC Mainnet (56) first (most data), then Testnet (97)
+    for (const chainId of [56, 97]) {
       const resp = await fetch(
         `https://api.gopluslabs.com/api/v1/token_security/${chainId}?contract_addresses=${token}`,
         { signal: AbortSignal.timeout(20000) }
@@ -283,7 +283,7 @@ export function useTokenLookup() {
         setScan(liveScan);
         setIsLiveScan(true);
       } else {
-        setError("Token not found — not on oracle or GoPlusLabs");
+        setError("Token not found. Try a BSC Mainnet token address — the GoPlusLabs API only indexes mainnet tokens.");
       }
     } catch {
       setError("Failed to fetch scan data");

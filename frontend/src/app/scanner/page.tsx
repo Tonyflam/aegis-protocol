@@ -35,6 +35,14 @@ function timeAgo(ts: number): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+// Example BSC Mainnet tokens for live scanning via GoPlusLabs
+const EXAMPLE_TOKENS = [
+  { name: "CAKE", address: "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82" },
+  { name: "WBNB", address: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c" },
+  { name: "USDT", address: "0x55d398326f99059fF775485246999027B3197955" },
+  { name: "BUSD", address: "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56" },
+];
+
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text).catch(() => {});
 }
@@ -240,6 +248,18 @@ export default function ScannerPage() {
               <XCircle className="w-3.5 h-3.5" /> {tokenLookup.error}
             </div>
           )}
+
+          {/* Example tokens */}
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Try:</span>
+            {EXAMPLE_TOKENS.map((t) => (
+              <button key={t.name} onClick={() => { setQuery(t.address); tokenLookup.lookup(t.address); }}
+                className="text-[10px] px-2 py-1 rounded-md font-mono hover:opacity-80 transition-opacity"
+                style={{ background: "var(--bg-elevated)", color: "var(--accent)", border: "1px solid var(--border-subtle)" }}>
+                {t.name}
+              </button>
+            ))}
+          </div>
         </form>
       </div>
 
