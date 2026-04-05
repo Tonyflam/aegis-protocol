@@ -8,17 +8,17 @@ export default function Footer() {
         <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
           <Shield className="w-4 h-4" style={{ color: "var(--accent)" }} />
           <span>
-            Aegis Scanner by{" "}
+            Aegis by{" "}
             <a href="https://x.com/uniq_minds" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "var(--accent)" }}>
               Uniq Minds
             </a>
           </span>
           <span style={{ color: "var(--border-subtle)" }}>·</span>
-          <span>The Safety Oracle for BNB Chain</span>
+          <span>BNB Chain Token Safety Scanner</span>
         </div>
         <div className="flex items-center gap-4 text-[11px]" style={{ color: "var(--text-muted)" }}>
           <a href={`https://testnet.bscscan.com/address/${CONTRACTS.SCANNER}`} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
-            Scanner Contract <ExternalLink className="w-2.5 h-2.5" />
+            Contract <ExternalLink className="w-2.5 h-2.5" />
           </a>
           <a href="https://github.com/Tonyflam/aegis-protocol" target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
             GitHub <ExternalLink className="w-2.5 h-2.5" />

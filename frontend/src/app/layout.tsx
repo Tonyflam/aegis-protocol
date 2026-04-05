@@ -11,24 +11,24 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://aegisguardian.xyz"),
-  title: "Aegis Scanner — The Safety Oracle for BNB Chain",
+  title: "Aegis — BNB Chain Token Safety Scanner",
   description:
-    "Like Chainlink for price feeds, but for token safety. Scan any BNB Chain token for honeypots, rug risks, and hidden flags. On-chain oracle — any smart contract can call isTokenSafe().",
-  keywords: ["Safety Oracle", "BNB Chain", "Token Scanner", "Honeypot Detection", "DeFi Safety", "On-Chain Oracle", "AegisScanner"],
+    "Scan any BNB Chain token for honeypots, rug pulls, and hidden taxes. Free, open source, results stored on-chain. Built by Uniq Minds.",
+  keywords: ["BNB Chain", "Token Scanner", "Honeypot Detection", "Rug Pull Checker", "BSC Token Safety", "DeFi Security"],
   authors: [{ name: "Uniq Minds" }],
   openGraph: {
-    title: "Aegis Scanner — The Safety Oracle for BNB Chain",
-    description: "Like Chainlink for price feeds, but for token safety. Scan any BNB Chain token instantly. On-chain oracle any contract can query.",
+    title: "Aegis — BNB Chain Token Safety Scanner",
+    description: "Check any BSC token for honeypots, rug pulls, and hidden taxes. Free. Open source. On-chain.",
     url: "https://aegisguardian.xyz",
-    siteName: "Aegis Scanner",
+    siteName: "Aegis",
     type: "website",
     locale: "en_US",
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Aegis Scanner — The Safety Oracle for BNB Chain" }],
+    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Aegis — BNB Chain Token Safety Scanner" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Aegis Scanner — The Safety Oracle for BNB Chain",
-    description: "Like Chainlink for price feeds, but for token safety. Scan any BNB Chain token instantly. On-chain oracle any contract can query.",
+    title: "Aegis — BNB Chain Token Safety Scanner",
+    description: "Check any BSC token for honeypots, rug pulls, and hidden taxes. Free. Open source. On-chain.",
     images: ["/og-image.svg"],
   },
   icons: {

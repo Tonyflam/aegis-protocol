@@ -764,24 +764,22 @@ const txHash = await agent.scanAndAttest("0xTokenAddress...");
 
 **Framework:** Next.js 14 (App Router) — deployed as a static/SSR web application.
 
-**Positioning:** AegisScanner is the primary product surface. The homepage is the scanner itself — like Chainlink for token safety on BNB Chain. Vault, Certification, TokenGate, and DecisionLogger are hidden from navigation and UI.
-
 **Pages and what they do on mainnet:**
 
 | Route | Purpose | Data Source |
 |-------|---------|-------------|
-| `/` | **Scanner homepage** — token risk lookup, live scan feed, "Request Scan" button, how-it-works, integration code sample | AegisScanner contract (view calls) + scan-service HTTP API |
+| `/` | Landing page | Static |
+| `/scanner` | Token risk lookup + "Request Scan" button | AegisScanner contract (view calls) + scan-service HTTP API |
 | `/scan/[address]` | Detailed scan results for a specific token | `getTokenScan()`, `getTokenRisk()`, `getTokenFlags()`, `isTokenSafe()` |
-| `/oracle` | Oracle dashboard — contract statuses, live metrics, interface spec | `getScannerStats()` + contract bytecode checks |
+| `/oracle` | Real-time oracle dashboard — contract statuses, live metrics | `getScannerStats()` + contract bytecode checks |
 | `/agents` | Browse registered AI agents with reputation data | AegisRegistry `getAgent(i)` for first 20 agents |
-| `/integrate` | Developer docs — code snippets for integrating the safety oracle | Static with copy-paste examples |
-| `/scanner` | Redirect to `/` (backward compatibility) | — |
+| `/integrate` | Developer docs — code snippets for integrating the oracle | Static with copy-paste examples |
 | `/api/scan` | Backend proxy for manual scan requests | Forwards to `scan-service:3001/scan` |
 
 **Data flow for a user looking up a token:**
 
 ```
-User pastes 0x... in homepage scanner input
+User enters 0x... in Scanner page
        │
        ▼
 useTokenLookup() hook:

@@ -33,10 +33,10 @@ export default function IntegratePage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
               <Code2 className="w-6 h-6" style={{ color: "var(--accent)" }} />
-              Integration Guide
+              API &amp; Integration
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-              Connect your smart contracts to the Aegis Safety Oracle — like Chainlink for token safety
+              Add token safety checks to your smart contracts with one line of Solidity
             </p>
           </div>
           <a href="https://github.com/Tonyflam/aegis-protocol" target="_blank" rel="noopener noreferrer"
@@ -51,7 +51,7 @@ export default function IntegratePage() {
         <div className="card p-6">
           <h2 className="text-base font-semibold text-white mb-2">Quick Start</h2>
           <p className="text-xs mb-4" style={{ color: "var(--text-secondary)" }}>
-            Add the Aegis safety oracle check to any smart contract with a single modifier — the same way you&apos;d use a Chainlink price feed.
+            Add the Aegis oracle check to any smart contract with a single modifier.
             If a token hasn&apos;t been scanned or is flagged as unsafe, the transaction reverts.
           </p>
 
@@ -234,9 +234,6 @@ contract MyDex {
           <div className="space-y-0">
             {[
               { name: "AegisScanner", address: CONTRACTS.SCANNER, primary: true },
-              { name: "AegisRegistry", address: CONTRACTS.REGISTRY, primary: false },
-              { name: "AegisStaking", address: CONTRACTS.STAKING, primary: false },
-              { name: "AegisConsensus", address: CONTRACTS.CONSENSUS, primary: false },
               { name: "$UNIQ Token", address: CONTRACTS.UNIQ_TOKEN, primary: false },
             ].map((c, i) => (
               <div key={i} className="flex items-center justify-between py-3" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
@@ -244,7 +241,7 @@ contract MyDex {
                   <span className="text-xs font-semibold" style={{ color: c.primary ? "var(--accent)" : "var(--text-secondary)" }}>
                     {c.name}
                   </span>
-                  {c.primary && <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "var(--accent-muted)", color: "var(--accent)" }}>Safety Oracle</span>}
+                  {c.primary && <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "var(--accent-muted)", color: "var(--accent)" }}>Primary Oracle</span>}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[11px]" style={{ color: "var(--text-muted)" }}>
@@ -262,72 +259,6 @@ contract MyDex {
         </div>
       </div>
 
-      {/* Agent SDK */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-6">
-        <div className="card p-6">
-          <h2 className="text-base font-semibold text-white mb-2">Agent SDK</h2>
-          <p className="text-xs mb-4" style={{ color: "var(--text-secondary)" }}>
-            Build custom scanner agents using the TypeScript SDK. Agents scan tokens, analyze risk,
-            and submit attestations to the on-chain consensus protocol.
-          </p>
-
-          <div className="relative p-4 rounded-lg mb-4" style={{ background: "var(--bg-elevated)" }}>
-            <div className="absolute top-3 right-3">
-              <CopyButton text={`import { AegisAgent, GoPlusAdapter } from "@aegis-protocol/agent-sdk";
-
-const agent = new AegisAgent({
-  rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545",
-  privateKey: process.env.AGENT_KEY,
-  consensusAddress: "${CONTRACTS.CONSENSUS}",
-  stakingAddress: "${CONTRACTS.STAKING}",
-  scannerAddress: "${CONTRACTS.SCANNER}",
-});
-
-agent.addScanner(new GoPlusAdapter());
-const result = await agent.scanAndAttest("0xTokenAddress");`} />
-            </div>
-            <pre className="text-xs font-mono leading-relaxed overflow-x-auto" style={{ color: "var(--text-secondary)" }}>
-              <code>{`import { AegisAgent, GoPlusAdapter }
-  from "@aegis-protocol/agent-sdk";
-
-const agent = new AegisAgent({
-  rpcUrl: "https://data-seed-prebsc-...",
-  privateKey: process.env.AGENT_KEY,
-  consensusAddress: "${CONTRACTS.CONSENSUS.slice(0, 8)}...",
-  stakingAddress: "${CONTRACTS.STAKING.slice(0, 8)}...",
-  scannerAddress: "${CONTRACTS.SCANNER.slice(0, 8)}...",
-});
-
-agent.addScanner(new GoPlusAdapter());
-
-const result = await agent.scanAndAttest(
-  "0xTokenAddress"
-);`}</code>
-            </pre>
-          </div>
-
-          <div className="grid sm:grid-cols-3 gap-3">
-            {[
-              { label: "Interfaces", items: ["IScanner", "IAnalyzer", "ISubmitter"] },
-              { label: "Adapters", items: ["GoPlusLabs (built-in)", "Custom scanner support"] },
-              { label: "Features", items: ["Scan → Analyze → Attest pipeline", "Dry-run mode", "Stats tracking"] },
-            ].map((col, i) => (
-              <div key={i} className="p-3 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>{col.label}</p>
-                <ul className="space-y-1">
-                  {col.items.map((item, j) => (
-                    <li key={j} className="text-[11px] flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
-                      <CheckCircle className="w-2.5 h-2.5 shrink-0" style={{ color: "var(--green)" }} />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* CTA */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-10">
         <div className="card p-8 text-center relative overflow-hidden">
@@ -339,7 +270,7 @@ const result = await agent.scanAndAttest(
               Start scanning tokens or plug the oracle into your contracts.
             </p>
             <div className="flex items-center justify-center gap-3">
-              <Link href="/" className="btn-primary flex items-center gap-2">
+              <Link href="/scanner" className="btn-primary flex items-center gap-2">
                 Try the Scanner <ArrowRight className="w-4 h-4" />
               </Link>
               <a href="https://github.com/Tonyflam/aegis-protocol" target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2">
