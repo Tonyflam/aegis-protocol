@@ -4,12 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useWalletContext } from "../lib/WalletContext";
 import {
-  Shield, Wallet, Search, Activity, Users, Code2, Menu, X,
+  Shield, Wallet, Activity, Users, Code2, Menu, X,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const NAV_LINKS = [
-  { href: "/scanner", label: "Scanner", icon: Search },
   { href: "/oracle", label: "Oracle", icon: Activity },
   { href: "/agents", label: "Agents", icon: Users },
   { href: "/integrate", label: "Integrate", icon: Code2 },
@@ -31,14 +30,14 @@ export default function Navbar() {
             <Shield className="w-7 h-7" style={{ color: "var(--accent)" }} />
             <div className="leading-tight">
               <span className="text-base font-semibold tracking-tight text-white">Aegis</span>
-              <span className="text-base font-light tracking-tight text-white ml-0.5">Protocol</span>
+              <span className="text-base font-light tracking-tight text-white ml-0.5">Scanner</span>
             </div>
           </Link>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1 ml-8">
             {NAV_LINKS.map((link) => {
-              const isActive = pathname === link.href || (link.href === "/scanner" && pathname?.startsWith("/scan/"));
+              const isActive = pathname === link.href;
               return (
                 <Link
                   key={link.href}

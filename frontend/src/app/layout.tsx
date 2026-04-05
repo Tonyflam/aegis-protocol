@@ -11,24 +11,24 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://aegisguardian.xyz"),
-  title: "Aegis Protocol — On-Chain Security Oracle for BNB Chain",
+  title: "Aegis Scanner — The Safety Oracle for BNB Chain",
   description:
-    "The programmable security data layer for BNB Chain. On-chain token risk scoring, honeypot detection, multi-agent consensus oracle. Any smart contract can query isTokenSafe() before executing.",
-  keywords: ["Security Oracle", "BNB Chain", "Token Scanner", "Honeypot Detection", "Smart Contract Security", "DeFi Security", "On-Chain Oracle"],
+    "Like Chainlink for price feeds, but for token safety. Scan any BNB Chain token for honeypots, rug risks, and hidden flags. On-chain oracle — any smart contract can call isTokenSafe().",
+  keywords: ["Safety Oracle", "BNB Chain", "Token Scanner", "Honeypot Detection", "DeFi Safety", "On-Chain Oracle", "AegisScanner"],
   authors: [{ name: "Uniq Minds" }],
   openGraph: {
-    title: "Aegis Protocol — On-Chain Security Oracle for BNB Chain",
-    description: "The programmable security data layer for BNB Chain. On-chain token risk scoring, multi-agent consensus, contract-queryable oracle.",
+    title: "Aegis Scanner — The Safety Oracle for BNB Chain",
+    description: "Like Chainlink for price feeds, but for token safety. Scan any BNB Chain token instantly. On-chain oracle any contract can query.",
     url: "https://aegisguardian.xyz",
-    siteName: "Aegis Protocol",
+    siteName: "Aegis Scanner",
     type: "website",
     locale: "en_US",
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Aegis Protocol — AI-Powered DeFi Guardian" }],
+    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Aegis Scanner — The Safety Oracle for BNB Chain" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Aegis Protocol — On-Chain Security Oracle for BNB Chain",
-    description: "The programmable security data layer for BNB Chain. On-chain token risk scoring, multi-agent consensus, contract-queryable oracle.",
+    title: "Aegis Scanner — The Safety Oracle for BNB Chain",
+    description: "Like Chainlink for price feeds, but for token safety. Scan any BNB Chain token instantly. On-chain oracle any contract can query.",
     images: ["/og-image.svg"],
   },
   icons: {

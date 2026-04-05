@@ -9,14 +9,10 @@ import {
 } from "lucide-react";
 
 const DEPLOYED_CONTRACTS = [
-  { name: "AegisScanner", address: CONTRACTS.SCANNER, desc: "Oracle registry — token risk storage, query interface, batch operations", color: "var(--accent)" },
+  { name: "AegisScanner", address: CONTRACTS.SCANNER, desc: "On-chain safety oracle — token risk storage, query interface, batch operations", color: "var(--accent)" },
   { name: "AegisStaking", address: CONTRACTS.STAKING, desc: "$UNIQ staking — 4 tiers (Scout→Archon), slashing, cooldown unstake", color: "var(--green)" },
   { name: "AegisConsensus", address: CONTRACTS.CONSENSUS, desc: "Multi-agent attestation rounds, weighted scoring, outlier detection", color: "var(--purple)" },
-  { name: "AegisCertification", address: CONTRACTS.CERTIFICATION, desc: "Soulbound ERC-721 'Certified' NFT, revocable if risk increases", color: "#f97316" },
   { name: "AegisRegistry", address: CONTRACTS.REGISTRY, desc: "ERC-721 agent identity, 4-tier reputation, on-chain profiles", color: "var(--bnb)" },
-  { name: "AegisVault", address: CONTRACTS.VAULT, desc: "Fee collection, protocol treasury, authorized withdrawals", color: "var(--yellow)" },
-  { name: "DecisionLogger", address: CONTRACTS.LOGGER, desc: "Immutable decision audit trail, agent action logging", color: "var(--text-secondary)" },
-  { name: "AegisTokenGate", address: CONTRACTS.TOKEN_GATE, desc: "$UNIQ holder tiers, fee discounts, protocol access control", color: "var(--text-secondary)" },
 ];
 
 function shortenAddress(addr: string): string {
@@ -43,10 +39,10 @@ export default function OraclePage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
               <Activity className="w-6 h-6" style={{ color: "var(--accent)" }} />
-              Oracle Statistics
+              Oracle Dashboard
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-              Real-time protocol metrics from the AegisScanner contract
+              Real-time safety oracle metrics from BSC Testnet
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -77,9 +73,9 @@ export default function OraclePage() {
                 <Database className="w-5 h-5" style={{ color: "var(--accent)" }} />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-white">AegisScanner Oracle</h2>
+                <h2 className="text-base font-semibold text-white">AegisScanner — Safety Oracle</h2>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  On-chain token risk registry &middot; IAegisScanner interface
+                  On-chain token safety data feed &middot; Like Chainlink for safety
                 </p>
               </div>
             </div>
@@ -175,7 +171,7 @@ export default function OraclePage() {
 
       {/* Contract Architecture */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
-        <h3 className="text-sm font-semibold text-white mb-3">Deployed Contracts — BSC Testnet</h3>
+        <h3 className="text-sm font-semibold text-white mb-3">Oracle Contracts — BSC Testnet</h3>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {DEPLOYED_CONTRACTS.map((c, i) => (
             <div key={i} className="card p-4 flex items-start gap-3">
@@ -210,9 +206,9 @@ export default function OraclePage() {
           </h3>
           <div className="space-y-3">
             {[
-              { phase: "Phase 1–2", label: "Foundation", status: "Complete", items: "Registry, Vault, Logger, TokenGate — 5 contracts, 198 tests", color: "var(--green)" },
-              { phase: "Phase 3", label: "Security Oracle", status: "Complete", items: "AegisScanner V2, IAegisScanner interface, integration examples — 158 tests", color: "var(--green)" },
-              { phase: "Phase 4", label: "Agent Network", status: "Complete", items: "Staking, Consensus, Certification, Agent SDK — 356 total tests", color: "var(--green)" },
+              { phase: "Phase 1–2", label: "Foundation", status: "Complete", items: "Core infrastructure, agent registry, decision logging — 5 contracts, 198 tests", color: "var(--green)" },
+              { phase: "Phase 3", label: "Safety Oracle", status: "Complete", items: "AegisScanner V2, IAegisScanner interface, integration examples — 158 tests", color: "var(--green)" },
+              { phase: "Phase 4", label: "Agent Network", status: "Complete", items: "Staking, Consensus, Agent SDK — 356 total tests", color: "var(--green)" },
               { phase: "Phase 5", label: "Audit & Mainnet", status: "Next", items: "Static analysis, external audit, BSC mainnet deployment, beta launch", color: "var(--yellow)" },
             ].map((p, i) => (
               <div key={i} className="flex items-start gap-3 p-3 rounded-lg" style={{ background: "var(--bg-elevated)" }}>

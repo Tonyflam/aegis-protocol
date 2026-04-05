@@ -36,7 +36,7 @@ export default function IntegratePage() {
               Integration Guide
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-              Connect your smart contracts to the Aegis Security Oracle
+              Connect your smart contracts to the Aegis Safety Oracle — like Chainlink for token safety
             </p>
           </div>
           <a href="https://github.com/Tonyflam/aegis-protocol" target="_blank" rel="noopener noreferrer"
@@ -51,7 +51,7 @@ export default function IntegratePage() {
         <div className="card p-6">
           <h2 className="text-base font-semibold text-white mb-2">Quick Start</h2>
           <p className="text-xs mb-4" style={{ color: "var(--text-secondary)" }}>
-            Add the Aegis oracle check to any smart contract with a single modifier.
+            Add the Aegis safety oracle check to any smart contract with a single modifier — the same way you&apos;d use a Chainlink price feed.
             If a token hasn&apos;t been scanned or is flagged as unsafe, the transaction reverts.
           </p>
 
@@ -237,9 +237,6 @@ contract MyDex {
               { name: "AegisRegistry", address: CONTRACTS.REGISTRY, primary: false },
               { name: "AegisStaking", address: CONTRACTS.STAKING, primary: false },
               { name: "AegisConsensus", address: CONTRACTS.CONSENSUS, primary: false },
-              { name: "AegisCertification", address: CONTRACTS.CERTIFICATION, primary: false },
-              { name: "DecisionLogger", address: CONTRACTS.LOGGER, primary: false },
-              { name: "AegisTokenGate", address: CONTRACTS.TOKEN_GATE, primary: false },
               { name: "$UNIQ Token", address: CONTRACTS.UNIQ_TOKEN, primary: false },
             ].map((c, i) => (
               <div key={i} className="flex items-center justify-between py-3" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
@@ -247,7 +244,7 @@ contract MyDex {
                   <span className="text-xs font-semibold" style={{ color: c.primary ? "var(--accent)" : "var(--text-secondary)" }}>
                     {c.name}
                   </span>
-                  {c.primary && <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "var(--accent-muted)", color: "var(--accent)" }}>Primary Oracle</span>}
+                  {c.primary && <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "var(--accent-muted)", color: "var(--accent)" }}>Safety Oracle</span>}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[11px]" style={{ color: "var(--text-muted)" }}>
@@ -342,7 +339,7 @@ const result = await agent.scanAndAttest(
               Start scanning tokens or plug the oracle into your contracts.
             </p>
             <div className="flex items-center justify-center gap-3">
-              <Link href="/scanner" className="btn-primary flex items-center gap-2">
+              <Link href="/" className="btn-primary flex items-center gap-2">
                 Try the Scanner <ArrowRight className="w-4 h-4" />
               </Link>
               <a href="https://github.com/Tonyflam/aegis-protocol" target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2">
