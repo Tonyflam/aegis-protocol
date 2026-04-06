@@ -125,7 +125,7 @@ function ScanResultCard({ scan, expanded, onToggle }: { scan: TokenScan; expande
             <Link href={`/scan/${scan.token}`} className="text-[11px] flex items-center gap-1 hover:underline" style={{ color: "var(--accent)" }}>
               Full Report <ExternalLink className="w-2.5 h-2.5" />
             </Link>
-            <a href={`https://testnet.bscscan.com/token/${scan.token}`} target="_blank" rel="noopener noreferrer"
+            <a href={`https://bscscan.com/token/${scan.token}`} target="_blank" rel="noopener noreferrer"
               className="text-[11px] flex items-center gap-1 hover:underline" style={{ color: "var(--text-muted)" }}>
               BSCScan <ExternalLink className="w-2.5 h-2.5" />
             </a>
@@ -207,7 +207,7 @@ export default function ScannerPage() {
               Token Scanner
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-              Query the on-chain oracle — real contract data from BSC Testnet
+              Query the on-chain oracle — scanning real BNB Chain tokens
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -397,7 +397,7 @@ export default function ScannerPage() {
         {loading && recentScans.length === 0 && (
           <div className="card p-12 text-center">
             <Activity className="w-6 h-6 mx-auto mb-3 animate-pulse" style={{ color: "var(--accent)" }} />
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Loading scan data from BSC Testnet...</p>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Loading scan data...</p>
           </div>
         )}
 
@@ -406,7 +406,7 @@ export default function ScannerPage() {
             <Shield className="w-6 h-6 mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
             <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>Connecting to AegisScanner oracle...</p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Reading from BSC Testnet. If no scans appear, the scan agent service may be offline.
+              Reading from on-chain oracle. If no scans appear, the scan agent service may be offline.
               Use the search bar above to query any token address.
             </p>
           </div>

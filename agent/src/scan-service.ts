@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
-// Aegis Protocol — Persistent Scan Service
-// Standalone process: listens for PairCreated events on BSC,
-// scans tokens, submits results to AegisScanner oracle on-chain.
+// Aegis — Token Safety Scanner Service
+// On-chain analysis engine: reads bytecode, checks owner status,
+// detects honeypot patterns, submits real risk scores to oracle.
 // Usage: npx ts-node src/scan-service.ts
 // ═══════════════════════════════════════════════════════════════
 
@@ -14,7 +14,10 @@ dotenv.config({ path: "../.env" });
 // ─── Configuration ────────────────────────────────────────────
 
 const CONFIG = {
-  rpcUrl: process.env.BSC_RPC || "https://bsc-testnet-rpc.publicnode.com",
+  // Testnet: where our oracle contract lives (writes go here)
+  testnetRpc: process.env.BSC_RPC || "https://bsc-testnet-rpc.publicnode.com",
+  // Mainnet: where real tokens live (reads/analysis happen here)
+  mainnetRpc: process.env.BSC_MAINNET_RPC || "https://bsc-dataseed1.binance.org",
   privateKey: process.env.PRIVATE_KEY || "",
   scannerAddress: process.env.SCANNER_ADDRESS || "",
   registryAddress: process.env.REGISTRY_ADDRESS || "",
@@ -22,31 +25,35 @@ const CONFIG = {
   agentId: parseInt(process.env.AGENT_ID || "0"),
   pollInterval: parseInt(process.env.POLL_INTERVAL || "15000"),
   dryRun: process.env.DRY_RUN === "true",
-  // PancakeSwap V2 Factory — BSC Testnet
-  factoryAddress: process.env.PANCAKE_FACTORY || "0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc",
-  // HTTP port for manual scan requests from frontend
+  // Mainnet PancakeSwap Factory for auto-scan
+  factoryAddress: process.env.PANCAKE_FACTORY || "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73",
   httpPort: parseInt(process.env.SCAN_SERVICE_PORT || "3001"),
-  // How many blocks to look back on startup for recent PairCreated events
-  lookbackBlocks: parseInt(process.env.LOOKBACK_BLOCKS || "5000"),
+  lookbackBlocks: parseInt(process.env.LOOKBACK_BLOCKS || "200"),
 };
 
-// BSC Testnet RPC fallbacks
-const RPC_FALLBACKS = [
+// BSC Mainnet RPC fallbacks (for reading token data)
+const MAINNET_RPC_FALLBACKS = [
+  "https://bsc-dataseed1.binance.org",
+  "https://bsc-dataseed2.binance.org",
+  "https://bsc-dataseed3.binance.org",
+  "https://bsc-rpc.publicnode.com",
+];
+
+// BSC Testnet RPC fallbacks (for oracle writes)
+const TESTNET_RPC_FALLBACKS = [
   "https://bsc-testnet-rpc.publicnode.com",
   "https://data-seed-prebsc-1-s1.binance.org:8545",
   "https://data-seed-prebsc-2-s1.binance.org:8545",
 ];
 
-// Well-known base tokens on BSC Testnet (don't scan these)
+// Well-known base tokens on BSC Mainnet (don't scan these — they're infrastructure)
 const BASE_TOKENS = new Set([
-  "0xae13d989dac2f0debff460ac112a837c89baa7cd", // WBNB Testnet
-  "0xed24fc36d5ee211ea25a80239fb8c4cfd80f12ee", // BUSD Testnet
-  "0x337610d27c682e347c9cd60bd4b3b107c9d34ddd", // USDT Testnet
-  // BSC Mainnet base tokens (in case factory is pointed at mainnet)
   "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", // WBNB
   "0xe9e7cea3dedca5984780bafc599bd69add087d56", // BUSD
   "0x55d398326f99059ff775485246999027b3197955", // USDT
   "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", // USDC
+  "0x2170ed0880ac9a755fd29b2688956bd959f933f8", // ETH
+  "0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3", // DAI
 ]);
 
 const FACTORY_ABI = [
@@ -54,7 +61,6 @@ const FACTORY_ABI = [
   "function allPairsLength() view returns (uint)",
 ];
 
-// AegisScanner ABI — use explicit signature to avoid overload ambiguity
 const SCANNER_ABI = [
   "function submitScan(address,uint256,uint256,uint256,uint256,uint256,uint256,bool[7],string,bytes32) external",
   "function isScanned(address) view returns (bool)",
@@ -72,9 +78,54 @@ const ERC20_ABI = [
   "function decimals() view returns (uint8)",
   "function totalSupply() view returns (uint256)",
   "function owner() view returns (address)",
+  "function balanceOf(address) view returns (uint256)",
 ];
 
-// ─── GoPlusLabs API ───────────────────────────────────────────
+// ─── Known function selectors for bytecode analysis ──────────
+
+const BYTECODE_SELECTORS: Record<string, string> = {
+  pause: "8456cb59",
+  unpause: "3f4ba83a",
+  mint: "40c10f19",
+  burn: "42966c68",
+  blacklist: "f9f92be4",
+  addToBlacklist: "44337ea1",
+  isBlacklisted: "fe575a87",
+  owner: "8da5cb5b",
+  renounceOwnership: "715018a6",
+  transferOwnership: "f2fde38b",
+  setFee: "69fe0e2d",
+  setTaxFee: "8ee88c53",
+  excludeFromFee: "437823ec",
+  selfdestruct: "ff",  // SELFDESTRUCT opcode
+};
+
+// ─── On-Chain Token Analysis ─────────────────────────────────
+
+interface OnChainAnalysis {
+  name: string;
+  symbol: string;
+  decimals: number;
+  totalSupply: string;    // raw wei string
+  totalSupplyFormatted: number;
+  bytecodeLength: number;
+  isContract: boolean;
+  hasOwner: boolean;
+  ownerAddress: string;
+  isRenounced: boolean;   // owner is address(0)
+  // Bytecode capability detection
+  canPause: boolean;
+  canMint: boolean;
+  canBlacklist: boolean;
+  canBurn: boolean;
+  hasRenounceFunction: boolean;
+  hasFeeFunction: boolean;
+  hasSelfDestruct: boolean;
+  // Balance analysis
+  ownerBalancePercent: number;  // owner's % of totalSupply
+  // GoPlus data (optional)
+  goplus: GoPlusResult | null;
+}
 
 interface GoPlusResult {
   isHoneypot: boolean;
@@ -87,59 +138,246 @@ interface GoPlusResult {
   canTakeBackOwnership: boolean;
 }
 
-async function queryGoPlus(token: string, chainId: number = 97): Promise<GoPlusResult | null> {
-  const maxRetries = 3;
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
+async function analyzeTokenOnChain(token: string, provider: ethers.JsonRpcProvider): Promise<OnChainAnalysis> {
+  const analysis: OnChainAnalysis = {
+    name: "Unknown", symbol: "???", decimals: 18, totalSupply: "0", totalSupplyFormatted: 0,
+    bytecodeLength: 0, isContract: false,
+    hasOwner: false, ownerAddress: ethers.ZeroAddress, isRenounced: false,
+    canPause: false, canMint: false, canBlacklist: false, canBurn: false,
+    hasRenounceFunction: false, hasFeeFunction: false, hasSelfDestruct: false,
+    ownerBalancePercent: 0, goplus: null,
+  };
+
+  // Step 1: Check bytecode exists
+  const code = await provider.getCode(token);
+  analysis.bytecodeLength = code.length;
+  analysis.isContract = code.length > 2;
+  if (!analysis.isContract) return analysis;
+
+  // Step 1b: Detect EIP-1167 minimal proxy and resolve implementation
+  let codeForAnalysis = code;
+  if (code.startsWith("0x363d3d373d3d3d363d73") && code.length <= 92) {
+    // EIP-1167 clone — extract implementation address
+    const implAddress = "0x" + code.slice(22, 62);
+    console.log(`[Analysis] EIP-1167 proxy detected → implementation: ${implAddress}`);
     try {
-      const resp = await fetch(
-        `https://api.gopluslabs.com/api/v1/token_security/${chainId}?contract_addresses=${token}`,
-        { signal: AbortSignal.timeout(10000) }
-      );
-      if (resp.status === 429) {
-        // Rate limited — exponential backoff
-        const wait = Math.pow(2, attempt + 1) * 1000;
-        console.warn(`[GoPlus] Rate limited, retrying in ${wait / 1000}s (attempt ${attempt + 1}/${maxRetries})`);
-        await new Promise((r) => setTimeout(r, wait));
-        continue;
+      const implCode = await provider.getCode(implAddress);
+      if (implCode.length > 2) {
+        codeForAnalysis = implCode;
+        analysis.bytecodeLength = implCode.length; // Use implementation size
       }
-      if (!resp.ok) {
-        if (attempt < maxRetries - 1) {
-          const wait = Math.pow(2, attempt) * 1000;
-          await new Promise((r) => setTimeout(r, wait));
-          continue;
-        }
-        return null;
-      }
-      const json = (await resp.json()) as any;
-      const data = json?.result?.[token.toLowerCase()];
-      if (!data) return null;
-      return {
-        isHoneypot: data.is_honeypot === "1",
-        buyTax: parseFloat(data.buy_tax || "0") * 100,
-        sellTax: parseFloat(data.sell_tax || "0") * 100,
-        isOpenSource: data.is_open_source === "1",
-        holderCount: parseInt(data.holder_count || "0"),
-        ownerCanChangeBalance: data.owner_change_balance === "1",
-        hiddenOwner: data.hidden_owner === "1",
-        canTakeBackOwnership: data.can_take_back_ownership === "1",
-      };
-    } catch (err: any) {
-      if (attempt < maxRetries - 1) {
-        const wait = Math.pow(2, attempt) * 1000;
-        console.warn(`[GoPlus] Request failed (attempt ${attempt + 1}/${maxRetries}): ${err.message}`);
-        await new Promise((r) => setTimeout(r, wait));
-        continue;
-      }
-      return null;
+    } catch {
+      // Fall back to proxy bytecode
     }
   }
-  return null;
+
+  // Step 2: Scan bytecode for known function selectors
+  const codeLower = codeForAnalysis.toLowerCase();
+  analysis.canPause = codeLower.includes(BYTECODE_SELECTORS.pause);
+  analysis.canMint = codeLower.includes(BYTECODE_SELECTORS.mint);
+  analysis.canBlacklist = codeLower.includes(BYTECODE_SELECTORS.blacklist) || codeLower.includes(BYTECODE_SELECTORS.addToBlacklist);
+  analysis.canBurn = codeLower.includes(BYTECODE_SELECTORS.burn);
+  analysis.hasRenounceFunction = codeLower.includes(BYTECODE_SELECTORS.renounceOwnership);
+  analysis.hasFeeFunction = codeLower.includes(BYTECODE_SELECTORS.setFee) || codeLower.includes(BYTECODE_SELECTORS.setTaxFee) || codeLower.includes(BYTECODE_SELECTORS.excludeFromFee);
+  // Check for SELFDESTRUCT opcode — only flag if bytecode is very short (proxy-like)
+  analysis.hasSelfDestruct = false; // Can't reliably detect from bytecode alone
+
+  // Step 3: Read ERC20 metadata + owner
+  const contract = new ethers.Contract(token, ERC20_ABI, provider);
+  const results = await Promise.allSettled([
+    contract.name(),
+    contract.symbol(),
+    contract.decimals(),
+    contract.totalSupply(),
+    contract.owner(),
+  ]);
+
+  if (results[0].status === "fulfilled") analysis.name = results[0].value;
+  if (results[1].status === "fulfilled") analysis.symbol = results[1].value;
+  if (results[2].status === "fulfilled") analysis.decimals = Number(results[2].value);
+  if (results[3].status === "fulfilled") {
+    analysis.totalSupply = results[3].value.toString();
+    analysis.totalSupplyFormatted = parseFloat(ethers.formatUnits(results[3].value, analysis.decimals));
+  }
+  if (results[4].status === "fulfilled") {
+    analysis.hasOwner = true;
+    analysis.ownerAddress = results[4].value;
+    analysis.isRenounced = results[4].value === ethers.ZeroAddress;
+  }
+
+  // Step 4: Check owner's share of supply
+  if (analysis.hasOwner && !analysis.isRenounced && analysis.totalSupplyFormatted > 0) {
+    try {
+      const ownerBal = await contract.balanceOf(analysis.ownerAddress);
+      const ownerAmount = parseFloat(ethers.formatUnits(ownerBal, analysis.decimals));
+      analysis.ownerBalancePercent = Math.round((ownerAmount / analysis.totalSupplyFormatted) * 10000); // bps
+    } catch {
+      // balanceOf not available or failed
+    }
+  }
+
+  // Step 5: Try GoPlus as optional bonus data (non-blocking)
+  try {
+    analysis.goplus = await queryGoPlus(token, 56); // BSC Mainnet
+  } catch {
+    // GoPlus unavailable — that's fine, on-chain analysis is primary
+  }
+
+  return analysis;
+}
+
+// ─── GoPlus API (optional, best-effort) ──────────────────────
+
+async function queryGoPlus(token: string, chainId: number = 97): Promise<GoPlusResult | null> {
+  try {
+    const resp = await fetch(
+      `https://api.gopluslabs.com/api/v1/token_security/${chainId}?contract_addresses=${token}`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    if (!resp.ok) return null;
+    const json = (await resp.json()) as any;
+    const data = json?.result?.[token.toLowerCase()];
+    if (!data) return null;
+    return {
+      isHoneypot: data.is_honeypot === "1",
+      buyTax: parseFloat(data.buy_tax || "0") * 100,
+      sellTax: parseFloat(data.sell_tax || "0") * 100,
+      isOpenSource: data.is_open_source === "1",
+      holderCount: parseInt(data.holder_count || "0"),
+      ownerCanChangeBalance: data.owner_change_balance === "1",
+      hiddenOwner: data.hidden_owner === "1",
+      canTakeBackOwnership: data.can_take_back_ownership === "1",
+    };
+  } catch {
+    return null; // GoPlus unreachable — rely on on-chain analysis
+  }
+}
+
+// ─── Risk Assessment Engine ──────────────────────────────────
+
+function assessRisk(
+  analysis: OnChainAnalysis
+): { riskScore: number; flags: string[]; boolFlags: [boolean, boolean, boolean, boolean, boolean, boolean, boolean]; confidence: number } {
+  let score = 20; // baseline for unknown token
+  const flags: string[] = [];
+  let confidence = 70; // base confidence from on-chain data
+
+  const gp = analysis.goplus;
+
+  // ── GoPlus signals (highest weight when available) ──
+  if (gp) {
+    confidence = 90;
+    if (gp.isHoneypot) {
+      score = 95;
+      flags.push("HONEYPOT");
+    }
+    if (gp.buyTax > 10) {
+      score = Math.min(100, score + 20);
+      flags.push("HIGH_BUY_TAX");
+    }
+    if (gp.sellTax > 10) {
+      score = Math.min(100, score + 25);
+      flags.push("HIGH_SELL_TAX");
+    }
+    if (gp.ownerCanChangeBalance) {
+      score = Math.min(100, score + 25);
+      flags.push("OWNER_CHANGE_BALANCE");
+    }
+    if (gp.hiddenOwner) {
+      score = Math.min(100, score + 10);
+      flags.push("HIDDEN_OWNER");
+    }
+    if (gp.canTakeBackOwnership) {
+      score = Math.min(100, score + 15);
+      flags.push("TAKEBACK_OWNERSHIP");
+    }
+    // Clean GoPlus → reduce score
+    if (!gp.isHoneypot && gp.isOpenSource && gp.buyTax < 5 && gp.sellTax < 5
+        && !gp.ownerCanChangeBalance && !gp.hiddenOwner) {
+      score = Math.max(0, score - 15);
+    }
+  }
+
+  // ── On-chain bytecode signals ──
+  if (!analysis.isContract) {
+    score = 85;
+    flags.push("NOT_A_CONTRACT");
+    confidence = 95;
+  } else {
+    if (analysis.canMint) {
+      score = Math.min(100, score + 15);
+      flags.push("MINTABLE");
+    }
+    if (analysis.canBlacklist) {
+      score = Math.min(100, score + 15);
+      flags.push("CAN_BLACKLIST");
+    }
+    if (analysis.canPause) {
+      score = Math.min(100, score + 10);
+      flags.push("PAUSABLE");
+    }
+    if (analysis.hasFeeFunction) {
+      score = Math.min(100, score + 10);
+      flags.push("DYNAMIC_FEE");
+    }
+    if (analysis.hasSelfDestruct) {
+      score = Math.min(100, score + 20);
+      flags.push("SELF_DESTRUCT");
+    }
+    if (analysis.bytecodeLength < 500) {
+      score = Math.min(100, score + 10);
+      flags.push("TINY_CONTRACT");
+    }
+  }
+
+  // ── Owner analysis ──
+  if (analysis.hasOwner && !analysis.isRenounced) {
+    score = Math.min(100, score + 5);
+    if (analysis.ownerBalancePercent > 5000) { // >50% of supply
+      score = Math.min(100, score + 20);
+      flags.push("CONCENTRATED_OWNERSHIP");
+    } else if (analysis.ownerBalancePercent > 2000) { // >20%
+      score = Math.min(100, score + 10);
+      flags.push("HIGH_OWNER_BALANCE");
+    }
+  }
+  if (analysis.isRenounced) {
+    score = Math.max(0, score - 10);
+    flags.push("RENOUNCED");
+  }
+
+  // ── Supply analysis ──
+  if (analysis.totalSupplyFormatted > 1_000_000_000_000) { // > 1 trillion
+    score = Math.min(100, score + 5);
+    flags.push("EXTREME_SUPPLY");
+  }
+
+  // ── Known verified status ──
+  if (gp?.isOpenSource) {
+    score = Math.max(0, score - 5);
+    flags.push("VERIFIED_SOURCE");
+  }
+
+  const boolFlags: [boolean, boolean, boolean, boolean, boolean, boolean, boolean] = [
+    gp?.isHoneypot || false,       // honeypot
+    analysis.canMint,               // canMint
+    analysis.canPause,              // canPause
+    analysis.canBlacklist,          // canBlacklist
+    analysis.isRenounced,           // renounced
+    false,                          // lpLocked (unknown without LP analysis)
+    gp?.isOpenSource || false,      // verified
+  ];
+
+  return { riskScore: Math.min(100, Math.max(0, score)), flags, boolFlags, confidence };
 }
 
 // ─── Scan Service Class ───────────────────────────────────────
 
 class ScanService {
-  private provider: ethers.JsonRpcProvider;
+  // Mainnet provider — for reading token data (where real tokens live)
+  private mainnetProvider: ethers.JsonRpcProvider;
+  // Testnet provider — for writing to our oracle contract
+  private testnetProvider: ethers.JsonRpcProvider;
   private wallet: ethers.Wallet;
   private factory: ethers.Contract;
   private scanner: ethers.Contract;
@@ -147,7 +385,8 @@ class ScanService {
 
   private isRunning = false;
   private lastBlock = 0;
-  private rpcIndex = 0;
+  private mainnetRpcIndex = 0;
+  private testnetRpcIndex = 0;
   private scannedTokens = new Set<string>();
   private emptyPollCount = 0;
   private lowActivityWarned = false;
@@ -165,9 +404,13 @@ class ScanService {
   };
 
   constructor() {
-    this.provider = new ethers.JsonRpcProvider(CONFIG.rpcUrl);
-    this.wallet = new ethers.Wallet(CONFIG.privateKey, this.provider);
-    this.factory = new ethers.Contract(CONFIG.factoryAddress, FACTORY_ABI, this.provider);
+    // Mainnet = read token data; Testnet = write to oracle
+    this.mainnetProvider = new ethers.JsonRpcProvider(CONFIG.mainnetRpc);
+    this.testnetProvider = new ethers.JsonRpcProvider(CONFIG.testnetRpc);
+    this.wallet = new ethers.Wallet(CONFIG.privateKey, this.testnetProvider);
+    // Factory on MAINNET (PancakeSwap V2 mainnet factory)
+    this.factory = new ethers.Contract(CONFIG.factoryAddress, FACTORY_ABI, this.mainnetProvider);
+    // Scanner oracle on TESTNET (our deployed contract)
     this.scanner = new ethers.Contract(CONFIG.scannerAddress, SCANNER_ABI, this.wallet);
 
     if (CONFIG.loggerAddress && ethers.isAddress(CONFIG.loggerAddress)) {
@@ -181,21 +424,18 @@ class ScanService {
 
     this.isRunning = true;
 
-    // Look back to catch recent historical PairCreated events
-    const currentBlock = await this.provider.getBlockNumber();
+    // Track mainnet blocks (that's where PairCreated events happen)
+    const currentBlock = await this.mainnetProvider.getBlockNumber();
     this.lastBlock = Math.max(0, currentBlock - CONFIG.lookbackBlocks);
 
-    console.log(`\n[ScanService] Current block: ${currentBlock}`);
+    console.log(`\n[ScanService] BSC Mainnet block: ${currentBlock}`);
     console.log(`[ScanService] Looking back ${CONFIG.lookbackBlocks} blocks from ${this.lastBlock}`);
     console.log(`[ScanService] Polling every ${CONFIG.pollInterval / 1000}s`);
 
-    // Start HTTP server for manual scan requests
     this.startHttpServer();
 
-    // Fast historical catch-up with larger block ranges
     console.log(`[ScanService] Scanning historical blocks ${this.lastBlock}..${currentBlock}...`);
     await this.catchUpHistory(currentBlock);
-
     console.log("");
 
     while (this.isRunning) {
@@ -223,22 +463,22 @@ class ScanService {
   // ─── Historical Catch-Up ─────────────────────────────────
 
   private async catchUpHistory(currentBlock: number): Promise<void> {
-    const BATCH_SIZE = 1000; // larger range for historical catch-up
+    const BATCH_SIZE = 50; // Small batches for free RPC limits
     let from = this.lastBlock + 1;
+    let consecutiveErrors = 0;
 
     while (from <= currentBlock && this.isRunning) {
       const to = Math.min(currentBlock, from + BATCH_SIZE - 1);
       try {
         const filter = this.factory.filters.PairCreated();
         const events = await this.factory.queryFilter(filter, from, to);
+        consecutiveErrors = 0; // Reset on success
         if (events.length > 0) {
           console.log(`[CatchUp] Found ${events.length} PairCreated events in blocks ${from}-${to}`);
           for (const event of events) {
             const log = event as ethers.EventLog;
             const token0 = (log.args[0] as string).toLowerCase();
             const token1 = (log.args[1] as string).toLowerCase();
-            const pair = log.args[2] as string;
-            console.log(`[PairCreated] token0=${token0.slice(0, 10)}... token1=${token1.slice(0, 10)}... pair=${pair.slice(0, 10)}... block=${log.blockNumber}`);
             this.stats.pairsDetected++;
             if (!BASE_TOKENS.has(token0) && !this.scannedTokens.has(token0)) {
               await this.scanAndSubmit(token0);
@@ -249,14 +489,19 @@ class ScanService {
           }
         }
       } catch (err: any) {
-        console.warn(`[CatchUp] Error scanning blocks ${from}-${to}: ${err.message?.slice(0, 80)}`);
-        await this.sleep(3000);
-        // Don't advance — retry same range on next iteration
-        continue;
+        consecutiveErrors++;
+        console.warn(`[CatchUp] Error blocks ${from}-${to} (attempt ${consecutiveErrors}): ${err.message?.slice(0, 60)}`);
+        if (consecutiveErrors >= 3) {
+          console.warn(`[CatchUp] Skipping blocks ${from}-${to} after ${consecutiveErrors} failures`);
+          consecutiveErrors = 0;
+          // Fall through to advance from
+        } else {
+          await this.sleep(2000);
+          continue;
+        }
       }
       from = to + 1;
-      // Small delay between batches to avoid rate limiting
-      if (from <= currentBlock) await this.sleep(500);
+      if (from <= currentBlock) await this.sleep(300);
     }
     this.lastBlock = currentBlock;
     console.log(`[CatchUp] Historical scan complete. Now at block ${this.lastBlock}`);
@@ -265,11 +510,11 @@ class ScanService {
   // ─── Main Tick ──────────────────────────────────────────────
 
   private async tick(): Promise<void> {
-    const currentBlock = await this.provider.getBlockNumber();
+    const currentBlock = await this.mainnetProvider.getBlockNumber();
     if (currentBlock <= this.lastBlock) return;
 
     const fromBlock = this.lastBlock + 1;
-    const toBlock = Math.min(currentBlock, fromBlock + 50); // conservative cap for public RPCs
+    const toBlock = Math.min(currentBlock, fromBlock + 50);
 
     try {
       const filter = this.factory.filters.PairCreated();
@@ -279,10 +524,8 @@ class ScanService {
         this.emptyPollCount++;
         if (this.emptyPollCount >= 5 && !this.lowActivityWarned) {
           this.lowActivityWarned = true;
-          console.warn(`\n⚠ [ScanService] No PairCreated events detected in ${this.emptyPollCount} polling intervals.`);
-          console.warn(`  Liquidity activity may be low on BSC Testnet.`);
-          console.warn(`  Manual scans can be submitted via POST http://localhost:${CONFIG.httpPort}/scan`);
-          console.warn(`  The service will continue polling.\n`);
+          console.warn(`\n⚠ [ScanService] No PairCreated events in ${this.emptyPollCount} polls.`);
+          console.warn(`  Manual scans: POST http://localhost:${CONFIG.httpPort}/scan\n`);
         }
       } else {
         this.emptyPollCount = 0;
@@ -293,12 +536,8 @@ class ScanService {
         const log = event as ethers.EventLog;
         const token0 = (log.args[0] as string).toLowerCase();
         const token1 = (log.args[1] as string).toLowerCase();
-        const pair = log.args[2] as string;
-
-        console.log(`[PairCreated] token0=${token0.slice(0, 10)}... token1=${token1.slice(0, 10)}... pair=${pair.slice(0, 10)}... block=${log.blockNumber}`);
         this.stats.pairsDetected++;
 
-        // Identify the non-base token(s)
         if (!BASE_TOKENS.has(token0) && !this.scannedTokens.has(token0)) {
           await this.scanAndSubmit(token0);
         }
@@ -308,7 +547,7 @@ class ScanService {
       }
     } catch (err: any) {
       if (err.message?.includes("rate") || err.message?.includes("limit") || err.message?.includes("429") || err.code === "SERVER_ERROR") {
-        console.warn(`[ScanService] RPC rate limited (${err.message?.slice(0, 80)}), backing off...`);
+        console.warn(`[ScanService] RPC rate limited, backing off...`);
         await this.sleep(5000);
       } else {
         throw err;
@@ -316,54 +555,64 @@ class ScanService {
     }
 
     this.lastBlock = toBlock;
-
-    // Print status every 20 ticks
-    if (this.stats.tickCount % 20 === 0) {
-      this.printStats();
-    }
+    if (this.stats.tickCount % 20 === 0) this.printStats();
   }
 
   // ─── Scan & Submit Pipeline ─────────────────────────────────
 
-  private async scanAndSubmit(token: string): Promise<void> {
-    // Duplicate guard
-    if (this.scannedTokens.has(token)) {
+  private async scanAndSubmit(token: string, force: boolean = false): Promise<{ riskScore: number; flags: string[] } | null> {
+    if (!force && this.scannedTokens.has(token)) {
       console.log(`[ScanService] Skip duplicate: ${token.slice(0, 10)}...`);
-      return;
+      return null;
     }
 
-    // On-chain duplicate check
-    try {
-      const alreadyScanned = await this.scanner.isScanned(token);
-      if (alreadyScanned) {
-        this.scannedTokens.add(token);
-        console.log(`[ScanService] Already on-chain: ${token.slice(0, 10)}...`);
-        return;
+    // On-chain duplicate check (skip for force/manual re-scans)
+    if (!force) {
+      try {
+        const alreadyScanned = await this.scanner.isScanned(token);
+        if (alreadyScanned) {
+          this.scannedTokens.add(token);
+          console.log(`[ScanService] Already on-chain: ${token.slice(0, 10)}...`);
+          return null;
+        }
+      } catch {
+        // continue
       }
-    } catch {
-      // continue if RPC fails — submit anyway
     }
 
-    console.log(`[ScanService] Scanning ${token}...`);
+    console.log(`[ScanService] Analyzing ${token} on BSC Mainnet...`);
     const startMs = Date.now();
 
     try {
-      // Step 1: Basic token info
-      const basics = await this.getTokenBasics(token);
+      // Full on-chain analysis — reads from BSC MAINNET
+      const analysis = await analyzeTokenOnChain(token, this.mainnetProvider);
 
-      // Step 2: GoPlus security check 
-      const goplus = await queryGoPlus(token, 97); // 97 = BSC Testnet
+      if (!analysis.isContract) {
+        console.log(`[ScanService] ${token.slice(0, 10)}... — not a contract, skipping`);
+        this.scannedTokens.add(token);
+        return null;
+      }
 
-      // Step 3: Build risk assessment
-      const { riskScore, flags, boolFlags } = this.assessRisk(basics, goplus);
+      // Risk assessment from on-chain + optional GoPlus data
+      const { riskScore, flags, boolFlags, confidence } = assessRisk(analysis);
 
-      // Build reasoning for hash
+      // Build reasoning
       const reasoning = [
-        `Token: ${basics.symbol} (${token})`,
-        `Score: ${riskScore}/100`,
-        `Honeypot: ${boolFlags[0]}`,
-        `Buy Tax: ${goplus?.buyTax.toFixed(1) || "0"}% | Sell Tax: ${goplus?.sellTax.toFixed(1) || "0"}%`,
-        `Holders: ${goplus?.holderCount || 0}`,
+        `Token: ${analysis.symbol} (${analysis.name})`,
+        `Address: ${token}`,
+        `Score: ${riskScore}/100 (confidence: ${confidence}%)`,
+        `Supply: ${analysis.totalSupplyFormatted.toLocaleString()}`,
+        `Owner: ${analysis.hasOwner ? analysis.ownerAddress : "none"}`,
+        `Renounced: ${analysis.isRenounced}`,
+        `Bytecode: ${analysis.bytecodeLength} chars`,
+        `Capabilities: ${[
+          analysis.canMint && "mint",
+          analysis.canPause && "pause",
+          analysis.canBlacklist && "blacklist",
+          analysis.hasFeeFunction && "fee",
+        ].filter(Boolean).join(", ") || "none detected"}`,
+        `Owner Balance: ${(analysis.ownerBalancePercent / 100).toFixed(1)}%`,
+        `GoPlus: ${analysis.goplus ? "available" : "unavailable"}`,
         `Flags: ${flags.join(", ") || "none"}`,
         `Scan: ${new Date().toISOString()}`,
       ].join("\n");
@@ -371,19 +620,19 @@ class ScanService {
       const reasoningHash = ethers.keccak256(ethers.toUtf8Bytes(reasoning));
       const elapsed = Date.now() - startMs;
 
-      // Step 4: Submit on-chain
+      // Submit on-chain
       if (CONFIG.dryRun) {
-        console.log(`[ScanService] DRY RUN — ${basics.symbol} score=${riskScore} [${elapsed}ms]`);
+        console.log(`[ScanService] DRY RUN — ${analysis.symbol} score=${riskScore} flags=[${flags.join(",")}] [${elapsed}ms]`);
       } else {
-        const buyTaxBps = Math.round((goplus?.buyTax || 0) * 100);
-        const sellTaxBps = Math.round((goplus?.sellTax || 0) * 100);
+        const buyTaxBps = Math.round((analysis.goplus?.buyTax || 0) * 100);
+        const sellTaxBps = Math.round((analysis.goplus?.sellTax || 0) * 100);
 
         const tx = await this.scanner["submitScan(address,uint256,uint256,uint256,uint256,uint256,uint256,bool[7],string,bytes32)"](
           token,
           riskScore,
-          0, // liquidity (USD wei) — GoPlus doesn't provide on testnet
-          goplus?.holderCount || 0,
-          0, // topHolderPercent bps
+          0, // liquidity — requires DEX pair analysis
+          analysis.goplus?.holderCount || 0,
+          analysis.ownerBalancePercent,
           buyTaxBps,
           sellTaxBps,
           boolFlags,
@@ -391,25 +640,25 @@ class ScanService {
           reasoningHash
         );
         const receipt = await tx.wait();
-        console.log(`[ScanService] ✓ ${basics.symbol} score=${riskScore} flags=[${flags.join(",")}] tx=${receipt.hash.slice(0, 16)}... [${elapsed}ms]`);
+        console.log(`[ScanService] ✓ ${analysis.symbol} score=${riskScore} flags=[${flags.join(",")}] tx=${receipt.hash.slice(0, 16)}... [${elapsed}ms]`);
 
         // Log to DecisionLogger if available
         if (this.logger) {
           try {
             const logTx = await this.logger.logDecision(
               CONFIG.agentId,
-              token,           // targetUser = token address
-              0,               // RiskAssessment
-              riskScore >= 70 ? 4 : riskScore >= 40 ? 3 : riskScore >= 20 ? 2 : 1, // riskLevel
-              Math.min(riskScore > 0 ? 8500 : 5000, 10000), // confidence
+              token,
+              0, // RiskAssessment
+              riskScore >= 70 ? 4 : riskScore >= 40 ? 3 : riskScore >= 20 ? 2 : 1,
+              Math.min(confidence * 100, 10000),
               reasoningHash,
-              ethers.keccak256(ethers.toUtf8Bytes(token)), // dataHash
-              true,            // actionTaken
-              0                // actionId
+              ethers.keccak256(ethers.toUtf8Bytes(token)),
+              true,
+              0
             );
             await logTx.wait();
           } catch {
-            // Non-critical — don't fail the scan
+            // Non-critical
           }
         }
       }
@@ -418,134 +667,50 @@ class ScanService {
       this.stats.scansSubmitted++;
       if (boolFlags[0]) this.stats.honeypotsFound++;
 
+      return { riskScore, flags };
     } catch (err: any) {
       this.stats.scansFailed++;
       console.error(`[ScanService] ✗ ${token.slice(0, 10)}... — ${err.message}`);
+      return null;
     }
-  }
-
-  // ─── Token Analysis ─────────────────────────────────────────
-
-  private async getTokenBasics(token: string): Promise<{ name: string; symbol: string; decimals: number }> {
-    try {
-      const contract = new ethers.Contract(token, ERC20_ABI, this.provider);
-      const [name, symbol, decimals] = await Promise.allSettled([
-        contract.name(),
-        contract.symbol(),
-        contract.decimals(),
-      ]);
-      return {
-        name: name.status === "fulfilled" ? name.value : "Unknown",
-        symbol: symbol.status === "fulfilled" ? symbol.value : "???",
-        decimals: decimals.status === "fulfilled" ? Number(decimals.value) : 18,
-      };
-    } catch {
-      return { name: "Unknown", symbol: "???", decimals: 18 };
-    }
-  }
-
-  private assessRisk(
-    basics: { name: string; symbol: string },
-    goplus: GoPlusResult | null
-  ): { riskScore: number; flags: string[]; boolFlags: [boolean, boolean, boolean, boolean, boolean, boolean, boolean] } {
-    let score = 30; // baseline risk for unaudited token
-    const flags: string[] = [];
-
-    if (goplus) {
-      if (goplus.isHoneypot) {
-        score = 100;
-        flags.push("HONEYPOT");
-      }
-      if (goplus.buyTax > 10) {
-        score = Math.min(100, score + 20);
-        flags.push("HIGH_TAX");
-      }
-      if (goplus.sellTax > 10) {
-        score = Math.min(100, score + 20);
-        flags.push("HIGH_SELL_TAX");
-      }
-      if (!goplus.isOpenSource) {
-        score = Math.min(100, score + 15);
-        flags.push("UNVERIFIED");
-      }
-      if (goplus.ownerCanChangeBalance) {
-        score = Math.min(100, score + 25);
-        flags.push("OWNER_CHANGE_BALANCE");
-      }
-      if (goplus.hiddenOwner) {
-        score = Math.min(100, score + 10);
-        flags.push("HIDDEN_OWNER");
-      }
-      if (goplus.canTakeBackOwnership) {
-        score = Math.min(100, score + 15);
-        flags.push("TAKEBACK_OWNERSHIP");
-      }
-      // If GoPlus confirms clean, lower score
-      if (!goplus.isHoneypot && goplus.isOpenSource && goplus.buyTax < 5 && goplus.sellTax < 5
-          && !goplus.ownerCanChangeBalance && !goplus.hiddenOwner) {
-        score = Math.max(0, score - 20);
-      }
-    } else {
-      // No GoPlus data — mark as incomplete
-      flags.push("PARTIAL_SCAN");
-      score = Math.min(100, score + 10);
-    }
-
-    const boolFlags: [boolean, boolean, boolean, boolean, boolean, boolean, boolean] = [
-      goplus?.isHoneypot || false,  // honeypot
-      false,                         // canMint (unknown without bytecode)
-      false,                         // canPause
-      false,                         // canBlacklist
-      false,                         // renounced (unknown)
-      false,                         // lpLocked (unknown)
-      goplus?.isOpenSource || false,  // verified
-    ];
-
-    return { riskScore: Math.min(100, Math.max(0, score)), flags, boolFlags };
   }
 
   // ─── Manual Scan (from HTTP endpoint) ───────────────────────
 
-  async scanManual(token: string): Promise<{ success: boolean; message: string; riskScore?: number }> {
+  async scanManual(token: string): Promise<{ success: boolean; message: string; riskScore?: number; flags?: string[] }> {
     const addr = token.toLowerCase().trim();
 
     if (!ethers.isAddress(addr)) {
       return { success: false, message: "Invalid address" };
     }
 
-    // Check if already scanned on-chain
-    try {
-      const alreadyScanned = await this.scanner.isScanned(addr);
-      if (alreadyScanned) {
-        this.scannedTokens.add(addr);
-        return { success: true, message: "Already scanned on-chain" };
-      }
-    } catch {
-      // Continue — submit regardless
-    }
-
-    if (this.scannedTokens.has(addr)) {
-      return { success: true, message: "Already scanned this session" };
-    }
-
     console.log(`[ManualScan] Triggered for ${addr}`);
     this.stats.manualScans++;
 
     try {
-      await this.scanAndSubmit(addr);
-      return { success: true, message: "Scan submitted to oracle", riskScore: undefined };
+      // First, check if it's actually a contract on mainnet
+      const code = await this.mainnetProvider.getCode(addr);
+      if (code.length <= 2) {
+        return { success: false, message: "Not a contract on BSC Mainnet — check the address" };
+      }
+
+      // Force re-scan — always analyze fresh, even if previously scanned
+      const result = await this.scanAndSubmit(addr, true);
+      if (result) {
+        return { success: true, message: "Scan submitted to oracle", riskScore: result.riskScore, flags: result.flags };
+      }
+      return { success: false, message: "Scan failed — token analysis returned no result" };
     } catch (err: any) {
       return { success: false, message: err.message };
     }
   }
 
-  // ─── HTTP Server for Manual Scans ───────────────────────────
+  // ─── HTTP Server ────────────────────────────────────────────
 
   private startHttpServer(): void {
     this.httpServer = http.createServer(async (req, res) => {
-      // CORS headers for frontend
       res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
       if (req.method === "OPTIONS") {
@@ -568,7 +733,7 @@ class ScanService {
             const result = await this.scanManual(token);
             res.writeHead(result.success ? 200 : 500, { "Content-Type": "application/json" });
             res.end(JSON.stringify(result));
-          } catch (err: any) {
+          } catch {
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ success: false, message: "Invalid JSON body" }));
           }
@@ -605,33 +770,38 @@ class ScanService {
 
   private async handleRpcFailure(): Promise<void> {
     this.stats.rpcFailures++;
-    this.rpcIndex = (this.rpcIndex + 1) % RPC_FALLBACKS.length;
-    const newRpc = RPC_FALLBACKS[this.rpcIndex];
-    console.warn(`[ScanService] RPC failure #${this.stats.rpcFailures} — switching to ${newRpc}`);
+
+    // Rotate mainnet RPC
+    this.mainnetRpcIndex = (this.mainnetRpcIndex + 1) % MAINNET_RPC_FALLBACKS.length;
+    const newMainnet = MAINNET_RPC_FALLBACKS[this.mainnetRpcIndex];
+    console.warn(`[ScanService] RPC failure #${this.stats.rpcFailures} — switching mainnet to ${newMainnet}`);
 
     try {
-      this.provider = new ethers.JsonRpcProvider(newRpc);
-      // Validate new provider is reachable
-      await this.provider.getBlockNumber();
-      this.wallet = new ethers.Wallet(CONFIG.privateKey, this.provider);
-      this.factory = new ethers.Contract(CONFIG.factoryAddress, FACTORY_ABI, this.provider);
-      this.scanner = new ethers.Contract(CONFIG.scannerAddress, SCANNER_ABI, this.wallet);
-      if (CONFIG.loggerAddress && ethers.isAddress(CONFIG.loggerAddress)) {
-        this.logger = new ethers.Contract(CONFIG.loggerAddress, LOGGER_ABI, this.wallet);
-      }
-      console.log(`[ScanService] Successfully switched to ${newRpc}`);
+      this.mainnetProvider = new ethers.JsonRpcProvider(newMainnet);
+      await this.mainnetProvider.getBlockNumber();
+      this.factory = new ethers.Contract(CONFIG.factoryAddress, FACTORY_ABI, this.mainnetProvider);
+      console.log(`[ScanService] Mainnet RPC switched to ${newMainnet}`);
     } catch {
-      // Current fallback also failed — try next one
-      console.warn(`[ScanService] Fallback ${newRpc} unreachable, trying next...`);
-      this.rpcIndex = (this.rpcIndex + 1) % RPC_FALLBACKS.length;
-      const nextRpc = RPC_FALLBACKS[this.rpcIndex];
-      this.provider = new ethers.JsonRpcProvider(nextRpc);
-      this.wallet = new ethers.Wallet(CONFIG.privateKey, this.provider);
-      this.factory = new ethers.Contract(CONFIG.factoryAddress, FACTORY_ABI, this.provider);
+      // Also try next
+      this.mainnetRpcIndex = (this.mainnetRpcIndex + 1) % MAINNET_RPC_FALLBACKS.length;
+      const nextRpc = MAINNET_RPC_FALLBACKS[this.mainnetRpcIndex];
+      this.mainnetProvider = new ethers.JsonRpcProvider(nextRpc);
+      this.factory = new ethers.Contract(CONFIG.factoryAddress, FACTORY_ABI, this.mainnetProvider);
+    }
+
+    // Also rotate testnet RPC for oracle writes
+    this.testnetRpcIndex = (this.testnetRpcIndex + 1) % TESTNET_RPC_FALLBACKS.length;
+    const newTestnet = TESTNET_RPC_FALLBACKS[this.testnetRpcIndex];
+    try {
+      this.testnetProvider = new ethers.JsonRpcProvider(newTestnet);
+      await this.testnetProvider.getBlockNumber();
+      this.wallet = new ethers.Wallet(CONFIG.privateKey, this.testnetProvider);
       this.scanner = new ethers.Contract(CONFIG.scannerAddress, SCANNER_ABI, this.wallet);
       if (CONFIG.loggerAddress && ethers.isAddress(CONFIG.loggerAddress)) {
         this.logger = new ethers.Contract(CONFIG.loggerAddress, LOGGER_ABI, this.wallet);
       }
+    } catch {
+      // Non-critical — testnet might still work on old connection
     }
 
     await this.sleep(3000);
@@ -649,34 +819,41 @@ class ScanService {
       throw new Error("SCANNER_ADDRESS must be a valid address in .env");
     }
 
-    // Chain ID — must be BSC Testnet (97)
-    const network = await this.provider.getNetwork();
-    console.log(`[ScanService] Chain ID: ${network.chainId}`);
-    if (Number(network.chainId) !== 97) {
-      throw new Error(`Expected BSC Testnet (chain 97) but connected to chain ${network.chainId}`);
+    // Validate TESTNET connection (where oracle contract lives)
+    const testnetNetwork = await this.testnetProvider.getNetwork();
+    console.log(`[ScanService] Testnet Chain ID: ${testnetNetwork.chainId} (oracle writes)`);
+    if (Number(testnetNetwork.chainId) !== 97) {
+      throw new Error(`Expected BSC Testnet (chain 97) for oracle but connected to chain ${testnetNetwork.chainId}`);
     }
 
-    // Verify factory contract exists
-    const factoryCode = await this.provider.getCode(CONFIG.factoryAddress);
+    // Validate MAINNET connection (where real tokens live)
+    const mainnetNetwork = await this.mainnetProvider.getNetwork();
+    console.log(`[ScanService] Mainnet Chain ID: ${mainnetNetwork.chainId} (token reads)`);
+    if (Number(mainnetNetwork.chainId) !== 56) {
+      throw new Error(`Expected BSC Mainnet (chain 56) for token analysis but connected to chain ${mainnetNetwork.chainId}`);
+    }
+
+    // Verify factory contract on mainnet
+    const factoryCode = await this.mainnetProvider.getCode(CONFIG.factoryAddress);
     if (factoryCode.length <= 2) {
-      throw new Error(`Factory contract not found at ${CONFIG.factoryAddress} — wrong address?`);
+      throw new Error(`Factory contract not found at ${CONFIG.factoryAddress} on mainnet`);
     }
-    console.log(`[ScanService] Factory: ${CONFIG.factoryAddress} (verified on-chain)`);
+    console.log(`[ScanService] Factory: ${CONFIG.factoryAddress} (mainnet, verified)`);
 
-    // Balance
-    const balance = await this.provider.getBalance(this.wallet.address);
+    // Balance on testnet (for gas to submit oracle writes)
+    const balance = await this.testnetProvider.getBalance(this.wallet.address);
     console.log(`[ScanService] Wallet: ${this.wallet.address}`);
-    console.log(`[ScanService] Balance: ${ethers.formatEther(balance)} BNB`);
+    console.log(`[ScanService] Testnet Balance: ${ethers.formatEther(balance)} tBNB`);
     if (balance < ethers.parseEther("0.01")) {
-      throw new Error("Insufficient balance — need >0.01 BNB for gas");
+      throw new Error("Insufficient tBNB balance — need >0.01 tBNB for gas");
     }
 
-    // Scanner contract exists
-    const code = await this.provider.getCode(CONFIG.scannerAddress);
+    // Scanner contract on testnet
+    const code = await this.testnetProvider.getCode(CONFIG.scannerAddress);
     if (code.length <= 2) {
-      throw new Error(`Scanner contract not found at ${CONFIG.scannerAddress}`);
+      throw new Error(`Scanner contract not found at ${CONFIG.scannerAddress} on testnet`);
     }
-    console.log(`[ScanService] Scanner: ${CONFIG.scannerAddress} (verified)`);
+    console.log(`[ScanService] Scanner: ${CONFIG.scannerAddress} (testnet, verified)`);
 
     // Check scanner stats
     const stats = await this.scanner.getScannerStats();
@@ -688,15 +865,17 @@ class ScanService {
   private printBanner(): void {
     console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
-║          AEGIS SCAN SERVICE — Security Oracle Agent           ║
+║           AEGIS SCAN SERVICE — Token Safety Scanner           ║
 ║                                                               ║
-║  Monitors PairCreated → Scans tokens → Submits to Oracle      ║
+║  Reads BSC Mainnet → Analyzes → Writes to Testnet Oracle     ║
 ╚═══════════════════════════════════════════════════════════════╝
 `);
-    console.log(`  Mode:     ${CONFIG.dryRun ? "DRY RUN" : "LIVE"}`);
-    console.log(`  Scanner:  ${CONFIG.scannerAddress || "NOT SET"}`);
-    console.log(`  Factory:  ${CONFIG.factoryAddress}`);
-    console.log(`  Interval: ${CONFIG.pollInterval / 1000}s`);
+    console.log(`  Mode:        ${CONFIG.dryRun ? "DRY RUN" : "LIVE"}`);
+    console.log(`  Scanner:     ${CONFIG.scannerAddress || "NOT SET"}`);
+    console.log(`  Factory:     ${CONFIG.factoryAddress} (mainnet)`);
+    console.log(`  Mainnet RPC: ${CONFIG.mainnetRpc}`);
+    console.log(`  Testnet RPC: ${CONFIG.testnetRpc}`);
+    console.log(`  Interval:    ${CONFIG.pollInterval / 1000}s`);
   }
 
   private printStats(): void {

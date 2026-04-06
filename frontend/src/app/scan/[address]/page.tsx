@@ -82,7 +82,7 @@ export default function ScanReportPage() {
             </div>
             <p className="font-mono text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>{address}</p>
           </div>
-          <a href={`https://testnet.bscscan.com/token/${address}`} target="_blank" rel="noopener noreferrer"
+          <a href={`https://bscscan.com/token/${address}`} target="_blank" rel="noopener noreferrer"
             className="btn-secondary text-xs flex items-center gap-1.5 !px-3 !py-1.5">
             BSCScan <ExternalLink className="w-3 h-3" />
           </a>
