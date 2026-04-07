@@ -1,436 +1,599 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useScannerData, useTokenLookup } from "../../lib/useScanner";
-import type { TokenScan } from "../../lib/useScanner";
-import Link from "next/link";
+import { useState, useCallback } from "react";
 import {
-  Search, Shield, AlertTriangle, CheckCircle, Activity,
-  ExternalLink, XCircle, Copy, ChevronDown, ChevronUp,
+  Search, Shield, AlertTriangle, CheckCircle, XCircle,
+  Loader2, ExternalLink, Copy,
+  Lock, Droplets, Code2, Skull,
+  ChevronDown, ChevronUp, Info,
 } from "lucide-react";
+
+// ─── Types (matches API response) ────────────────────────────
+
+interface TokenScanResult {
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  totalSupply: string;
+  riskScore: number;
+  recommendation: "SAFE" | "CAUTION" | "AVOID" | "SCAM";
+  flags: string[];
+  isHoneypot: boolean;
+  buyTax: number;
+  sellTax: number;
+  isOpenSource: boolean;
+  isProxy: boolean;
+  isRenounced: boolean;
+  ownerCanMint: boolean;
+  ownerCanPause: boolean;
+  ownerCanBlacklist: boolean;
+  canTakeBackOwnership: boolean;
+  hasHiddenOwner: boolean;
+  ownerAddress: string;
+  creatorAddress: string;
+  holderCount: number;
+  topHolderPercent: number;
+  liquidityUsd: number;
+  lpHolderCount: number;
+  lpTotalLocked: number;
+  isLpLocked: boolean;
+  sources: { name: string; status: "ok" | "failed"; detail?: string }[];
+  scanTimestamp: number;
+  scanDuration: number;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-function riskColor(score: number): string {
-  if (score >= 70) return "var(--red)";
-  if (score >= 40) return "var(--yellow)";
-  return "var(--green)";
+const RISK_CONFIG = {
+  SAFE: { color: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)", label: "Safe" },
+  CAUTION: { color: "#eab308", bg: "rgba(234,179,8,0.08)", border: "rgba(234,179,8,0.2)", label: "Caution" },
+  AVOID: { color: "#f97316", bg: "rgba(249,115,22,0.08)", border: "rgba(249,115,22,0.2)", label: "Avoid" },
+  SCAM: { color: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)", label: "Scam" },
+};
+
+const FLAG_LABELS: Record<string, { label: string; severity: "critical" | "high" | "medium" | "low" }> = {
+  HONEYPOT: { label: "Honeypot Detected", severity: "critical" },
+  CANNOT_SELL_ALL: { label: "Cannot Sell All Tokens", severity: "critical" },
+  SELF_DESTRUCT: { label: "Self-Destruct Function", severity: "critical" },
+  EXTREME_TAX: { label: "Extreme Tax (>50%)", severity: "critical" },
+  RECLAIM_OWNERSHIP: { label: "Can Reclaim Ownership", severity: "high" },
+  HIDDEN_OWNER: { label: "Hidden Owner", severity: "high" },
+  MINTABLE: { label: "Mintable Supply", severity: "high" },
+  HIGH_TAX: { label: "High Tax (>10%)", severity: "high" },
+  NO_LIQUIDITY: { label: "No Liquidity", severity: "high" },
+  WHALE_DOMINATED: { label: "Whale Dominated (>50%)", severity: "high" },
+  NOT_OPEN_SOURCE: { label: "Source Not Verified", severity: "high" },
+  LOW_LIQUIDITY: { label: "Low Liquidity (<$10K)", severity: "medium" },
+  LP_NOT_LOCKED: { label: "LP Not Locked", severity: "medium" },
+  PAUSABLE: { label: "Transfers Pausable", severity: "medium" },
+  BLACKLIST: { label: "Blacklist Function", severity: "medium" },
+  PROXY_CONTRACT: { label: "Proxy Contract", severity: "medium" },
+  TAX_MODIFIABLE: { label: "Tax Can Be Changed", severity: "medium" },
+  HIGH_CONCENTRATION: { label: "High Concentration (>30%)", severity: "medium" },
+  EXTERNAL_CALL: { label: "External Calls", severity: "low" },
+  MODERATE_TAX: { label: "Moderate Tax (>5%)", severity: "low" },
+};
+
+function getSeverityColor(severity: string) {
+  switch (severity) {
+    case "critical": return "#ef4444";
+    case "high": return "#f97316";
+    case "medium": return "#eab308";
+    case "low": return "#a1a1aa";
+    default: return "#a1a1aa";
+  }
 }
 
-function riskLabel(score: number): string {
-  if (score >= 70) return "High Risk";
-  if (score >= 40) return "Medium";
-  return "Low Risk";
+function formatNumber(n: number): string {
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toFixed(2);
 }
 
-function shortAddr(addr: string): string {
+function truncateAddress(addr: string): string {
+  if (!addr || addr.length < 10) return addr;
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
-function timeAgo(ts: number): string {
-  const diff = Math.floor(Date.now() / 1000) - ts;
-  if (diff < 60) return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
+// ─── Components ──────────────────────────────────────────────
 
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text).catch(() => {});
-}
-
-// ─── Flag Badge ──────────────────────────────────────────────
-
-function FlagBadge({ active, label }: { active: boolean; label: string }) {
+function RiskScoreBadge({ score, recommendation }: { score: number; recommendation: string }) {
+  const config = RISK_CONFIG[recommendation as keyof typeof RISK_CONFIG] || RISK_CONFIG.CAUTION;
   return (
-    <span
-      className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-      style={{
-        background: active ? "rgba(248,113,113,0.1)" : "rgba(255,255,255,0.03)",
-        color: active ? "var(--red)" : "var(--text-muted)",
-        border: `1px solid ${active ? "rgba(248,113,113,0.2)" : "var(--border-subtle)"}`,
-      }}
+    <div
+      className="w-32 h-32 rounded-2xl flex flex-col items-center justify-center shrink-0"
+      style={{ background: config.bg, border: `2px solid ${config.border}` }}
     >
-      {active ? "⚠ " : "✓ "}{label}
-    </span>
+      <span className="text-5xl font-bold" style={{ color: config.color }}>{score}</span>
+      <span className="text-xs font-semibold mt-1" style={{ color: config.color }}>{config.label.toUpperCase()}</span>
+    </div>
   );
 }
 
-// ─── Scan Result Card ────────────────────────────────────────
-
-function ScanResultCard({ scan, expanded, onToggle }: { scan: TokenScan; expanded: boolean; onToggle: () => void }) {
-  const color = riskColor(scan.riskScore);
+function SecurityCheck({ label, safe, tooltip }: { label: string; safe: boolean; tooltip?: string }) {
   return (
-    <div className="card overflow-hidden">
-      <button onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-white/[0.02] transition-colors">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-          style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
-          {scan.riskScore >= 70 ? <AlertTriangle className="w-4 h-4" style={{ color }} /> :
-           scan.riskScore >= 40 ? <Shield className="w-4 h-4" style={{ color }} /> :
-           <CheckCircle className="w-4 h-4" style={{ color }} />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-sm text-white">{shortAddr(scan.token)}</span>
-            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(scan.token); }}
-              className="opacity-40 hover:opacity-100 transition-opacity">
-              <Copy className="w-3 h-3" />
-            </button>
-          </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{timeAgo(scan.scanTimestamp)}</span>
-            {scan.isHoneypot && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: "rgba(248,113,113,0.1)", color: "var(--red)" }}>Honeypot</span>}
-          </div>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-lg font-bold" style={{ color }}>{scan.riskScore}</p>
-          <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{riskLabel(scan.riskScore)}</p>
-        </div>
-        {expanded ? <ChevronUp className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} /> :
-                    <ChevronDown className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} />}
-      </button>
-
-      {expanded && (
-        <div className="px-4 pb-4 pt-1 space-y-3" style={{ borderTop: "1px solid var(--border-subtle)" }}>
-          {/* Metrics */}
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: "Holders", value: scan.holderCount.toLocaleString() },
-              { label: "Top Holder", value: `${(scan.topHolderPercent / 100).toFixed(1)}%` },
-              { label: "Liquidity", value: `${parseFloat(scan.liquidity).toFixed(2)} BNB` },
-              { label: "Buy Tax", value: `${(scan.buyTax / 100).toFixed(1)}%` },
-              { label: "Sell Tax", value: `${(scan.sellTax / 100).toFixed(1)}%` },
-              { label: "Version", value: `v${scan.scanVersion}` },
-            ].map((m, i) => (
-              <div key={i} className="p-2 rounded-lg text-center" style={{ background: "var(--bg-elevated)" }}>
-                <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{m.label}</p>
-                <p className="text-xs font-mono font-semibold text-white">{m.value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Flags */}
-          <div className="flex flex-wrap gap-1.5">
-            <FlagBadge active={scan.isHoneypot} label="Honeypot" />
-            <FlagBadge active={scan.ownerCanMint} label="Mintable" />
-            <FlagBadge active={scan.ownerCanPause} label="Pausable" />
-            <FlagBadge active={scan.ownerCanBlacklist} label="Blacklist" />
-            <FlagBadge active={!scan.isContractRenounced} label="Not Renounced" />
-            <FlagBadge active={!scan.isLiquidityLocked} label="LP Unlocked" />
-            <FlagBadge active={!scan.isVerified} label="Unverified" />
-          </div>
-
-          {/* Links */}
-          <div className="flex items-center gap-3 pt-1">
-            <Link href={`/scan/${scan.token}`} className="text-[11px] flex items-center gap-1 hover:underline" style={{ color: "var(--accent)" }}>
-              Full Report <ExternalLink className="w-2.5 h-2.5" />
-            </Link>
-            <a href={`https://bscscan.com/token/${scan.token}`} target="_blank" rel="noopener noreferrer"
-              className="text-[11px] flex items-center gap-1 hover:underline" style={{ color: "var(--text-muted)" }}>
-              BSCScan <ExternalLink className="w-2.5 h-2.5" />
-            </a>
-          </div>
-        </div>
+    <div className="flex items-center gap-2 py-2">
+      {safe ? (
+        <CheckCircle className="w-4 h-4 shrink-0" style={{ color: "#10b981" }} />
+      ) : (
+        <XCircle className="w-4 h-4 shrink-0" style={{ color: "#f87171" }} />
+      )}
+      <span className="text-sm" style={{ color: safe ? "var(--text-secondary)" : "var(--text-primary)" }}>{label}</span>
+      {tooltip && (
+        <span title={tooltip}>
+          <Info className="w-3 h-3" style={{ color: "var(--text-muted)" }} />
+        </span>
       )}
     </div>
   );
 }
 
-// ─── Page ────────────────────────────────────────────────────
+function DataSourceBadge({ source }: { source: { name: string; status: "ok" | "failed"; detail?: string } }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded"
+      style={{
+        background: source.status === "ok" ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)",
+        color: source.status === "ok" ? "#10b981" : "#f87171",
+      }}
+      title={source.detail}
+    >
+      <span
+        className="w-1.5 h-1.5 rounded-full"
+        style={{ background: source.status === "ok" ? "#10b981" : "#f87171" }}
+      />
+      {source.name}
+    </span>
+  );
+}
+
+// ─── Main Page ───────────────────────────────────────────────
 
 export default function ScannerPage() {
-  const { stats, recentScans, loading, isLive, fetchStats } = useScannerData();
-  const tokenLookup = useTokenLookup();
-  const [query, setQuery] = useState("");
-  const [expandedScan, setExpandedScan] = useState<string | null>(null);
-  const [riskFilter, setRiskFilter] = useState<"all" | "high" | "medium" | "low">("all");
-  const [manualScanLoading, setManualScanLoading] = useState(false);
-  const [manualScanMsg, setManualScanMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [input, setInput] = useState("");
+  const [result, setResult] = useState<TokenScanResult | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => { fetchStats(); }, [fetchStats]);
-  useEffect(() => {
-    if (!isLive) return;
-    const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
-  }, [isLive, fetchStats]);
+  const handleScan = useCallback(async () => {
+    const address = input.trim();
+    if (!address) return;
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    setManualScanMsg(null);
-    const trimmed = query.trim();
-    if (trimmed.length === 42 && trimmed.startsWith("0x")) {
-      tokenLookup.lookup(trimmed);
+    // Basic validation
+    if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
+      setError("Invalid address. Enter a valid BSC token contract address (0x...).");
+      return;
     }
-  }
 
-  const requestManualScan = useCallback(async () => {
-    const addr = query.trim();
-    if (!/^0x[0-9a-fA-F]{40}$/.test(addr)) return;
-    setManualScanLoading(true);
-    setManualScanMsg(null);
+    setIsScanning(true);
+    setError(null);
+    setResult(null);
+
     try {
-      const resp = await fetch("/api/scan", {
+      const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: addr }),
+        body: JSON.stringify({ address }),
       });
-      const data = await resp.json();
-      if (data.success) {
-        setManualScanMsg({ ok: true, text: data.message || "Scan submitted — re-query in a few seconds" });
-        // Re-query after a short delay to show the result
-        setTimeout(() => { tokenLookup.lookup(addr); fetchStats(); }, 5000);
-      } else {
-        setManualScanMsg({ ok: false, text: data.message || "Scan request failed" });
-      }
-    } catch {
-      setManualScanMsg({ ok: false, text: "Scan service unavailable — is scan-service running?" });
-    } finally {
-      setManualScanLoading(false);
-    }
-  }, [query, tokenLookup, fetchStats]);
 
-  const filtered = recentScans.filter((s) => {
-    if (riskFilter === "high") return s.riskScore >= 70;
-    if (riskFilter === "medium") return s.riskScore >= 40 && s.riskScore < 70;
-    if (riskFilter === "low") return s.riskScore < 40;
-    return true;
-  });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || `Scan failed (HTTP ${res.status})`);
+        return;
+      }
+
+      setResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Network error — please try again.");
+    } finally {
+      setIsScanning(false);
+    }
+  }, [input]);
+
+  const handleCopyAddress = useCallback(() => {
+    if (!result) return;
+    navigator.clipboard.writeText(result.address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [result]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !isScanning) handleScan();
+    },
+    [handleScan, isScanning]
+  );
 
   return (
-    <div className="min-h-screen relative z-10">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-6">
-        <div className="flex items-center justify-between">
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 pt-12 pb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{ background: "var(--accent-muted)", border: "1px solid var(--accent-border)" }}
+          >
+            <Search className="w-5 h-5" style={{ color: "var(--accent)" }} />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <Search className="w-6 h-6" style={{ color: "var(--accent)" }} />
-              Token Scanner
-            </h1>
-            <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-              Query the on-chain oracle — scanning real BNB Chain tokens
+            <h1 className="text-2xl font-bold text-white">Token Scanner</h1>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Scan any BSC token for honeypots, rug pulls, and security risks
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {isLive ? (
-              <span className="text-[11px] font-medium px-2.5 py-1 rounded-md flex items-center gap-1.5"
-                style={{ background: "rgba(52,211,153,0.08)", color: "var(--green)" }}>
-                <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--green)" }} /> Live
-              </span>
-            ) : (
-              <span className="text-[11px] font-medium px-2.5 py-1 rounded-md"
-                style={{ background: "rgba(251,191,36,0.08)", color: "var(--yellow)" }}>
-                Scanner not deployed
-              </span>
-            )}
-          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Stats Row */}
-      {stats && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Search Bar */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-8">
+        <div
+          className="flex items-center gap-2 p-2 rounded-xl"
+          style={{ background: "var(--bg-raised)", border: "1px solid var(--border-subtle)" }}
+        >
+          <Search className="w-5 h-5 ml-2 shrink-0" style={{ color: "var(--text-muted)" }} />
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Paste BSC token address (0x...)"
+            className="flex-1 bg-transparent text-sm font-mono text-white placeholder:text-[var(--text-muted)] outline-none py-2"
+            spellCheck={false}
+            autoComplete="off"
+          />
+          <button
+            onClick={handleScan}
+            disabled={isScanning || !input.trim()}
+            className="btn-primary flex items-center gap-2 !px-5 !py-2.5 shrink-0"
+          >
+            {isScanning ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Scanning...
+              </>
+            ) : (
+              <>
+                <Shield className="w-4 h-4" />
+                Scan
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Quick Examples */}
+        {!result && !isScanning && (
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Try:</span>
             {[
-              { label: "Total Scans", value: stats.totalScans.toLocaleString(), color: "var(--accent)" },
-              { label: "Tokens Tracked", value: stats.totalTokens.toLocaleString(), color: "var(--green)" },
-              { label: "Honeypots Found", value: stats.totalHoneypots.toLocaleString(), color: "var(--red)" },
-              { label: "Rug Risks", value: stats.totalRugRisks.toLocaleString(), color: "var(--yellow)" },
-            ].map((s, i) => (
-              <div key={i} className="card p-4">
-                <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>{s.label}</p>
-                <p className="text-xl font-bold" style={{ color: s.color }}>{s.value}</p>
-              </div>
+              { label: "$CAKE", addr: "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82" },
+              { label: "$UNIQ", addr: "0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777" },
+            ].map((ex) => (
+              <button
+                key={ex.addr}
+                onClick={() => { setInput(ex.addr); setError(null); }}
+                className="text-[11px] font-medium px-2.5 py-1 rounded-md transition-colors hover:border-[var(--border-hover)]"
+                style={{ background: "var(--bg-elevated)", color: "var(--accent)", border: "1px solid var(--border-subtle)" }}
+              >
+                {ex.label}
+              </button>
             ))}
           </div>
-        </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div
+            className="mt-4 flex items-start gap-3 p-4 rounded-xl"
+            style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)" }}
+          >
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#f87171" }} />
+            <div>
+              <p className="text-sm font-medium" style={{ color: "#f87171" }}>Scan Failed</p>
+              <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>{error}</p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Loading State */}
+      {isScanning && (
+        <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-12">
+          <div className="card p-10 text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" style={{ color: "var(--accent)" }} />
+            <p className="text-sm font-medium text-white mb-2">Scanning Token...</p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Checking GoPlusLabs, honeypot.is, and BSC on-chain data
+            </p>
+            <div className="flex items-center justify-center gap-3 mt-4">
+              {["GoPlusLabs", "honeypot.is", "BSC RPC"].map((src) => (
+                <span
+                  key={src}
+                  className="text-[10px] font-medium px-2 py-0.5 rounded animate-pulse"
+                  style={{ background: "var(--accent-muted)", color: "var(--accent)" }}
+                >
+                  {src}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
       )}
 
-      {/* Search */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-4">
-        <form onSubmit={handleSearch} className="card p-4">
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--text-muted)" }} />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Paste BSC token address (0x...)"
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm font-mono bg-transparent outline-none"
-                style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }}
-              />
-            </div>
-            <button type="submit" disabled={tokenLookup.loading || query.length !== 42} className="btn-primary flex items-center gap-2">
-              {tokenLookup.loading ? "Querying..." : "Scan"}
-            </button>
-          </div>
+      {/* Results */}
+      {result && !isScanning && (
+        <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-16 space-y-4">
+          {/* ── Token Header + Risk Score ── */}
+          <div className="card p-6">
+            <div className="flex items-start gap-6 flex-wrap sm:flex-nowrap">
+              <RiskScoreBadge score={result.riskScore} recommendation={result.recommendation} />
 
-          {tokenLookup.error && (
-            <div className="mt-3 flex items-center gap-2 text-xs" style={{ color: "var(--red)" }}>
-              <XCircle className="w-3.5 h-3.5" /> {tokenLookup.error}
-              {tokenLookup.error.toLowerCase().includes("not scanned") && query.length === 42 && (
-                <button
-                  onClick={requestManualScan}
-                  disabled={manualScanLoading}
-                  className="ml-2 px-3 py-1 rounded-md text-[11px] font-medium transition-colors"
-                  style={{ background: "var(--accent-muted)", color: "var(--accent)", border: "1px solid var(--accent)" }}
-                >
-                  {manualScanLoading ? "Requesting..." : "Request Scan"}
-                </button>
-              )}
-            </div>
-          )}
-          {manualScanMsg && (
-            <div className="mt-2 flex items-center gap-2 text-xs" style={{ color: manualScanMsg.ok ? "var(--green)" : "var(--red)" }}>
-              {manualScanMsg.ok ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-              {manualScanMsg.text}
-            </div>
-          )}
-        </form>
-      </div>
-
-      {/* Lookup Result */}
-      {tokenLookup.scan && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-4 animate-fade-in">
-          <div className="card p-5">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-xs uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>Scan Result</p>
-                <div className="flex items-center gap-2">
-                  <p className="font-mono text-sm text-white">{shortAddr(tokenLookup.scan.token)}</p>
-                  <button onClick={() => copyToClipboard(tokenLookup.scan!.token)} className="opacity-40 hover:opacity-100">
-                    <Copy className="w-3 h-3" />
-                  </button>
-                  {tokenLookup.safe !== null && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                      style={{
-                        background: tokenLookup.safe ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.1)",
-                        color: tokenLookup.safe ? "var(--green)" : "var(--red)",
-                      }}>
-                      {tokenLookup.safe ? "✓ isTokenSafe = true" : "✗ isTokenSafe = false"}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h2 className="text-xl font-bold text-white">{result.name}</h2>
+                  <span className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>${result.symbol}</span>
+                  {result.isHoneypot && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444" }}>
+                      HONEYPOT
                     </span>
                   )}
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold" style={{ color: riskColor(tokenLookup.scan.riskScore) }}>{tokenLookup.scan.riskScore}</p>
-                <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{riskLabel(tokenLookup.scan.riskScore)}</p>
+
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                    {truncateAddress(result.address)}
+                  </span>
+                  <button onClick={handleCopyAddress} className="p-0.5 rounded hover:bg-white/5 transition-colors" title="Copy address">
+                    <Copy className="w-3 h-3" style={{ color: copied ? "#10b981" : "var(--text-muted)" }} />
+                  </button>
+                  <a
+                    href={`https://bscscan.com/token/${result.address}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-medium px-2 py-0.5 rounded transition-colors"
+                    style={{ color: "var(--accent)", background: "var(--accent-muted)" }}
+                  >
+                    BSCScan <ExternalLink className="w-2.5 h-2.5 inline" />
+                  </a>
+                </div>
+
+                {/* Key Stats Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: "Buy Tax", value: `${result.buyTax.toFixed(1)}%`, warn: result.buyTax > 5 },
+                    { label: "Sell Tax", value: `${result.sellTax.toFixed(1)}%`, warn: result.sellTax > 5 },
+                    { label: "Liquidity", value: `$${formatNumber(result.liquidityUsd)}`, warn: result.liquidityUsd < 10000 },
+                    { label: "Holders", value: result.holderCount > 0 ? formatNumber(result.holderCount) : "N/A", warn: false },
+                  ].map((s) => (
+                    <div key={s.label} className="p-2.5 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
+                      <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: "var(--text-muted)" }}>{s.label}</p>
+                      <p className="text-sm font-semibold" style={{ color: s.warn ? "#f97316" : "var(--text-primary)" }}>{s.value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Metrics grid */}
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
+            {/* Data Sources */}
+            <div className="mt-4 pt-4 flex items-center gap-2 flex-wrap" style={{ borderTop: "1px solid var(--border-subtle)" }}>
+              <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Data from:</span>
+              {result.sources.map((src) => (
+                <DataSourceBadge key={src.name} source={src} />
+              ))}
+              <span className="text-[10px] ml-auto" style={{ color: "var(--text-muted)" }}>
+                Scanned in {result.scanDuration}ms
+              </span>
+            </div>
+          </div>
+
+          {/* ── Risk Flags ── */}
+          {result.flags.length > 0 && (
+            <div className="card p-6">
+              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" style={{ color: "#f97316" }} />
+                Risk Flags ({result.flags.length})
+              </h3>
+              <div className="space-y-2">
+                {result.flags
+                  .sort((a, b) => {
+                    const order = { critical: 0, high: 1, medium: 2, low: 3 };
+                    const sa = FLAG_LABELS[a]?.severity ?? "low";
+                    const sb = FLAG_LABELS[b]?.severity ?? "low";
+                    return order[sa] - order[sb];
+                  })
+                  .map((flag) => {
+                    const info = FLAG_LABELS[flag] || { label: flag, severity: "low" };
+                    const color = getSeverityColor(info.severity);
+                    return (
+                      <div
+                        key={flag}
+                        className="flex items-center gap-3 p-3 rounded-lg"
+                        style={{ background: `${color}08`, border: `1px solid ${color}20` }}
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                        <span className="text-xs font-medium" style={{ color }}>{info.severity.toUpperCase()}</span>
+                        <span className="text-sm" style={{ color: "var(--text-primary)" }}>{info.label}</span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* ── No Flags = Clean ── */}
+          {result.flags.length === 0 && (
+            <div className="card p-6">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-5 h-5" style={{ color: "#10b981" }} />
+                <div>
+                  <p className="text-sm font-medium text-white">No Risk Flags Detected</p>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    This token passed all security checks. Always do your own research.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Security Details (Expandable) ── */}
+          <div className="card overflow-hidden">
+            <button
+              onClick={() => setShowDetails(!showDetails)}
+              className="w-full flex items-center justify-between p-6 text-left hover:bg-white/[0.01] transition-colors"
+            >
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                <Shield className="w-4 h-4" style={{ color: "var(--accent)" }} />
+                Security Details
+              </h3>
+              {showDetails ? (
+                <ChevronUp className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
+              ) : (
+                <ChevronDown className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
+              )}
+            </button>
+
+            {showDetails && (
+              <div className="px-6 pb-6 pt-0">
+                <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0">
+                  {/* Contract Security */}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>
+                      <Code2 className="w-3 h-3" />Contract Security
+                    </p>
+                    <SecurityCheck label="Source Code Verified" safe={result.isOpenSource} />
+                    <SecurityCheck label="Ownership Renounced" safe={result.isRenounced} />
+                    <SecurityCheck label="No Mint Function" safe={!result.ownerCanMint} />
+                    <SecurityCheck label="No Pause Function" safe={!result.ownerCanPause} />
+                    <SecurityCheck label="No Blacklist Function" safe={!result.ownerCanBlacklist} />
+                    <SecurityCheck label="Cannot Reclaim Ownership" safe={!result.canTakeBackOwnership} />
+                    <SecurityCheck label="No Hidden Owner" safe={!result.hasHiddenOwner} />
+                    <SecurityCheck label="Not a Proxy" safe={!result.isProxy} />
+                  </div>
+
+                  {/* Liquidity & Holders */}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>
+                      <Droplets className="w-3 h-3" />Liquidity & Holders
+                    </p>
+                    <SecurityCheck
+                      label={`Liquidity: $${formatNumber(result.liquidityUsd)}`}
+                      safe={result.liquidityUsd >= 10000}
+                    />
+                    <SecurityCheck
+                      label={`LP Locked: ${result.lpTotalLocked.toFixed(1)}%`}
+                      safe={result.isLpLocked}
+                    />
+                    <SecurityCheck
+                      label={`Top Holder: ${result.topHolderPercent.toFixed(1)}%`}
+                      safe={result.topHolderPercent < 30}
+                    />
+                    <SecurityCheck
+                      label={`Buy Tax: ${result.buyTax.toFixed(1)}%`}
+                      safe={result.buyTax <= 5}
+                    />
+                    <SecurityCheck
+                      label={`Sell Tax: ${result.sellTax.toFixed(1)}%`}
+                      safe={result.sellTax <= 5}
+                    />
+                    {result.holderCount > 0 && (
+                      <SecurityCheck
+                        label={`Holders: ${formatNumber(result.holderCount)}`}
+                        safe={result.holderCount >= 100}
+                      />
+                    )}
+                    {result.lpHolderCount > 0 && (
+                      <SecurityCheck
+                        label={`LP Holders: ${result.lpHolderCount}`}
+                        safe={result.lpHolderCount >= 5}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Addresses */}
+                {(result.ownerAddress || result.creatorAddress) && (
+                  <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--border-subtle)" }}>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Addresses</p>
+                    <div className="space-y-1.5">
+                      {result.ownerAddress && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>Owner:</span>
+                          <a
+                            href={`https://bscscan.com/address/${result.ownerAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-mono hover:underline"
+                            style={{ color: result.isRenounced ? "#10b981" : "var(--accent)" }}
+                          >
+                            {result.isRenounced ? "Renounced (0x000...)" : truncateAddress(result.ownerAddress)}
+                          </a>
+                        </div>
+                      )}
+                      {result.creatorAddress && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>Creator:</span>
+                          <a
+                            href={`https://bscscan.com/address/${result.creatorAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-mono hover:underline"
+                            style={{ color: "var(--accent)" }}
+                          >
+                            {truncateAddress(result.creatorAddress)}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Disclaimer ── */}
+          <div className="flex items-start gap-2 px-2">
+            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
+            <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+              Risk scores are calculated from real-time data provided by GoPlusLabs and honeypot.is.
+              No analysis is 100% accurate — always do your own research before investing.
+              A low risk score does not guarantee safety.
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* Empty State */}
+      {!result && !isScanning && !error && (
+        <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
+          <div className="card p-10 text-center">
+            <Search className="w-10 h-10 mx-auto mb-4" style={{ color: "var(--text-muted)" }} />
+            <h3 className="text-lg font-semibold text-white mb-2">Scan Any BSC Token</h3>
+            <p className="text-sm max-w-md mx-auto mb-6" style={{ color: "var(--text-secondary)" }}>
+              Paste a token contract address above to check for honeypots, high taxes,
+              liquidity risks, and contract vulnerabilities. All data is fetched live from
+              GoPlusLabs, honeypot.is, and BSC on-chain.
+            </p>
+
+            <div className="grid sm:grid-cols-3 gap-4 max-w-lg mx-auto">
               {[
-                { label: "Holders", value: tokenLookup.scan.holderCount.toLocaleString() },
-                { label: "Top Holder", value: `${(tokenLookup.scan.topHolderPercent / 100).toFixed(1)}%` },
-                { label: "Liquidity", value: `${parseFloat(tokenLookup.scan.liquidity).toFixed(2)} BNB` },
-                { label: "Buy Tax", value: `${(tokenLookup.scan.buyTax / 100).toFixed(1)}%` },
-                { label: "Sell Tax", value: `${(tokenLookup.scan.sellTax / 100).toFixed(1)}%` },
-                { label: "Scan Version", value: `v${tokenLookup.scan.scanVersion}` },
-              ].map((m, i) => (
-                <div key={i} className="p-2 rounded-lg text-center" style={{ background: "var(--bg-elevated)" }}>
-                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{m.label}</p>
-                  <p className="text-xs font-mono font-semibold text-white">{m.value}</p>
+                { icon: Skull, label: "Honeypot Check", desc: "Simulated sell test" },
+                { icon: Droplets, label: "Liquidity Depth", desc: "PancakeSwap LP analysis" },
+                { icon: Lock, label: "Contract Audit", desc: "Mint, pause, blacklist" },
+              ].map((f) => (
+                <div key={f.label} className="p-3 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
+                  <f.icon className="w-4 h-4 mx-auto mb-2" style={{ color: "var(--accent)" }} />
+                  <p className="text-xs font-medium text-white">{f.label}</p>
+                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{f.desc}</p>
                 </div>
               ))}
             </div>
-
-            {/* Flags */}
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              <FlagBadge active={tokenLookup.scan.isHoneypot} label="Honeypot" />
-              <FlagBadge active={tokenLookup.scan.ownerCanMint} label="Mintable" />
-              <FlagBadge active={tokenLookup.scan.ownerCanPause} label="Pausable" />
-              <FlagBadge active={tokenLookup.scan.ownerCanBlacklist} label="Blacklist" />
-              <FlagBadge active={!tokenLookup.scan.isContractRenounced} label="Not Renounced" />
-              <FlagBadge active={!tokenLookup.scan.isLiquidityLocked} label="LP Unlocked" />
-              <FlagBadge active={!tokenLookup.scan.isVerified} label="Unverified" />
-            </div>
-
-            {/* Oracle data */}
-            {tokenLookup.riskData && (
-              <div className="p-3 rounded-lg mb-3" style={{ background: "var(--bg-elevated)" }}>
-                <p className="text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Oracle Data (IAegisScanner.getTokenRisk)</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                  <div><span style={{ color: "var(--text-muted)" }}>Score: </span><span className="font-mono text-white">{tokenLookup.riskData.riskScore}</span></div>
-                  <div><span style={{ color: "var(--text-muted)" }}>Updated: </span><span className="font-mono text-white">{timeAgo(tokenLookup.riskData.lastUpdated)}</span></div>
-                  <div><span style={{ color: "var(--text-muted)" }}>Attester: </span><span className="font-mono text-white">{shortAddr(tokenLookup.riskData.attestedBy)}</span></div>
-                  <div><span style={{ color: "var(--text-muted)" }}>Hash: </span><span className="font-mono text-white">{tokenLookup.riskData.reasoningHash.slice(0, 10)}...</span></div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3">
-              <Link href={`/scan/${tokenLookup.scan.token}`} className="text-[11px] flex items-center gap-1 hover:underline" style={{ color: "var(--accent)" }}>
-                Permanent Report Link <ExternalLink className="w-2.5 h-2.5" />
-              </Link>
-              <button onClick={() => { tokenLookup.clear(); setQuery(""); }} className="text-[11px] hover:underline" style={{ color: "var(--text-muted)" }}>
-                Clear
-              </button>
-            </div>
           </div>
-        </div>
+        </section>
       )}
-
-      {/* Live Scan Feed */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-10">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-            <Activity className="w-4 h-4" style={{ color: "var(--accent)" }} />
-            Recent Scans
-            {isLive && <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--green)" }} />}
-          </h2>
-          <div className="flex gap-1">
-            {(["all", "high", "medium", "low"] as const).map((f) => (
-              <button key={f} onClick={() => setRiskFilter(f)}
-                className="text-[10px] font-medium px-2.5 py-1 rounded-md capitalize transition-colors"
-                style={{
-                  background: riskFilter === f ? "var(--accent-muted)" : "var(--bg-raised)",
-                  color: riskFilter === f ? "var(--accent)" : "var(--text-muted)",
-                  border: `1px solid ${riskFilter === f ? "var(--accent)" : "var(--border-subtle)"}`,
-                }}>
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {loading && recentScans.length === 0 && (
-          <div className="card p-12 text-center">
-            <Activity className="w-6 h-6 mx-auto mb-3 animate-pulse" style={{ color: "var(--accent)" }} />
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Loading scan data...</p>
-          </div>
-        )}
-
-        {!loading && !isLive && recentScans.length === 0 && (
-          <div className="card p-12 text-center">
-            <Shield className="w-6 h-6 mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
-            <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>Connecting to AegisScanner oracle...</p>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Reading from on-chain oracle. If no scans appear, the scan agent service may be offline.
-              Use the search bar above to query any token address.
-            </p>
-          </div>
-        )}
-
-        {filtered.length > 0 && (
-          <div className="space-y-2">
-            {filtered.map((scan) => (
-              <ScanResultCard
-                key={scan.token + scan.scanTimestamp}
-                scan={scan}
-                expanded={expandedScan === scan.token}
-                onToggle={() => setExpandedScan(expandedScan === scan.token ? null : scan.token)}
-              />
-            ))}
-          </div>
-        )}
-
-        {isLive && filtered.length === 0 && recentScans.length > 0 && (
-          <div className="card p-8 text-center">
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No scans match the &ldquo;{riskFilter}&rdquo; filter</p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
