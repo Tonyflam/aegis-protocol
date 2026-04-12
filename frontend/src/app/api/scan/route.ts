@@ -29,6 +29,18 @@ interface TokenRiskReport {
   sellTax: number;
   scanTimestamp: number;
   scanDuration: number;
+  // Enhanced whale & LP data
+  topHolders: { address: string; percent: number; isContract: boolean }[];
+  lpLockedPercent: number;
+  lpLockEndDate: number; // unix timestamp, 0 if unknown
+  creatorPercent: number;
+  ownerAddress: string;
+  isAntiWhale: boolean;
+  canTakeBackOwnership: boolean;
+  hiddenOwner: boolean;
+  transferPausable: boolean;
+  tradingCooldown: boolean;
+  personalSlippageModifiable: boolean;
 }
 
 // ─── Constants ───────────────────────────────────────────────
@@ -153,18 +165,78 @@ async function scanToken(tokenAddress: string): Promise<TokenRiskReport> {
   const liq = liquidity.status === "fulfilled" ? liquidity.value : { liquidityUsd: 0, isLiquidityLocked: false, lpTokenBurned: false };
   const hp = honeypot.status === "fulfilled" ? honeypot.value : { isHoneypot: false, buyTax: 0, sellTax: 0 };
 
-  // Check source verification via GoPlusLabs
+  // Enrich with GoPlusLabs (holder distribution, LP locks, advanced risks)
   let isVerified = sec.isVerified;
+  let topHolders: { address: string; percent: number; isContract: boolean }[] = [];
+  let lpLockedPercent = liq.isLiquidityLocked ? 100 : 0;
+  let lpLockEndDate = 0;
+  let creatorPercent = 0;
+  let ownerAddress = "";
+  let isAntiWhale = false;
+  let canTakeBackOwnership = false;
+  let hiddenOwner = false;
+  let transferPausable = false;
+  let tradingCooldown = false;
+  let personalSlippageModifiable = false;
+  let gpHolderCount = 0;
+
   try {
-    const gpRes = await fetch(`https://api.gopluslabs.io/api/v1/token_security/56?contract_addresses=${tokenAddress}`, { signal: AbortSignal.timeout(6000) });
+    const gpRes = await fetch(
+      `https://api.gopluslabs.io/api/v1/token_security/56?contract_addresses=${tokenAddress}`,
+      { signal: AbortSignal.timeout(8000) },
+    );
     if (gpRes.ok) {
       const gpData = await gpRes.json();
       const info = gpData?.result?.[tokenAddress.toLowerCase()];
       if (info) {
         isVerified = info.is_open_source === "1";
+        gpHolderCount = parseInt(info.holder_count || "0", 10);
+        ownerAddress = info.owner_address || "";
+        creatorPercent = parseFloat(info.creator_percent || "0") * 100;
+        isAntiWhale = info.is_anti_whale === "1";
+        canTakeBackOwnership = info.can_take_back_ownership === "1";
+        hiddenOwner = info.hidden_owner === "1";
+        transferPausable = info.transfer_pausable === "1";
+        tradingCooldown = info.trading_cooldown === "1";
+        personalSlippageModifiable = info.personal_slippage_modifiable === "1";
+
+        // Real top holders from GoPlusLabs
+        if (Array.isArray(info.holders)) {
+          topHolders = info.holders.slice(0, 10).map((h: { address: string; percent: string; is_contract: number }) => ({
+            address: h.address || "",
+            percent: parseFloat(h.percent || "0") * 100,
+            isContract: h.is_contract === 1,
+          }));
+        }
+
+        // LP lock info from GoPlusLabs
+        if (Array.isArray(info.lp_holders)) {
+          let totalLocked = 0;
+          let latestUnlock = 0;
+          for (const lp of info.lp_holders) {
+            const pct = parseFloat(lp.percent || "0") * 100;
+            const isLocked = lp.is_locked === 1;
+            const addr = (lp.address || "").toLowerCase();
+            const isDead = addr === "0x000000000000000000000000000000000000dead" || addr === ethers.ZeroAddress;
+            if (isLocked || isDead) {
+              totalLocked += pct;
+              const unlockDate = parseInt(lp.locked_detail?.[0]?.end_time || "0", 10);
+              if (unlockDate > latestUnlock) latestUnlock = unlockDate;
+            }
+          }
+          if (totalLocked > lpLockedPercent) lpLockedPercent = totalLocked;
+          if (latestUnlock > 0) lpLockEndDate = latestUnlock;
+        }
       }
     }
-  } catch { /* ignore */ }
+  } catch { /* GoPlus unavailable */ }
+
+  // Merge GoPlusLabs holder count if we got it
+  if (gpHolderCount > basic.holderCount) basic.holderCount = gpHolderCount;
+
+  // Compute real topHolderPercent from actual holder data
+  const realTopPercent = topHolders.length > 0 ? topHolders[0].percent : basic.topHolderPercent;
+  if (realTopPercent > basic.topHolderPercent) basic.topHolderPercent = realTopPercent;
 
   const { score, flags, recommendation } = calculateRisk(basic, { ...sec, isVerified }, liq, hp);
 
@@ -181,12 +253,12 @@ async function scanToken(tokenAddress: string): Promise<TokenRiskReport> {
     topHolderPercent: basic.topHolderPercent,
     ownerBalance: basic.ownerBalance,
     liquidityUsd: liq.liquidityUsd,
-    isLiquidityLocked: liq.isLiquidityLocked,
+    isLiquidityLocked: liq.isLiquidityLocked || lpLockedPercent > 50,
     lpTokenBurned: liq.lpTokenBurned,
     isVerified,
     isRenounced: sec.isRenounced,
     ownerCanMint: sec.ownerCanMint,
-    ownerCanPause: sec.ownerCanPause,
+    ownerCanPause: sec.ownerCanPause || transferPausable,
     ownerCanBlacklist: sec.ownerCanBlacklist,
     isProxy: sec.isProxy,
     isHoneypot: hp.isHoneypot,
@@ -194,6 +266,18 @@ async function scanToken(tokenAddress: string): Promise<TokenRiskReport> {
     sellTax: hp.sellTax,
     scanTimestamp: Date.now(),
     scanDuration: Date.now() - start,
+    // Enhanced data
+    topHolders,
+    lpLockedPercent,
+    lpLockEndDate,
+    creatorPercent,
+    ownerAddress,
+    isAntiWhale,
+    canTakeBackOwnership,
+    hiddenOwner,
+    transferPausable,
+    tradingCooldown,
+    personalSlippageModifiable,
   };
 }
 
@@ -382,5 +466,9 @@ async function safeScan(tokenAddress: string, provider: ethers.JsonRpcProvider, 
     isHoneypot: false, buyTax: 0, sellTax: 0,
     scanTimestamp: Date.now(),
     scanDuration: Date.now() - startTime,
+    topHolders: [], lpLockedPercent: 100, lpLockEndDate: 0,
+    creatorPercent: 0, ownerAddress: "", isAntiWhale: false,
+    canTakeBackOwnership: false, hiddenOwner: false,
+    transferPausable: false, tradingCooldown: false, personalSlippageModifiable: false,
   };
 }
