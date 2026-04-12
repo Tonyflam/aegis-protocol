@@ -12,8 +12,10 @@ import { NextRequest, NextResponse } from "next/server";
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-// In-memory store (production would use a database)
-const subscriptions = new Map<string, { chatId: string; registeredAt: number }>();
+// In-memory store — shared with guardian route via globalThis
+const globalSubs = (globalThis as Record<string, unknown>).__aegisTgSubs as Map<string, { chatId: string; registeredAt: number }> | undefined;
+const subscriptions = globalSubs ?? new Map<string, { chatId: string; registeredAt: number }>();
+if (!globalSubs) (globalThis as Record<string, unknown>).__aegisTgSubs = subscriptions;
 
 // ─── Send Telegram Message ───────────────────────────────────
 async function sendTelegramMessage(chatId: string, text: string, parseMode = "HTML"): Promise<boolean> {
@@ -79,7 +81,7 @@ function formatAlertMessage(
     lines.push(``);
   }
 
-  lines.push(`<a href="https://aegisprotocol.vercel.app/guardian">View Full Report →</a>`);
+  lines.push(`<a href="https://aegisguardian.xyz/guardian">View Full Report →</a>`);
 
   return lines.join("\n");
 }
@@ -122,7 +124,7 @@ export async function POST(request: NextRequest) {
               `• Liquidity pull alerts`,
               `• Dev wallet movements`,
               ``,
-              `<a href="https://aegisprotocol.vercel.app/guardian">Open Guardian Shield →</a>`,
+              `<a href="https://aegisguardian.xyz/guardian">Open Guardian Shield →</a>`,
             ].join("\n"),
           );
         }
