@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { useLiveMarketData } from "../lib/useLiveMarket";
-import { useWalletContext } from "../lib/WalletContext";
 import { CONTRACTS } from "../lib/constants";
 import { useScrollReveal, useStaggerReveal } from "../lib/useScrollReveal";
 import {
   Shield,
   Zap, ArrowRight, ExternalLink,
-  Lock, Search, Bell, Skull, Droplets,
-  Eye, Brain, ChevronRight,
+  Lock, Search, Skull, Droplets,
+  Eye, ChevronRight, Share2,
   TrendingUp, Code2, CheckCircle,
   Sparkles, Globe, Layers, Activity,
 } from "lucide-react";
@@ -40,13 +39,12 @@ function RevealSection({
    ═══════════════════════════════════════════════════════════════ */
 
 export default function Home() {
-  const { isConnected } = useWalletContext();
   const liveMarket = useLiveMarketData(30000);
 
   const stepsStagger = useStaggerReveal(3, 120);
   const featuresStagger = useStaggerReveal(6, 100);
-  const contractsStagger = useStaggerReveal(4, 100);
-  const techStagger = useStaggerReveal(6, 80);
+  const contractsStagger = useStaggerReveal(5, 100);
+  const techStagger = useStaggerReveal(5, 80);
 
   return (
     <div className="min-h-screen relative z-10 flex flex-col overflow-hidden">
@@ -69,8 +67,9 @@ export default function Home() {
         </h1>
 
         <p className="text-lg sm:text-xl leading-relaxed mb-10 max-w-2xl animate-fade-in" style={{ color: "var(--text-secondary)" }}>
-          AI-powered protection that watches your crypto 24/7. Scan tokens for scams,
-          track whale movements, and auto-protect your positions — all on BNB Chain.
+          Scan any token or your entire wallet for honeypots, rug pulls, and hidden taxes.
+          Activate Guardian Shield for 24/7 monitoring. Deposit into the Protected Vault
+          to earn Venus Protocol yield — with AI protection coming on mainnet.
         </p>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-16 animate-fade-in">
@@ -79,9 +78,13 @@ export default function Home() {
             Scan a Token
             <ArrowRight className="w-4 h-4" />
           </Link>
-          <Link href={isConnected ? "/positions" : "/dashboard"} className="btn-secondary flex items-center gap-2 text-base px-7 py-3">
+          <Link href="/guardian" className="btn-secondary flex items-center gap-2 text-base px-7 py-3">
             <Shield className="w-4 h-4" />
-            {isConnected ? "My Positions" : "Explore Dashboard"}
+            Guardian Shield
+          </Link>
+          <Link href="/vault" className="btn-secondary flex items-center gap-2 text-base px-7 py-3">
+            <Lock className="w-4 h-4" />
+            Protected Vault
           </Link>
         </div>
 
@@ -117,16 +120,16 @@ export default function Home() {
           <div className="text-center mb-16">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3" style={{ color: "var(--accent)" }}>How It Works</p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
-              Protection in <span className="text-gradient">Three Steps</span>
+              Protect Yourself in <span className="text-gradient">Three Steps</span>
             </h2>
           </div>
         </RevealSection>
 
         <div ref={stepsStagger.ref} className={`stagger-parent ${stepsStagger.isVisible ? "visible" : ""} grid md:grid-cols-3 gap-6`}>
           {[
-            { num: "01", icon: Search, title: "You Scan", desc: "Paste any BSC token address. Our engine checks honeypot status, liquidity, contract security, whale concentration, and tax rates in seconds.", href: "/scanner", color: "var(--accent)" },
-            { num: "02", icon: Eye, title: "AI Monitors", desc: "Real-time whale tracking on BSC. Large transfers, liquidity changes, and exchange deposits — the AI watches every on-chain movement 24/7.", href: "/alerts", color: "var(--purple)" },
-            { num: "03", icon: Shield, title: "Auto-Protect", desc: "When threats are detected, the AI guardian executes protective transactions within your risk limits — stop-losses, emergency withdrawals, all on-chain.", href: "/agent", color: "var(--green)" },
+            { num: "01", icon: Search, title: "Token Scanner", desc: "Paste any BSC token address for a full risk report — or connect your wallet to scan ALL your holdings at once. Honeypot detection, tax analysis, liquidity checks, and contract security.", href: "/scanner", color: "var(--accent)" },
+            { num: "02", icon: Shield, title: "Guardian Shield", desc: "Activate always-on monitoring. Guardian Shield auto-refreshes every 60 seconds, watching for rug pull signals, whale dumps, liquidity pulls, and dev wallet movements.", href: "/guardian", color: "var(--purple)" },
+            { num: "03", icon: Lock, title: "Protected Vault", desc: "Deposit BNB into the Aegis Vault. Earn yield from Venus Protocol lending. Stop-loss protection and AI agent monitoring launching on BSC Mainnet after security audit.", href: "/vault", color: "var(--green)" },
           ].map((step, i) => (
             <Link key={i} href={step.href}
               className="stagger-child group relative card p-8 hover:border-[var(--border-hover)] transition-all duration-300"
@@ -163,9 +166,10 @@ export default function Home() {
               Scan Before <span className="text-gradient">You Buy</span>
             </h2>
             <p className="text-base leading-relaxed mb-8" style={{ color: "var(--text-secondary)" }}>
-              Every token gets a risk score from 0-100. We check honeypot traps, buy/sell
-              taxes, liquidity depth, LP lock status, whale concentration, and contract
-              security — all in real-time from on-chain data.
+              Paste a single token address for a detailed risk report — or connect
+              your wallet to scan every token you hold at once. We check honeypot traps,
+              buy/sell taxes, liquidity depth, LP lock status, whale concentration, and
+              contract security from on-chain data.
             </p>
 
             <div className="space-y-4 mb-8">
@@ -250,6 +254,100 @@ export default function Home() {
       <div className="section-divider" />
 
       {/* ──────────────────────────────────────────────
+          PROTECTED VAULT SHOWCASE
+          ────────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-24 w-full">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          {/* Vault Demo Card */}
+          <RevealSection variant="reveal-left">
+            <div className="card p-8 relative overflow-hidden">
+              <div className="absolute inset-0 opacity-30"
+                style={{ background: "radial-gradient(ellipse at bottom right, rgba(52, 211, 153, 0.06) 0%, transparent 60%)" }} />
+
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="text-xs font-mono px-2 py-1 rounded" style={{ background: "var(--bg-elevated)", color: "var(--text-muted)" }}>
+                    Vault Dashboard Preview
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-6 mb-6">
+                  <div className="w-20 h-20 rounded-2xl flex flex-col items-center justify-center"
+                    style={{ background: "rgba(52, 211, 153, 0.08)", border: "2px solid rgba(52, 211, 153, 0.2)" }}>
+                    <Lock className="w-6 h-6 mb-1" style={{ color: "var(--green)" }} />
+                    <span className="text-[10px] font-semibold" style={{ color: "var(--green)" }}>ACTIVE</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white mb-1">Your Position</p>
+                    <p className="text-2xl font-bold text-white">1.25 BNB</p>
+                    <p className="text-xs" style={{ color: "var(--green)" }}>+4.2% APY (net)</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 mb-6">
+                  {[
+                    { label: "Yield Earned", value: "0.0052 BNB", color: "var(--green)" },
+                    { label: "AI Protection", value: "Coming · Mainnet", color: "var(--accent)" },
+                    { label: "$UNIQ Tier", value: "Gold · 40% fee discount", color: "#ffd700" },
+                    { label: "On-Chain Logs", value: "12 decisions recorded", color: "var(--purple)" },
+                  ].map((row, i) => (
+                    <div key={i} className="flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>{row.label}</span>
+                      <span className="text-xs font-semibold" style={{ color: row.color }}>{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2">
+                  {["Liquidation Guard", "Exploit Shield", "Stop-Loss", "Whale Alert"].map((feature) => (
+                    <span key={feature} className="text-[10px] font-semibold px-2 py-0.5 rounded"
+                      style={{ background: "rgba(52, 211, 153, 0.08)", color: "var(--green)" }}>{feature}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </RevealSection>
+
+          <RevealSection variant="reveal-right">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3" style={{ color: "var(--green)" }}>Protected Vault</p>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-5">
+              Earn Yield. <span style={{ color: "var(--green)" }}>Stay Protected.</span>
+            </h2>
+            <p className="text-base leading-relaxed mb-8" style={{ color: "var(--text-secondary)" }}>
+              Deposit BNB into the Aegis Vault. Your funds earn yield from Venus Protocol lending.
+              Smart contracts include stop-loss and AI agent authorization — going live on BSC Mainnet
+              after security audit. Every protection decision will be logged on-chain.
+            </p>
+
+            <div className="space-y-4 mb-8">
+              {[
+                { label: "Venus Yield", desc: "Earn yield from Venus Protocol lending on deposited BNB" },
+                { label: "Stop-Loss Protection", desc: "BNB → USDT auto-swap via PancakeSwap when price drops (mainnet)" },
+                { label: "On-Chain Audit Trail", desc: "Every AI decision immutably logged via DecisionLogger" },
+                { label: "$UNIQ Fee Discounts", desc: "Gold holders pay up to 40% less in performance fees" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--green)" }} />
+                  <div>
+                    <p className="text-sm font-medium text-white">{item.label}</p>
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Link href="/vault" className="btn-primary inline-flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              Open Vault
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </RevealSection>
+        </div>
+      </section>
+
+      <div className="section-divider" />
+
+      {/* ──────────────────────────────────────────────
           FEATURES GRID
           ────────────────────────────────────────────── */}
       <section id="features" className="max-w-7xl mx-auto px-4 sm:px-6 py-24 w-full">
@@ -257,22 +355,22 @@ export default function Home() {
           <div className="text-center mb-16">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3" style={{ color: "var(--accent)" }}>Features</p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
-              Built with <span className="text-gradient">Agentic Security</span>
+              Built with <span className="text-gradient">On-Chain Data</span>
             </h2>
             <p className="text-base mt-4 max-w-xl mx-auto" style={{ color: "var(--text-secondary)" }}>
-              Six layers of intelligent protection working together to keep your assets safe.
+              Six layers of analysis working together to give you the full picture before you trade.
             </p>
           </div>
         </RevealSection>
 
         <div ref={featuresStagger.ref} className={`stagger-parent ${featuresStagger.isVisible ? "visible" : ""} grid sm:grid-cols-2 lg:grid-cols-3 gap-5`}>
           {[
-            { icon: Skull, title: "Honeypot Detection", desc: "Bytecode analysis and sell simulation to find tokens that trap your funds.", color: "#ef4444", href: "/scanner" },
-            { icon: Search, title: "Token Risk Scanner", desc: "Real-time risk scoring across 8+ vectors. Contract security, tax, liquidity, holders.", color: "var(--accent)", href: "/scanner" },
-            { icon: Bell, title: "Whale Alerts", desc: "Live tracking of large BSC transfers. See when whales move before price reacts.", color: "var(--purple)", href: "/alerts" },
-            { icon: Brain, title: "LLM Risk Reasoning", desc: "Groq-powered AI analyzes market conditions using multi-vector reasoning, not just price alerts.", color: "var(--green)", href: "/agent" },
-            { icon: Droplets, title: "Liquidity Monitoring", desc: "PancakeSwap reserve depth, LP burn verification, and real-time drain detection.", color: "var(--bnb)", href: "/scanner" },
-            { icon: Lock, title: "Non-Custodial Vault", desc: "Your funds, your rules. Set risk limits, authorize agents, emergency exit anytime.", color: "var(--accent)", href: "/positions" },
+            { icon: Skull, title: "Honeypot Detection", desc: "Simulates sell transactions via honeypot.is to find tokens that trap your funds.", color: "#ef4444", href: "/scanner" },
+            { icon: Search, title: "8-Vector Risk Scoring", desc: "Real-time risk scoring: contract security, tax analysis, liquidity, whale concentration, and more.", color: "var(--accent)", href: "/scanner" },
+            { icon: Eye, title: "Source Verification", desc: "GoPlusLabs integration checks if contract source code is verified and open-source.", color: "var(--purple)", href: "/scanner" },
+            { icon: Droplets, title: "Liquidity Analysis", desc: "PancakeSwap reserve depth, LP burn verification, and liquidity lock status.", color: "var(--bnb)", href: "/scanner" },
+            { icon: Lock, title: "Contract Security", desc: "Detects mint, pause, blacklist functions, proxy patterns, and ownership status in bytecode.", color: "var(--green)", href: "/scanner" },
+            { icon: Share2, title: "Shareable Reports", desc: "Every scan gets a unique link. Share on Twitter or Telegram to warn your community.", color: "var(--accent)", href: "/scanner" },
           ].map((f, i) => (
             <Link key={i} href={f.href}
               className="stagger-child group card p-6 hover:border-[var(--border-hover)] transition-all duration-300 hover:-translate-y-1"
@@ -306,12 +404,13 @@ export default function Home() {
           </div>
         </RevealSection>
 
-        <div ref={contractsStagger.ref} className={`stagger-parent ${contractsStagger.isVisible ? "visible" : ""} grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8`}>
+        <div ref={contractsStagger.ref} className={`stagger-parent ${contractsStagger.isVisible ? "visible" : ""} grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8`}>
           {[
             { name: "AegisRegistry", address: CONTRACTS.REGISTRY, desc: "ERC-721 agent identity NFTs with 4-tier reputation", color: "var(--accent)", lines: "557" },
             { name: "AegisVault", address: CONTRACTS.VAULT, desc: "Non-custodial vault with agent authorization + stop-loss", color: "var(--purple)", lines: "677" },
             { name: "DecisionLogger", address: CONTRACTS.DECISION_LOGGER, desc: "Immutable AI decision audit trail on-chain", color: "var(--green)", lines: "337" },
             { name: "AegisScanner", address: CONTRACTS.SCANNER, desc: "On-chain token risk registry for BSC tokens", color: "#f97316", lines: "181" },
+            { name: "AegisTokenGate", address: CONTRACTS.TOKEN_GATE, desc: "$UNIQ tier-based access control with fee discounts", color: "#fbbf24", lines: "236" },
           ].map((c, i) => (
             <div key={i} className="stagger-child card p-5 group hover:border-[var(--border-hover)] transition-all duration-300"
               style={contractsStagger.getDelay(i)}>
@@ -354,9 +453,9 @@ export default function Home() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 sm:gap-12">
                 {[
-                  { value: "198", label: "Tests Passing", icon: CheckCircle },
-                  { value: "5", label: "Smart Contracts", icon: Code2 },
-                  { value: "9,300+", label: "Lines of Code", icon: Layers },
+                  { value: "184", label: "Tests Passing", icon: CheckCircle },
+                  { value: "7", label: "Smart Contracts", icon: Code2 },
+                  { value: "14,245", label: "Lines of Code", icon: Layers },
                   { value: "#6", label: "of 200 Projects", icon: TrendingUp },
                 ].map((stat, i) => (
                   <div key={i} className="flex flex-col items-center">
@@ -401,9 +500,9 @@ export default function Home() {
 
                 <div className="space-y-3">
                   {[
-                    { tier: "Bronze", req: "10K", discount: "20%", fee: "0.40%", color: "#cd7f32" },
-                    { tier: "Silver", req: "100K", discount: "50%", fee: "0.25%", color: "#c0c0c0" },
-                    { tier: "Gold", req: "1M", discount: "80%", fee: "0.10%", color: "#ffd700" },
+                    { tier: "Bronze", req: "10K", discount: "10%", fee: "Wallet monitoring + personal alerts", color: "#cd7f32" },
+                    { tier: "Silver", req: "100K", discount: "25%", fee: "Priority alerts + Telegram", color: "#c0c0c0" },
+                    { tier: "Gold", req: "1M", discount: "40%", fee: "AI analysis + all alerts", color: "#ffd700" },
                   ].map((t) => (
                     <div key={t.tier} className="flex items-center gap-4 p-3 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
                       <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${t.color}15`, border: `1px solid ${t.color}30` }}>
@@ -414,8 +513,8 @@ export default function Home() {
                         <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>Hold {t.req} $UNIQ</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-semibold text-white">{t.discount} off</p>
-                        <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>Pay {t.fee}</p>
+                        <p className="text-sm font-semibold text-white">{t.discount} off fees</p>
+                        <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{t.fee}</p>
                       </div>
                     </div>
                   ))}
@@ -438,7 +537,7 @@ export default function Home() {
               {[
                 { label: "Supply", value: "1B" },
                 { label: "Tax", value: "3%" },
-                { label: "Max Discount", value: "80%" },
+                { label: "Max Discount", value: "40%" },
                 { label: "Holders", value: "185+" },
               ].map((s, i) => (
                 <div key={i} className="p-3 rounded-lg" style={{ background: "var(--bg-raised)", borderLeft: "2px solid var(--purple)" }}>
@@ -472,7 +571,6 @@ export default function Home() {
         <div ref={techStagger.ref} className={`stagger-parent ${techStagger.isVisible ? "visible" : ""} flex flex-wrap justify-center gap-4`}>
           {[
             { name: "BNB Chain", icon: Globe, color: "var(--bnb)" },
-            { name: "Groq AI", icon: Brain, color: "var(--green)" },
             { name: "PancakeSwap", icon: Activity, color: "var(--accent)" },
             { name: "GoPlusLabs", icon: Shield, color: "var(--purple)" },
             { name: "Honeypot.is", icon: Skull, color: "#ef4444" },
@@ -499,11 +597,11 @@ export default function Home() {
               style={{ background: "radial-gradient(ellipse at center, rgba(0, 212, 245, 0.04) 0%, transparent 60%)" }} />
 
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-5">
-              Ready to Guard Your <span className="text-gradient">DeFi?</span>
+              Scan. Shield. <span className="text-gradient">Vault.</span>
             </h2>
             <p className="text-base max-w-lg mx-auto mb-10" style={{ color: "var(--text-secondary)" }}>
-              Scan your first token. Track whale movements. Let AI protect your positions.
-              No sign-up required — just connect and go.
+              Scan tokens and wallets for free. Activate Guardian Shield for 24/7 monitoring.
+              Deposit into the Protected Vault to earn Venus Protocol yield.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -512,15 +610,14 @@ export default function Home() {
                 Launch Scanner
                 <ArrowRight className="w-5 h-5" />
               </Link>
-              <a href={`https://flap.sh/bnb/${CONTRACTS.UNIQ_TOKEN}`} target="_blank" rel="noopener noreferrer"
-                className="btn-secondary flex items-center gap-2 text-base px-8 py-3.5">
-                <Sparkles className="w-5 h-5" />
-                Buy $UNIQ
-              </a>
+              <Link href="/vault" className="btn-secondary flex items-center gap-2 text-base px-8 py-3.5">
+                <Lock className="w-5 h-5" />
+                Protected Vault
+              </Link>
             </div>
 
             <div className="flex items-center justify-center gap-6 mt-10">
-              <a href="https://x.com/uniq_minds" target="_blank" rel="noopener noreferrer"
+              <a href="https://x.com/aegisguardian_" target="_blank" rel="noopener noreferrer"
                 className="text-sm transition-colors hover:text-white" style={{ color: "var(--text-muted)" }}>Twitter</a>
               <a href="https://github.com/Tonyflam/aegis-protocol" target="_blank" rel="noopener noreferrer"
                 className="text-sm transition-colors hover:text-white" style={{ color: "var(--text-muted)" }}>GitHub</a>

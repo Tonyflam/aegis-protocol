@@ -27,6 +27,8 @@ export const VAULT_ABI = [
   // Views
   "function getPosition(address user) view returns (tuple(uint256 bnbBalance, uint256 depositTimestamp, uint256 lastActionTimestamp, bool isActive, uint256 authorizedAgentId, bool agentAuthorized, tuple(uint256 maxSlippage, uint256 stopLossThreshold, uint256 maxSingleActionValue, bool allowAutoWithdraw, bool allowAutoSwap) riskProfile))",
   "function getVaultStats() view returns (uint256 totalBnbDeposited, uint256 totalActionsExecuted, uint256 totalValueProtected)",
+  "function getYieldInfo(address user) view returns (uint256 grossYieldEarned, uint256 netYieldEarned, uint256 pendingInPosition, uint256 effectivePerformanceFeeBps)",
+  "function getYieldStats() view returns (uint256 totalYieldDistributed, uint256 performanceFeeBps, uint256 accumulatedPerformanceFees)",
   "function getAction(uint256 actionId) view returns (tuple(uint256 agentId, address user, uint8 actionType, uint256 value, uint256 timestamp, bytes32 reasonHash, bool successful))",
   "function getActionCount() view returns (uint256)",
   "function getUserActions(address user) view returns (uint256[])",
@@ -34,6 +36,15 @@ export const VAULT_ABI = [
   "function totalActionsExecuted() view returns (uint256)",
   "function totalValueProtected() view returns (uint256)",
   "function getEffectiveFee(address user) view returns (uint256)",
+  "function yieldEarned(address user) view returns (uint256)",
+  "function totalYieldDistributed() view returns (uint256)",
+  "function performanceFeeBps() view returns (uint256)",
+  // Venus Protocol
+  "function getVenusInfo() view returns (uint256 deployed, uint256 currentValue, uint256 pendingYield, uint256 allocationBps, bool enabled)",
+  "function venusEnabled() view returns (bool)",
+  "function venusDeployedAmount() view returns (uint256)",
+  "function venusAllocationBps() view returns (uint256)",
+  "function getStablecoinBalance(address user) view returns (uint256)",
   // Write
   "function deposit() payable",
   "function withdraw(uint256 amount)",
@@ -41,9 +52,14 @@ export const VAULT_ABI = [
   "function revokeAgent()",
   "function updateRiskProfile(uint256 maxSlippage, uint256 stopLossThreshold, uint256 maxSingleActionValue, bool allowAutoWithdraw, bool allowAutoSwap)",
   "function emergencyWithdraw()",
+  "function withdrawStablecoin(uint256 amount)",
   // Events
   "event Deposited(address indexed user, uint256 amount, uint256 timestamp)",
+  "event YieldDistributed(address indexed user, uint256 grossYield, uint256 fee, uint256 netYield, uint256 timestamp)",
   "event ProtectionExecuted(uint256 indexed actionId, uint256 indexed agentId, address indexed user, uint8 actionType, uint256 value, bytes32 reasonHash, bool successful)",
+  "event VenusSupplied(uint256 amount, uint256 totalDeployed)",
+  "event VenusRedeemed(uint256 amount, uint256 totalDeployed)",
+  "event StopLossExecuted(address indexed user, uint256 bnbAmount, uint256 stablecoinReceived)",
 ];
 
 export const LOGGER_ABI = [

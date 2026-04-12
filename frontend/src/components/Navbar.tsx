@@ -1,20 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useWalletContext } from "../lib/WalletContext";
 import { usePublicContractData } from "../lib/useContracts";
 import {
-  Shield, Wallet, Search, Bell, BarChart3, Bot, Eye, Menu, X,
+  Wallet, Search, Menu, X, Eye, Lock,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const NAV_LINKS = [
-  { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/scanner", label: "Scanner", icon: Search },
-  { href: "/alerts", label: "Alerts", icon: Bell },
-  { href: "/positions", label: "Positions", icon: Eye },
-  { href: "/agent", label: "Agent", icon: Bot },
+  { href: "/guardian", label: "Guardian Shield", icon: Eye },
+  { href: "/vault", label: "Vault", icon: Lock },
 ];
 
 export default function Navbar() {
@@ -33,7 +32,7 @@ export default function Navbar() {
         <div className="h-16 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
-            <Shield className="w-7 h-7" style={{ color: "var(--accent)" }} />
+            <Image src="/logo.png" alt="Aegis Protocol" width={36} height={36} className="h-8 w-8 object-contain" priority />
             <div className="leading-tight">
               <span className="text-base font-semibold tracking-tight text-white">Aegis</span>
               <span className="text-base font-light tracking-tight text-white ml-0.5">Protocol</span>

@@ -1,11 +1,14 @@
-// Contract addresses - deployed on BSC Testnet (Chain ID 97)
+// Contract addresses — env vars override defaults (testnet fallbacks)
+// Set NEXT_PUBLIC_*_ADDRESS env vars for mainnet after deployment
 export const CONTRACTS = {
-  REGISTRY: process.env.NEXT_PUBLIC_REGISTRY_ADDRESS || "0x7908c25C63AbAB47cb82bE50DBD874ED807EE8fF",
-  VAULT: process.env.NEXT_PUBLIC_VAULT_ADDRESS || "0x15Ef23024c2b90beA81E002349C70f0C2A09433F",
-  DECISION_LOGGER: process.env.NEXT_PUBLIC_LOGGER_ADDRESS || "0x874d78947bd660665de237b16Ca05cd39b7feF6f",
-  TOKEN_GATE: process.env.NEXT_PUBLIC_TOKEN_GATE_ADDRESS || "0x672c5cC370085c3c6B5bcf2870e1A0Aa62Ff3D69",
+  REGISTRY: process.env.NEXT_PUBLIC_REGISTRY_ADDRESS || "0x806677bAb187157Ba567820e857e321c92E6C1EF",
+  VAULT: process.env.NEXT_PUBLIC_VAULT_ADDRESS || "0xfa80515136Fc8CB2db3b25C317A1c9a04bcD3536",
+  DECISION_LOGGER: process.env.NEXT_PUBLIC_LOGGER_ADDRESS || "0x978308DF80FE3AEDf228D58c3625db49e50FE51B",
+  TOKEN_GATE: process.env.NEXT_PUBLIC_TOKEN_GATE_ADDRESS || "0x0F998bb1B3866B73CAaBc54B7A84156b8F9f7543",
   UNIQ_TOKEN: process.env.NEXT_PUBLIC_UNIQ_TOKEN_ADDRESS || "0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777",
-  SCANNER: process.env.NEXT_PUBLIC_SCANNER_ADDRESS || "0x0000000000000000000000000000000000000000",
+  SCANNER: process.env.NEXT_PUBLIC_SCANNER_ADDRESS || "0x8fa659D8edeffF0bBdEC37cB2c16C2f85491C840",
+  VENUS_VBNB: process.env.NEXT_PUBLIC_VENUS_ADDRESS || "0xb3798541B08916528e37457259Eb723DB662d77E",
+  USDT: process.env.NEXT_PUBLIC_USDT_ADDRESS || "0x6a3654cb5ae1D1377831714aA2fBF30794e836BE",
 };
 
 // $UNIQ Holder Tiers
@@ -16,6 +19,12 @@ export const HOLDER_TIER_THRESHOLDS = {
   Silver: 100_000,
   Gold:   1_000_000,
 };
+export const HOLDER_TIER_BENEFITS = {
+  Free:   { features: "Basic token scanner, public whale alerts", feeDiscount: "0%" },
+  Bronze: { features: "Wallet monitoring, personal whale alerts", feeDiscount: "10%" },
+  Silver: { features: "Priority alerts, Telegram notifications", feeDiscount: "25%" },
+  Gold:   { features: "AI risk explanations, custom stop-loss, early access", feeDiscount: "40%" },
+} as const;
 
 export const CHAIN_CONFIG = {
   bscTestnet: {
@@ -41,3 +50,16 @@ export const RISK_COLORS = ["#6b7280", "#22c55e", "#eab308", "#f97316", "#ef4444
 export const ACTION_TYPES = ["Emergency Withdraw", "Rebalance", "Alert Only", "Stop Loss", "Take Profit"] as const;
 export const AGENT_TIERS = ["Scout", "Guardian", "Sentinel", "Archon"] as const;
 export const AGENT_STATUSES = ["Active", "Paused", "Decommissioned"] as const;
+
+// Real protocol addresses for mainnet deployment
+export const MAINNET_PROTOCOLS = {
+  VENUS_VBNB: "0xA07c5b74C9B40447a954e1466938b865b6BBea36",
+  USDT: "0x55d398326f99059fF775485246999027B3197955",
+  PANCAKE_ROUTER: "0x10ED43C718714eb63d5aA57B78B54704E256024E",
+  WBNB: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+};
+
+export const TESTNET_PROTOCOLS = {
+  PANCAKE_ROUTER: "0xD99D1c33F9fC3444f8101754aBC46c52416550D1",
+  WBNB: "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+};

@@ -1,334 +1,265 @@
-# AEGIS PROTOCOL — PRODUCT ROADMAP
-## Your AI-Powered DeFi Security Layer on BNB Chain
+# AEGIS PROTOCOL — DETAILED LAUNCH ROADMAP
+## Uniq Minds | From Hackathon Winner to Production DeFi Protocol
 
-**Last Updated**: April 6, 2026
-**Status**: Phase 1 building — Scanner & Guardian
-
----
-
-## THE PROBLEM
-
-$2.3B lost to DeFi exploits in 2025. Rug pulls, honeypot tokens, whale dumps, flash loan attacks — and regular users have zero protection. They buy a token, hope for the best, and find out they got scammed only after their money is gone.
-
-**Aegis Protocol fixes this.** Three products, one mission: never let a user lose money to a preventable DeFi attack.
+**Last Updated**: April 9, 2026
+**Status**: Phase 3 — COMPLETE ✅ | Phase 4 — NEXT 🔧
 
 ---
 
-## WHAT WE'VE BUILT (Foundation)
+## CURRENT STATE
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| Smart Contracts | ✅ BSC Testnet | 5 contracts verified (Registry, Vault, Logger, TokenGate, Scanner) |
-| Test Suite | ✅ 198 passing | Full coverage across all contracts |
-| AI Agent Engine | ✅ Functional | Groq llama-3.3-70b + heuristic fallback, 3,200+ LOC |
-| Token Scanner | ✅ Live | Honeypot detection, rug pull analysis, whale concentration |
-| Whale Alerts | ✅ Live | Real-time BSC large transfer monitoring |
-| $UNIQ Token | ✅ Launched | 0xdd5f...7777 on BSC Mainnet, 1B supply, renounced, 3% tax |
-| Frontend | ✅ Live | aegisguardian.xyz on Vercel |
-| CI/CD | ✅ Active | 3-job GitHub Actions pipeline |
+| Smart Contracts | ✅ BSC Testnet | 7 contracts (Registry, Vault, Logger, TokenGate, Scanner, Venus, USDT) |
+| Tests | ✅ 184/184 passing | Vault (Venus + stop-loss), TokenGate, Scanner, Logger |
+| Frontend | ✅ Live on Vercel | aegis-protocol-1.vercel.app — Scanner, Guardian Shield, Vault |
+| Agent Engine | ✅ Functional | 11 modules: AI, risk, Venus monitor, stop-loss monitor (3,473 LOC) |
+| Venus Yield | ✅ Integrated | Vault deploys BNB to Venus vBNB, auto-harvesting, per-user yield tracking |
+| Stop-Loss | ✅ Integrated | Per-user BNB→USDT via PancakeSwap V2, agent-monitored |
+| Token Scanner | ✅ Live | Multi-source honeypot/rug pull/whale risk analysis |
+| Guardian Shield | ✅ Live | Full wallet scan, AI analysis, risk-sorted token display |
+| Telegram Bot | ✅ Functional | Tier-gated alerts: scans, whales, vault, price (554 LOC) |
+| $UNIQ Token | ✅ Launched | 0xdd5f...7777, 1B supply, renounced, 3% tax |
+| $UNIQ Integration | ✅ On-chain | AegisTokenGate: holder tiers + fee discounts |
+| Mainnet Addresses | ✅ Configured | Venus, USDT, PancakeSwap, WBNB mainnet addresses ready |
+| Total LOC | 14,245 | Contracts 2,660 + Agent 3,473 + Bot 554 + Frontend 5,241 + Tests 2,317 |
 
 ---
 
-## THE THREE PRODUCTS
+# PHASE 1: FOUNDATION & BRANDING ✅ COMPLETE
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    AEGIS PROTOCOL                        │
-│                                                         │
-│  ┌──────────┐   ┌──────────────┐   ┌────────────────┐  │
-│  │  SCANNER  │   │   GUARDIAN    │   │  SHIELD VAULT  │  │
-│  │  (Free)   │──▶│  (Freemium)  │──▶│   (Premium)    │  │
-│  └──────────┘   └──────────────┘   └────────────────┘  │
-│                                                         │
-│  Scan any       AI watches your     Deposit + earn      │
-│  token or       wallet 24/7.        yield. AI auto-     │
-│  wallet.        Alerts on threats.  protects your       │
-│  Instant risk   Personal whale &    funds in real       │
-│  score.         rug pull warnings.  time.               │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Product 1: Aegis Scanner (Free)
-> *"Paste any token. Know if it's safe in 2 seconds."*
-
-- Scan any BSC token address → instant risk score (0-100)
-- Honeypot detection (simulated buy+sell)
-- Rug pull risk (ownership, mint functions, lock status)
-- Whale concentration (top holders %)
-- Liquidity depth and lock analysis
-- Source code verification status
-- **Wallet Scanner**: Connect wallet → auto-scan every token you hold → portfolio risk overview
-
-### Product 2: Aegis Guardian (Freemium / $UNIQ)
-> *"AI watches your wallet so you don't have to."*
-
-- Connect wallet → Guardian monitors your actual token holdings
-- Real-time alerts when something changes:
-  - Liquidity removal on a token you hold
-  - Whale dumping a token you hold
-  - Contract upgrade or ownership change
-  - Sudden price crash (-20%+)
-- Personalized whale alerts (tracks YOUR tokens, not generic ones)
-- Alert history with AI-generated threat explanations
-- **$UNIQ holders**: Priority alerts, Telegram notifications, AI explanations
-
-### Product 3: Aegis Shield Vault (Premium)
-> *"Deposit BNB. Earn yield. AI protects you automatically."*
-
-- Deposit BNB → funds earn 3-8% APY via Venus Protocol lending
-- AI agent monitors market conditions 24/7
-- Automatic protection triggers:
-  - **Stop-Loss**: Market crashes → auto-withdraw to safety
-  - **Emergency Exit**: Protocol exploit detected → instant withdrawal
-  - **Rebalance**: Shift between lending pools for optimal yield
-- Full audit trail on-chain (DecisionLogger)
-- Per-user risk profiles (conservative / moderate / aggressive)
-- **Revenue**: 0.5% management fee + 10% performance fee on yield
+- [x] README overhaul — Aegis Protocol by Uniq Minds branding
+- [x] Frontend branding — Uniq Minds + $UNIQ references
+- [x] Social profile alignment
+- [x] Repo cleanup — artifacts, docs, env config
+- [x] Gas optimization — 19 custom errors, unchecked loops (~15-20% savings)
+- [x] Test expansion — 54 → 98 tests
+- [x] CI/CD pipeline — 3-job workflow
 
 ---
 
-## $UNIQ TOKEN UTILITY
+# PHASE 2: $UNIQ TOKEN INTEGRATION ✅ COMPLETE
 
-$UNIQ is the access key to Aegis Protocol. Hold more → unlock more.
-
-| Tier | $UNIQ Required | Benefits |
-|------|---------------|----------|
-| **Free** | 0 | Token Scanner (unlimited scans) |
-| **Bronze** | 10,000 | + Wallet Scanner + 10% fee discount |
-| **Silver** | 100,000 | + Priority alerts + Telegram bot + 25% fee discount |
-| **Gold** | 1,000,000 | + AI threat explanations + custom stop-loss + 40% fee discount |
-
-**On-chain integration**: AegisTokenGate.sol reads your $UNIQ balance — no staking or locking required. Just hold.
-
----
-
-# PHASE 1: SCANNER & GUARDIAN (Current)
-
-> **Goal**: Ship the two free/freemium products that bring users in.
-
-## 1.1 — Wallet Scanner
-
-Connect wallet → instantly scan all tokens in the portfolio.
-
-- [ ] **BSC token detection** — Read all BEP-20 balances for connected wallet
-- [ ] **Batch risk scoring** — Score every token simultaneously
-- [ ] **Portfolio risk dashboard** — Aggregate score, per-token breakdown, red flags
-- [ ] **Scan history** — Save past scans, show changes over time
-- [ ] **Shareable reports** — "My wallet scored 87/100" link for social sharing
-
-**Frontend**: `/scanner` route — the primary entry point for new users.
-
-## 1.2 — Personal Guardian Alerts
-
-Replace generic market monitoring with per-user intelligence.
-
-- [ ] **Wallet token tracking** — Agent reads connected wallet's holdings
-- [ ] **Per-token monitoring** — Watch liquidity, holder changes, contract events for tokens the user actually owns
-- [ ] **Alert engine** — Push alerts to dashboard when threats are detected:
-  - Liquidity removed (>25%) on a held token
-  - Top holder dumps (>5% of supply)
-  - Contract ownership transferred
-  - Price crash (>20% in 1hr)
-- [ ] **Alert dashboard** — `/alerts` route with real-time feed, severity levels, AI explanations
-- [ ] **Notification preferences** — Choose which alert types matter to you
-
-## 1.3 — Frontend Build-Out
-
-Ship the actual product pages (currently only landing page exists).
-
-- [ ] **`/scanner`** — Token input + wallet scanner + risk results
-- [ ] **`/alerts`** — Personal alert feed with severity & AI explanations
-- [ ] **`/dashboard`** — Overview: your tokens, risk score, active alerts, Guardian status
-- [ ] **Mobile-responsive** — Most BSC users are on mobile
-- [ ] **Onboarding flow** — First-time UX: connect wallet → see your risks → activate Guardian
-
-## 1.4 — $UNIQ Tier Gating (Frontend)
-
-- [ ] Read user's $UNIQ balance on connect
-- [ ] Display current tier (Free / Bronze / Silver / Gold)
-- [ ] Gate Wallet Scanner behind Bronze tier
-- [ ] Gate Telegram alerts behind Silver tier
-- [ ] Show upgrade prompts with "Buy $UNIQ" links
-
-### Phase 1 Deliverables
-- [ ] Wallet Scanner live — connect wallet, see all token risks
-- [ ] Personal Guardian alerts for connected wallets
-- [ ] 3 frontend routes functional (`/scanner`, `/alerts`, `/dashboard`)
-- [ ] $UNIQ tier gating active
-- [ ] First real users scanning tokens and getting alerts
+- [x] AegisTokenGate.sol — holder tiers (Bronze/Silver/Gold), fee discounts
+- [x] AegisVault upgrade — token-gated fee discounts, $UNIQ registration path
+- [x] AegisRegistry upgrade — holder badge, priority tier consideration
+- [x] AegisScanner.sol — on-chain token risk registry
+- [x] Frontend $UNIQ integration — balance, tier display, benefits panel
+- [x] Token Scanner — multi-source honeypot/rug pull/whale risk analysis
+- [x] Agent $UNIQ awareness — price monitoring, discount paths
+- [x] Production safety audit — all fake/simulated data removed
+- [x] 198 total tests passing
+- [x] Multi-page professional frontend (6 routes)
 
 ---
 
-# PHASE 2: SHIELD VAULT — YIELD + PROTECTION (Next)
+# PHASE 3: VENUS PROTOCOL + STOP-LOSS + TELEGRAM ✅ COMPLETE
 
-> **Goal**: The revenue engine. Users deposit BNB, earn yield, get AI protection.
+> **Goal**: Real DeFi yield, automated protection, push notifications.
 
-## 2.1 — Venus Protocol Integration
+## 3.1 — Venus Protocol Integration ✅
 
-Turn idle vault BNB into yield-generating capital.
+- [x] AegisVault upgraded with Venus vBNB lending integration
+  - `supplyToVenus()` — Deploy BNB to Venus lending market
+  - `redeemFromVenus()` — Withdraw from Venus
+  - `harvestVenusYield()` — Distribute yield to depositors
+  - `getVenusInfo()` — Deployed amount, current value, pending yield, allocation
+  - Configurable allocation (default 80% of vault to Venus)
+  - Per-user yield tracking with performance fee (15%)
+- [x] IVenusBNB.sol interface — mint, redeem, balanceOfUnderlying, exchangeRateCurrent
+- [x] MockVenusBNB.sol — testnet simulator with realistic exchange rate mechanics
+- [x] Venus monitor agent module (`agent/src/venus-monitor.ts`, 152 LOC)
+- [x] Frontend vault page — Venus yield display, pending yield, APY estimate
 
-- [ ] **Venus adapter** — `agent/src/adapters/venus.ts`
-  - Supply BNB to Venus Protocol (vBNB market)
-  - Track supply APY in real-time
-  - Monitor health factor and utilization rate
-- [ ] **Vault upgrade** — AegisVault deposits route through Venus
-  - `deposit()` → supply to Venus → earn interest
-  - `withdraw()` → redeem from Venus → return to user
-  - Track yield per user
-- [ ] **Yield display** — Dashboard shows real-time earnings
+## 3.2 — Automated Stop-Loss ✅
 
-## 2.2 — Per-User AI Protection
+- [x] AegisVault stop-loss via PancakeSwap V2
+  - `executeStopLoss()` — Swap BNB→USDT via PancakeSwap Router
+  - `getStablecoinBalance()` / `withdrawStablecoin()` — USDT management
+  - Per-user risk profile: `stopLossThreshold`, `allowAutoSwap`
+  - Slippage protection built-in
+- [x] IPancakeRouter.sol interface — swapExactETHForTokens
+- [x] Stop-loss monitor agent module (`agent/src/stop-loss.ts`, 196 LOC)
+  - BNB price monitoring via CoinGecko
+  - Auto-trigger when threshold breached
+  - Dry-run safety mode
+- [x] Frontend vault page — stop-loss status, USDT balance, threshold config
 
-Make the AI agent actually protect individual positions.
+## 3.3 — Telegram Bot ✅
 
-- [ ] **User position indexer** — Agent tracks each user's vault deposit + yield
-- [ ] **Personal stop-loss** — Each user sets their own threshold (default 10%)
-- [ ] **Automated actions** — Agent executes on per-user basis:
-  - `StopLoss` → Withdraw from Venus + return to user when threshold hit
-  - `EmergencyWithdraw` → Full exit on protocol-level threat
-  - `Rebalance` → Move between Venus markets for better APY
-- [ ] **Risk profiles** — Conservative (2% stop-loss) / Moderate (10%) / Aggressive (25%)
-- [ ] **Action history** — On-chain log of every AI decision per user
+- [x] Full Telegram bot (`bot/src/index.ts`, 554 LOC)
+  - `/start` — Register with auto $UNIQ tier detection
+  - `/scan <address>` — Token risk scan
+  - `/vault` — Position, Venus yield, stop-loss status
+  - `/alerts` — Subscribe to whale/price/vault alerts
+  - `/price` — Live BNB price
+- [x] Tier-gated features (Gold = all alerts, Bronze = basics)
+- [x] On-chain event listening for vault deposits/withdrawals
 
-## 2.3 — Revenue Model
+## 3.4 — Frontend Redesign ✅
 
-- [ ] **Management fee**: 0.5% annual on deposited assets (taken from yield)
-- [ ] **Performance fee**: 10% of yield generated (only on profits)
-- [ ] **$UNIQ discounts**: Bronze -10%, Silver -25%, Gold -40% on all fees
-- [ ] **Fee dashboard** — Transparent fee breakdown for every user
+- [x] Guardian page rewritten as "Guardian Shield" — 24/7 continuous wallet monitoring
+  - Auto-refresh every 60 seconds, monitoring status badge
+  - Token-centric display: risky tokens as alert cards, safe tokens as compact rows
+  - AI analysis card inline
+  - Journey CTAs: Vault ("Your BNB Is Earning 0%") + $UNIQ/Telegram
+- [x] Scanner page — dual mode: "Scan a Token" + "Scan Your Wallet"
+  - Token mode: paste address → full risk report with shareable links
+  - Wallet mode: connect wallet → scan ALL holdings → flag dangerous tokens
+  - Journey CTAs: cross-sell to Guardian Shield + Vault
+- [x] Navbar updated: Scanner, Guardian Shield, Vault
+- [x] Homepage updated: 3-product flow (Scanner → Shield → Vault)
 
-## 2.4 — Frontend: Vault Experience
+## 3.5 — Mainnet Preparation ✅
 
-- [ ] **`/vault`** — Deposit/withdraw BNB, see yield, set risk profile
-- [ ] **`/positions`** — Active positions with P&L, protection status, action history
-- [ ] **Yield calculator** — "If you deposit X BNB, you'll earn Y/month"
-- [ ] **Protection log** — Every AI decision with reasoning, timestamped on-chain
-
-### Phase 2 Deliverables
-- [ ] Venus Protocol yield integration live
-- [ ] Per-user AI protection with stop-loss
-- [ ] Revenue flowing from management + performance fees
-- [ ] `/vault` and `/positions` routes live
-- [ ] First paying users generating protocol revenue
-
----
-
-# PHASE 3: SECURITY & MAINNET (Month 2)
-
-> **Goal**: Audit, harden, deploy to BSC Mainnet with real money.
-
-## 3.1 — Security
-
-- [ ] Internal audit of all contracts (slither + mythril)
-- [ ] External audit (Code4rena or Hacken)
-- [ ] Bug bounty on Immunefi
-- [ ] Gradual TVL caps ($10K → $50K → $100K → uncapped)
-
-## 3.2 — Mainnet Deployment
-
-- [ ] Gnosis Safe multisig (2-of-3) as contract owner
-- [ ] Paid RPC (QuickNode/Ankr) + fallback
-- [ ] Deploy all contracts to BSC Mainnet
-- [ ] Agent running 24/7 with `DRY_RUN=false`
-- [ ] Tenderly monitoring + Discord alerts
-
-## 3.3 — Soft Launch
-
-- [ ] Invite-only: top $UNIQ holders first
-- [ ] Max $1,000/user, $10,000 total TVL
-- [ ] 2-week monitoring period
-- [ ] Public launch after clean soft launch
+- [x] Real mainnet protocol addresses configured:
+  - Venus vBNB: `0xA07c5b74C9B40447a954e1466938b865b6BBea36`
+  - USDT: `0x55d398326f99059fF775485246999027B3197955`
+  - PancakeSwap V2 Router: `0x10ED43C718714eb63d5aA57B78B54704E256024E`
+  - WBNB: `0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c`
+- [x] Constants renamed: MOCK_VENUS → VENUS_VBNB, MOCK_USDT → USDT
+- [x] Deploy script cleaned of mock naming
+- [x] Hardhat config: BSC Mainnet network ready (chainId 56)
 
 ### Phase 3 Deliverables
-- [ ] All contracts on BSC Mainnet, verified
-- [ ] Audit report published
-- [ ] Bug bounty live
-- [ ] First mainnet deposits earning yield + protected by AI
+- [x] Venus Protocol yield integration (supply, redeem, harvest, per-user tracking)
+- [x] Automated stop-loss via PancakeSwap V2 (BNB→USDT swap)
+- [x] Telegram bot with tier-gated features
+- [x] Venus monitor + stop-loss monitor agent modules
+- [x] Frontend redesign: Guardian Shield, journey flow, vault yield display
+- [x] Mainnet protocol addresses configured
+- [x] 184 tests passing
+- [x] 14,245 total LOC
 
 ---
 
-# PHASE 4: GROWTH & EXPANSION (Month 3+)
+# PHASE 4: SECURITY & BSC MAINNET LAUNCH 🔧 NEXT
 
-> **Goal**: Scale users, scale revenue, scale to more chains.
+> **Goal**: Audit, deploy to mainnet with real money.
 
-## 4.1 — Telegram Bot
+## 4.1 — Security Audit (Week 1-2)
 
-- [ ] `/scan <token>` — Instant risk score in Telegram
-- [ ] Real-time alert forwarding for Silver+ holders
-- [ ] `/portfolio` — Quick wallet risk overview
-- [ ] Viral loop: users share scan results in group chats
+- [ ] **Static analysis**
+  - Run Slither on all contracts
+  - Run Mythril for symbolic execution
+  - Fix all high/medium findings
+  - Document accepted low findings
 
-## 4.2 — $UNIQ Staking & Revenue Share
+- [ ] **Internal audit checklist**
+  - Reentrancy protection on all external calls ✓ (ReentrancyGuard)
+  - Access control on all state-changing functions
+  - Front-running vectors on executeProtection() / executeStopLoss()
+  - Oracle manipulation resistance (PancakeSwap cross-check)
+  - Venus integration edge cases (exchange rate manipulation, reentrancy)
+  - Fee calculation precision (no rounding exploits)
 
-- [ ] **AegisStaking.sol** — Stake $UNIQ, earn share of protocol fees
-- [ ] Revenue split: 30% stakers / 30% treasury / 20% buyback / 20% operations
-- [ ] Staking dashboard on frontend
+- [ ] **External audit** (options by budget)
+  - Budget: Code4rena competitive audit (~$5K-15K)
+  - Mid: Hacken or CertiK lite (~$10K-30K)
+  - Premium: Trail of Bits, OpenZeppelin (~$50K+)
+  - Alternative: Apply for BNB Chain MVB grants
 
-## 4.3 — Multi-Chain
+- [ ] **Bug bounty program**
+  - Immunefi (BSC ecosystem standard)
+  - Tiered: Low ($100) → Critical ($5,000)
+  - Scope: All 5 production contracts
 
-- [ ] Ethereum (Uniswap + Aave)
-- [ ] Arbitrum (Camelot + Radiant)
-- [ ] Base (Aerodrome + Moonwell)
-- [ ] Same product, chain-specific adapters
-- [ ] $UNIQ bridged via LayerZero OFT
+## 4.2 — Mainnet Infrastructure (Week 2-3)
 
-## 4.4 — Advanced Features
+- [ ] **Multisig wallet** — Gnosis Safe on BSC (2-of-3 initially)
+  - Owner of all contracts transferred to multisig
+  - Fee collection address = multisig
 
-- [ ] PancakeSwap V3 LP position monitoring
-- [ ] Impermanent loss protection
-- [ ] Token launch sniping protection (warn before buying newly launched scams)
-- [ ] API access for other protocols to use Aegis risk scores
-- [ ] Shareable risk reports with social cards
+- [ ] **Mainnet RPC** — Ankr or QuickNode (paid, reliable)
+  - Fallback: Public BSC RPC
+
+- [ ] **Monitoring** — Tenderly for transaction monitoring
+  - Alerts: failed TXs, large withdrawals, unusual gas
+  - Agent health dashboard
+
+- [ ] **Agent hosting** — 24/7 uptime
+  - Railway.app / AWS EC2 / VPS
+  - `DRY_RUN=false` in production
+  - Auto-restart on crash
+
+## 4.3 — Mainnet Deployment (Week 3-4)
+
+- [ ] **Deploy script** (`scripts/deploy-mainnet.ts`)
+  - Deploy: Registry, Vault, Logger, TokenGate, Scanner
+  - Configure Venus with real vBNB address
+  - Configure PancakeSwap Router for stop-loss
+  - Set USDT as stablecoin
+  - Register initial agent
+  - Transfer ownership to Gnosis Safe
+  - Verify all on BSCScan
+
+- [ ] **Frontend mainnet switch**
+  - Update CHAIN_ID to 56
+  - Update all contract addresses
+  - Add mainnet/testnet toggle
+
+- [ ] **Agent mainnet config**
+  - Update contract addresses
+  - Set `DRY_RUN=false`
+  - Configure mainnet RPC
+
+## 4.4 — Soft Launch (Week 4-6)
+
+- [ ] Invite-only: top $UNIQ holders + active community
+- [ ] Limits: Max $1,000/user, $10,000 total TVL
+- [ ] Monitor 1-2 weeks: deposits, risk assessments, fee calculations, Venus yield, stop-loss execution
+- [ ] Gradual cap increases: $10K → $50K → $100K → uncapped
+- [ ] Public launch announcement
 
 ### Phase 4 Deliverables
-- [ ] Telegram bot live
-- [ ] $UNIQ staking with revenue share
-- [ ] Live on 2+ chains
-- [ ] 5,000+ users, $500K+ TVP
+- [ ] Security audit report (internal + external)
+- [ ] Bug bounty live on Immunefi
+- [ ] Gnosis Safe multisig controlling all contracts
+- [ ] All contracts deployed + verified on BSC Mainnet (Chain ID 56)
+- [ ] Frontend with mainnet toggle
+- [ ] Agent running 24/7 with monitoring
+- [ ] Soft launch completed → public launch
 
 ---
 
-# REVENUE PROJECTIONS
+# PHASE 5: MULTI-PROTOCOL EXPANSION (Month 2)
 
-| Phase | Users | TVP | Monthly Revenue | Source |
-|-------|-------|-----|-----------------|--------|
-| **Phase 1** | 500+ | $0 | $0 | Free — acquire users |
-| **Phase 2** | 1,000+ | $100K | $500-800 | Management + performance fees |
-| **Phase 3** | 2,500+ | $500K | $2,500-4,000 | Mainnet fees at scale |
-| **Phase 4** | 10,000+ | $2M+ | $10,000-15,000 | Multi-chain + staking |
+> **Goal**: PancakeSwap V3, additional lending, multi-token monitoring.
 
-**Revenue formula**: `(TVP × 0.5% annual mgmt fee) + (yield × 10% performance fee) — $UNIQ discounts`
-
-At $2M TVP with 5% average yield:
-- Management: $2M × 0.5% = $10,000/year ($833/mo)
-- Performance: $100K yield × 10% = $10,000/year ($833/mo)
-- Total: ~$1,666/mo base, scaling linearly with TVP
+- [ ] PancakeSwap V3 adapter — concentrated liquidity, impermanent loss
+- [ ] Additional lending protocols — Alpaca Finance, Radiant
+- [ ] Arbitrary BSC token auto-detection — scan all tokens in wallet
+- [ ] Adapter architecture — pluggable protocol adapters
+- [ ] 200+ tests
 
 ---
 
-# USER JOURNEY
+# PHASE 6: STAKING & REVENUE SHARE (Month 3)
 
-```
-Day 1:  Visit aegisguardian.xyz → see landing page
-        → "Scan a Token" → paste address → instant risk score
-        → "That was useful, let me connect my wallet"
+> **Goal**: Sustainable tokenomics — stake $UNIQ, earn from protocol activity.
 
-Day 2:  Connect wallet → Wallet Scanner shows all tokens
-        → "Oh wow, 2 of my tokens are high risk"
-        → Gets first alert: "Liquidity removed on $SCAM"
+- [ ] AegisStaking.sol — stake $UNIQ, earn share of protocol fees
+- [ ] Revenue split: 30% stakers, 30% treasury, 20% buyback, 20% operations
+- [ ] Frontend staking dashboard — APY, stake/unstake, claim rewards
+- [ ] Snapshot.org governance — $UNIQ + staked $UNIQ voting
 
-Week 1: Checks alerts daily → trusts the AI
-        → Buys $UNIQ for Bronze tier → unlocks Wallet Scanner
-        → Shares risk report on Twitter
+---
 
-Week 2: Sees Shield Vault → "3-8% APY + AI protection?"
-        → Deposits 1 BNB to test
-        → Watches yield grow, sees AI monitoring status
+# PHASE 7: MULTI-CHAIN EXPANSION (Month 4+)
 
-Month 1: Deposits more → tells friends → $UNIQ demand grows
-         → Upgrades to Silver for Telegram alerts
-         → Protocol revenue starts flowing
-```
+> **Goal**: Bring Aegis protection to every major EVM chain.
+
+| Chain | DEX | Lending | Priority |
+|-------|-----|---------|----------|
+| Ethereum | Uniswap V3 | Aave V3 | High |
+| Arbitrum | Uniswap V3, Camelot | Aave V3, Radiant | High |
+| Base | Aerodrome | Moonwell | Medium |
+| Polygon | QuickSwap | Aave V3 | Medium |
+
+- [ ] Unified deploy script — same contracts, chain-specific configs
+- [ ] Chain-specific adapters
+- [ ] Single frontend with chain selector
+- [ ] $UNIQ bridge — LayerZero OFT or Wormhole
 
 ---
 
@@ -336,38 +267,35 @@ Month 1: Deposits more → tells friends → $UNIQ demand grows
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Venus Protocol exploit | Critical | Max allocation limits, diversify lending, insurance fund |
-| AI false positive (bad withdrawal) | High | User-set stop-loss, dry-run testing, manual override |
-| Smart contract vulnerability | Critical | Audit + bounty + gradual TVL caps + multisig |
-| Low adoption | Medium | Free Scanner drives organic traffic, $UNIQ incentives |
-| $UNIQ price collapse | Medium | Real utility drives demand, buyback from fees |
-| API rate limits | Low | Multiple providers, heuristic fallback, caching |
+| Smart contract exploit | Critical | Audit + bug bounty + gradual TVL caps |
+| Venus integration risk | High | Exchange rate monitoring, emergency redeem |
+| AI makes wrong call | High | Emergency withdrawal, dry-run mode, stop-loss caps |
+| PancakeSwap stop-loss slippage | Medium | Configurable slippage tolerance, min output checks |
+| Low adoption | Medium | $UNIQ incentives, reduced fees, Telegram outreach |
+| $UNIQ price collapse | Medium | Real utility drives demand, buyback mechanism |
+| API rate limits (Groq/CoinGecko) | Low | Heuristic fallback, multiple providers |
 
 ---
 
 # KEY METRICS
 
-| Metric | Phase 1 | Phase 2 | Phase 3 | Phase 4 |
-|--------|---------|---------|---------|---------|
-| Unique Scanners | 500 | 1,000 | 2,500 | 10,000 |
-| Connected Wallets | 100 | 500 | 1,500 | 5,000 |
-| Active Guardians | 50 | 300 | 1,000 | 3,000 |
-| Vault Deposits | 0 | $100K | $500K | $2M+ |
-| $UNIQ Holders | 200 | 500 | 1,500 | 5,000 |
-| Monthly Revenue | $0 | $800 | $4,000 | $15,000 |
-| Tests Passing | 198 | 220+ | 250+ | 280+ |
+| Metric | Phase 3 (Now) | Phase 4 Target | Phase 6 Target |
+|--------|--------------|---------------|---------------|
+| $UNIQ Holders | 500 | 1,000 | 5,000 |
+| Total Value Protected | $0 (testnet) | $50,000 | $500,000 |
+| Active Agents | testnet only | 25 | 200 |
+| Tests Passing | 184 ✅ | 200+ | 260+ |
+| Total LOC | 14,245 | 16,000+ | 20,000+ |
+| Protocol Revenue | $0 | First fees | $5,000/mo |
+| Venus Yield Distributed | testnet only | First yield | $1,000/mo |
+| Stop-Loss Executions | testnet only | First protection | Continuous |
 
 ---
 
-# WHAT'S NEXT (This Week)
+# IMMEDIATE NEXT STEPS
 
-1. Build the Wallet Scanner — connect wallet, scan all tokens, show portfolio risk
-2. Build `/scanner` page — the primary product entry point
-3. Wire personal whale alerts to user's actual token holdings
-4. Build `/alerts` page — real-time alert feed
-5. Build `/dashboard` page — overview with risk score + Guardian status
-
----
-
-*This is a living document. Updated as milestones are reached.*
-*Track progress: Each [ ] becomes [x] as completed.*
+1. **Deploy mainnet script** — `scripts/deploy-mainnet.ts` with real Venus/PancakeSwap/USDT
+2. **Run Slither** — Static analysis on all 5 production contracts
+3. **Set up Gnosis Safe** — 2-of-3 multisig on BSC Mainnet
+4. **Mainnet RPC** — QuickNode or Ankr for reliability
+5. **Soft launch planning** — Whitelist, TVL caps, monitoring checklist

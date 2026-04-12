@@ -47,6 +47,14 @@ body::before {
 .card:hover {
   border-color: var(--border-hover);
 }
+.card-action {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+.card-action:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  transform: translateY(-1px);
+}
 .card-elevated {
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);

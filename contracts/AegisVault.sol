@@ -7,6 +7,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./AegisTokenGate.sol";
+import "./interfaces/IVenusBNB.sol";
+import "./interfaces/IPancakeRouter.sol";
 
 /**
  * @title AegisVault
@@ -44,6 +46,17 @@ contract AegisVault is Ownable, ReentrancyGuard {
     error InvalidOperator();
     error ActionDoesNotExist();
     error InvalidTokenGate();
+    error YieldArrayMismatch();
+    error NoYieldToClaim();
+    error PerformanceFeeTooHigh();
+    error YieldValueMismatch();
+    error UserNotActive();
+    error VenusSupplyFailed();
+    error VenusRedeemFailed();
+    error VenusNotEnabled();
+    error InsufficientVenusBalance();
+    error StopLossSwapFailed();
+    error AutoSwapNotAllowed();
 
     // ═══════════════════════════════════════════════════════════════
     //                        STRUCTS
@@ -147,6 +160,43 @@ contract AegisVault is Ownable, ReentrancyGuard {
     /// @notice Accumulated protocol fees (BNB)
     uint256 public accumulatedFees;
 
+    /// @notice Performance fee on yield in basis points (e.g., 1500 = 15%)
+    uint256 public performanceFeeBps;
+
+    /// @notice Yield earned per user (gross, before fees)
+    mapping(address => uint256) public yieldEarned;
+
+    /// @notice Yield already claimed per user
+    mapping(address => uint256) public yieldClaimed;
+
+    /// @notice Total yield distributed across all users
+    uint256 public totalYieldDistributed;
+
+    /// @notice Accumulated performance fees from yield
+    uint256 public accumulatedPerformanceFees;
+
+    // ── Venus Protocol Integration ──────────────────────────────
+    /// @notice Venus vBNB market contract
+    IVenusBNB public venusVBNB;
+
+    /// @notice PancakeSwap V2 router for stop-loss swaps
+    IPancakeRouter public pancakeRouter;
+
+    /// @notice Stablecoin address (USDT/BUSD) for stop-loss output
+    address public stablecoin;
+
+    /// @notice Total BNB deployed to Venus
+    uint256 public venusDeployedAmount;
+
+    /// @notice % of deposits auto-supplied to Venus (basis points, e.g., 8000 = 80%)
+    uint256 public venusAllocationBps;
+
+    /// @notice Whether Venus auto-deployment is enabled
+    bool public venusEnabled;
+
+    /// @notice User stablecoin balances after stop-loss swaps
+    mapping(address => uint256) public stablecoinBalances;
+
     // ═══════════════════════════════════════════════════════════════
     //                        EVENTS
     // ═══════════════════════════════════════════════════════════════
@@ -170,6 +220,15 @@ contract AegisVault is Ownable, ReentrancyGuard {
     event EmergencyWithdrawal(address indexed user, uint256 bnbAmount);
     event TokenGateUpdated(address indexed tokenGate);
     event ProtocolFeeDeducted(address indexed user, uint256 feeAmount, uint256 effectiveFeeBps);
+    event YieldDistributed(address indexed user, uint256 grossYield, uint256 fee, uint256 netYield, uint256 timestamp);
+    event YieldClaimed(address indexed user, uint256 amount, uint256 timestamp);
+    event PerformanceFeeUpdated(uint256 oldFeeBps, uint256 newFeeBps);
+    event VenusSupplied(uint256 amount, uint256 totalDeployed);
+    event VenusRedeemed(uint256 amount, uint256 totalDeployed);
+    event VenusYieldHarvested(uint256 yieldAmount, uint256 feeAmount);
+    event StopLossExecuted(address indexed user, uint256 bnbAmount, uint256 stablecoinReceived);
+    event VenusConfigUpdated(address vBNB, address router, address stablecoin);
+    event StablecoinWithdrawn(address indexed user, uint256 amount);
 
     // ═══════════════════════════════════════════════════════════════
     //                      MODIFIERS
@@ -198,14 +257,17 @@ contract AegisVault is Ownable, ReentrancyGuard {
     constructor(
         address _registryAddress,
         uint256 _protocolFeeBps,
-        uint256 _minDeposit
+        uint256 _minDeposit,
+        uint256 _performanceFeeBps
     ) Ownable(msg.sender) {
         if (_registryAddress == address(0)) revert InvalidRegistry();
         if (_protocolFeeBps > 500) revert FeeTooHigh();
+        if (_performanceFeeBps > 3000) revert PerformanceFeeTooHigh(); // max 30%
 
         registryAddress = _registryAddress;
         protocolFeeBps = _protocolFeeBps;
         minDeposit = _minDeposit;
+        performanceFeeBps = _performanceFeeBps;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -235,6 +297,14 @@ contract AegisVault is Ownable, ReentrancyGuard {
 
         pos.bnbBalance += msg.value;
         totalBnbDeposited += msg.value;
+
+        // Auto-deploy portion to Venus if enabled
+        if (venusEnabled && address(venusVBNB) != address(0)) {
+            uint256 venusAmount = (msg.value * venusAllocationBps) / 10000;
+            if (venusAmount > 0) {
+                _supplyToVenus(venusAmount);
+            }
+        }
 
         emit Deposited(msg.sender, msg.value, block.timestamp);
     }
@@ -286,6 +356,12 @@ contract AegisVault is Ownable, ReentrancyGuard {
 
         if (pos.bnbBalance == 0 && _getUserTokenCount(msg.sender) == 0) {
             pos.isActive = false;
+        }
+
+        // If vault BNB is insufficient, redeem from Venus first
+        if (address(this).balance < withdrawAmount && venusEnabled && address(venusVBNB) != address(0)) {
+            uint256 needed = withdrawAmount - address(this).balance;
+            _redeemFromVenus(needed);
         }
 
         (bool sent, ) = payable(msg.sender).call{value: withdrawAmount}("");
@@ -390,6 +466,19 @@ contract AegisVault is Ownable, ReentrancyGuard {
             unchecked { ++i; }
         }
 
+        // Withdraw stablecoin balance from stop-loss
+        uint256 stableBal = stablecoinBalances[msg.sender];
+        if (stableBal > 0 && stablecoin != address(0)) {
+            stablecoinBalances[msg.sender] = 0;
+            IERC20(stablecoin).safeTransfer(msg.sender, stableBal);
+        }
+
+        // If vault BNB is insufficient, redeem from Venus
+        if (bnbAmount > 0 && address(this).balance < bnbAmount && venusEnabled && address(venusVBNB) != address(0)) {
+            uint256 needed = bnbAmount - address(this).balance;
+            _redeemFromVenus(needed);
+        }
+
         // Withdraw BNB
         if (bnbAmount > 0) {
             (bool sent, ) = payable(msg.sender).call{value: bnbAmount}("");
@@ -397,6 +486,104 @@ contract AegisVault is Ownable, ReentrancyGuard {
         }
 
         emit EmergencyWithdrawal(msg.sender, bnbAmount);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //                   YIELD FUNCTIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * @notice Distribute yield to vault depositors. Owner or authorized operator
+     *         sends BNB (from Venus/PancakeSwap earnings) and assigns it to users.
+     *         Performance fee is deducted and a TokenGate discount is applied.
+     * @param users Array of user addresses receiving yield
+     * @param amounts Array of gross yield amounts (before fees) per user
+     */
+    function distributeYield(
+        address[] calldata users,
+        uint256[] calldata amounts
+    ) external payable nonReentrant {
+        if (!authorizedOperators[msg.sender] && msg.sender != owner()) revert NotAuthorizedOperator();
+        if (users.length != amounts.length) revert YieldArrayMismatch();
+
+        uint256 totalRequired = 0;
+        for (uint256 i = 0; i < users.length;) {
+            totalRequired += amounts[i];
+            unchecked { ++i; }
+        }
+        if (msg.value != totalRequired) revert YieldValueMismatch();
+
+        for (uint256 i = 0; i < users.length;) {
+            address user = users[i];
+            uint256 grossYield = amounts[i];
+
+            if (!positions[user].isActive || grossYield == 0) {
+                unchecked { ++i; }
+                continue;
+            }
+
+            // Calculate performance fee with TokenGate discount
+            uint256 effectivePerformanceFee = performanceFeeBps;
+            if (address(tokenGate) != address(0)) {
+                uint256 discount = tokenGate.getFeeDiscount(user);
+                if (discount >= effectivePerformanceFee) {
+                    effectivePerformanceFee = 0;
+                } else {
+                    effectivePerformanceFee -= discount;
+                }
+            }
+
+            uint256 fee = (grossYield * effectivePerformanceFee) / 10000;
+            uint256 netYield = grossYield - fee;
+
+            // Credit net yield to user position
+            positions[user].bnbBalance += netYield;
+            totalBnbDeposited += netYield;
+
+            // Track yield
+            yieldEarned[user] += grossYield;
+            totalYieldDistributed += grossYield;
+
+            // Accumulate performance fee
+            if (fee > 0) {
+                accumulatedPerformanceFees += fee;
+            }
+
+            emit YieldDistributed(user, grossYield, fee, netYield, block.timestamp);
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**
+     * @notice Get yield info for a user
+     * @param user Address to check
+     * @return grossYieldEarned Total yield earned (before fees)
+     * @return netYieldEarned Total yield credited (after fees)
+     * @return pendingInPosition Net yield sitting in position balance
+     * @return effectivePerformanceFeeBps Performance fee after TokenGate discount
+     */
+    function getYieldInfo(address user) external view returns (
+        uint256 grossYieldEarned,
+        uint256 netYieldEarned,
+        uint256 pendingInPosition,
+        uint256 effectivePerformanceFeeBps
+    ) {
+        grossYieldEarned = yieldEarned[user];
+
+        effectivePerformanceFeeBps = performanceFeeBps;
+        if (address(tokenGate) != address(0)) {
+            uint256 discount = tokenGate.getFeeDiscount(user);
+            if (discount >= effectivePerformanceFeeBps) {
+                effectivePerformanceFeeBps = 0;
+            } else {
+                effectivePerformanceFeeBps -= discount;
+            }
+        }
+
+        uint256 totalFees = (grossYieldEarned * effectivePerformanceFeeBps) / 10000;
+        netYieldEarned = grossYieldEarned - totalFees;
+        pendingInPosition = netYieldEarned; // All net yield is in the position balance
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -532,6 +719,177 @@ contract AegisVault is Ownable, ReentrancyGuard {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //                   VENUS FUNCTIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * @notice Harvest yield from Venus. Calculates profit (current value - deployed),
+     *         redeems the profit, deducts performance fee, and distributes to depositors.
+     * @param users Array of users to distribute yield to
+     * @param shares Array of proportional shares (basis points, must sum to 10000)
+     */
+    function harvestVenusYield(
+        address[] calldata users,
+        uint256[] calldata shares
+    ) external nonReentrant {
+        if (!authorizedOperators[msg.sender] && msg.sender != owner()) revert NotAuthorizedOperator();
+        if (!venusEnabled || address(venusVBNB) == address(0)) revert VenusNotEnabled();
+        if (users.length != shares.length) revert YieldArrayMismatch();
+
+        // Get current Venus value
+        uint256 currentValue = venusVBNB.balanceOfUnderlying(address(this));
+        if (currentValue <= venusDeployedAmount) revert NoYieldToClaim();
+
+        uint256 grossYield = currentValue - venusDeployedAmount;
+
+        // Redeem the yield portion from Venus
+        uint256 result = venusVBNB.redeemUnderlying(grossYield);
+        if (result != 0) revert VenusRedeemFailed();
+
+        // Performance fee
+        uint256 totalFee = (grossYield * performanceFeeBps) / 10000;
+        uint256 distributable = grossYield - totalFee;
+        if (totalFee > 0) {
+            accumulatedPerformanceFees += totalFee;
+        }
+
+        // Distribute to users by share
+        uint256 totalShares = 0;
+        for (uint256 i = 0; i < users.length;) {
+            totalShares += shares[i];
+            unchecked { ++i; }
+        }
+        require(totalShares == 10000, "Shares must sum to 10000");
+
+        for (uint256 i = 0; i < users.length;) {
+            if (positions[users[i]].isActive && shares[i] > 0) {
+                uint256 userYield = (distributable * shares[i]) / 10000;
+                uint256 userGross = (grossYield * shares[i]) / 10000;
+
+                positions[users[i]].bnbBalance += userYield;
+                totalBnbDeposited += userYield;
+                yieldEarned[users[i]] += userGross;
+                totalYieldDistributed += userGross;
+
+                emit YieldDistributed(users[i], userGross, (userGross * performanceFeeBps) / 10000, userYield, block.timestamp);
+            }
+            unchecked { ++i; }
+        }
+
+        emit VenusYieldHarvested(grossYield, totalFee);
+    }
+
+    /**
+     * @notice Manually supply additional BNB to Venus (owner/operator only)
+     * @param amount BNB amount to supply
+     */
+    function supplyToVenus(uint256 amount) external nonReentrant {
+        if (!authorizedOperators[msg.sender] && msg.sender != owner()) revert NotAuthorizedOperator();
+        if (!venusEnabled || address(venusVBNB) == address(0)) revert VenusNotEnabled();
+        if (amount == 0) revert ZeroAmount();
+        require(address(this).balance >= amount, "Insufficient vault BNB");
+
+        _supplyToVenus(amount);
+    }
+
+    /**
+     * @notice Manually redeem BNB from Venus (owner/operator only)
+     * @param amount BNB amount to redeem
+     */
+    function redeemFromVenus(uint256 amount) external nonReentrant {
+        if (!authorizedOperators[msg.sender] && msg.sender != owner()) revert NotAuthorizedOperator();
+        if (!venusEnabled || address(venusVBNB) == address(0)) revert VenusNotEnabled();
+        if (amount == 0) revert ZeroAmount();
+
+        _redeemFromVenus(amount);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //                   STOP-LOSS FUNCTIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * @notice Execute stop-loss: swap user's BNB to stablecoin via PancakeSwap.
+     *         Called by authorized agent when BNB price drops below threshold.
+     * @param user User address
+     * @param bnbAmount Amount of BNB to swap
+     * @param minStablecoinOut Minimum stablecoin to receive (slippage protection)
+     */
+    function executeStopLoss(
+        address user,
+        uint256 bnbAmount,
+        uint256 minStablecoinOut
+    ) external nonReentrant onlyAuthorizedAgent(user) {
+        Position storage pos = positions[user];
+        if (!pos.isActive) revert PositionNotActive();
+        if (!pos.riskProfile.allowAutoSwap) revert AutoSwapNotAllowed();
+        if (bnbAmount > pos.bnbBalance) revert InsufficientBalance();
+        if (address(pancakeRouter) == address(0) || stablecoin == address(0)) revert VenusNotEnabled();
+
+        // Debit user's BNB balance
+        pos.bnbBalance -= bnbAmount;
+        totalBnbDeposited -= bnbAmount;
+
+        // If vault BNB insufficient, redeem from Venus
+        if (address(this).balance < bnbAmount && venusEnabled && address(venusVBNB) != address(0)) {
+            uint256 needed = bnbAmount - address(this).balance;
+            _redeemFromVenus(needed);
+        }
+
+        // Swap BNB → stablecoin via PancakeSwap
+        address[] memory path = new address[](2);
+        path[0] = pancakeRouter.WETH();
+        path[1] = stablecoin;
+
+        uint256[] memory amounts = pancakeRouter.swapExactETHForTokens{value: bnbAmount}(
+            minStablecoinOut,
+            path,
+            address(this),
+            block.timestamp + 300
+        );
+
+        uint256 stablecoinReceived = amounts[amounts.length - 1];
+        stablecoinBalances[user] += stablecoinReceived;
+
+        // Record the action
+        uint256 actionId = actionHistory.length;
+        actionHistory.push(ProtectionAction({
+            agentId: pos.authorizedAgentId,
+            user: user,
+            actionType: ActionType.StopLoss,
+            value: bnbAmount,
+            timestamp: block.timestamp,
+            reasonHash: bytes32(0),
+            successful: true
+        }));
+        userActions[user].push(actionId);
+        agentActions[pos.authorizedAgentId].push(actionId);
+        totalActionsExecuted++;
+        totalValueProtected += bnbAmount;
+
+        pos.lastActionTimestamp = block.timestamp;
+
+        emit StopLossExecuted(user, bnbAmount, stablecoinReceived);
+        emit ProtectionExecuted(actionId, pos.authorizedAgentId, user, ActionType.StopLoss, bnbAmount, bytes32(0), true);
+    }
+
+    /**
+     * @notice Withdraw stablecoin balance (from stop-loss conversions)
+     * @param amount Amount to withdraw (0 = all)
+     */
+    function withdrawStablecoin(uint256 amount) external nonReentrant {
+        if (stablecoin == address(0)) revert InvalidToken();
+        uint256 balance = stablecoinBalances[msg.sender];
+        uint256 withdrawAmount = amount == 0 ? balance : amount;
+        if (withdrawAmount > balance) revert InsufficientBalance();
+
+        stablecoinBalances[msg.sender] -= withdrawAmount;
+        IERC20(stablecoin).safeTransfer(msg.sender, withdrawAmount);
+
+        emit StablecoinWithdrawn(msg.sender, withdrawAmount);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //                   VIEW FUNCTIONS
     // ═══════════════════════════════════════════════════════════════
 
@@ -604,6 +962,17 @@ contract AegisVault is Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice Get yield statistics
+     */
+    function getYieldStats() external view returns (
+        uint256 _totalYieldDistributed,
+        uint256 _performanceFeeBps,
+        uint256 _accumulatedPerformanceFees
+    ) {
+        return (totalYieldDistributed, performanceFeeBps, accumulatedPerformanceFees);
+    }
+
+    /**
      * @notice Get effective protocol fee for a user (base fee - holder discount)
      * @param user Address to check
      * @return effectiveFee Fee in basis points after any $UNIQ holder discount
@@ -611,6 +980,41 @@ contract AegisVault is Ownable, ReentrancyGuard {
     function getEffectiveFee(address user) external view returns (uint256 effectiveFee) {
         if (address(tokenGate) == address(0)) return protocolFeeBps;
         return tokenGate.getEffectiveFee(user, protocolFeeBps);
+    }
+
+    /**
+     * @notice Get Venus Protocol integration info
+     * @return deployed BNB currently deployed to Venus
+     * @return currentValue Current Venus balance (deployed + yield)
+     * @return pendingYield Unharvested yield sitting in Venus
+     * @return allocationBps Target allocation in basis points
+     * @return enabled Whether Venus auto-deployment is enabled
+     */
+    function getVenusInfo() external view returns (
+        uint256 deployed,
+        uint256 currentValue,
+        uint256 pendingYield,
+        uint256 allocationBps,
+        bool enabled
+    ) {
+        deployed = venusDeployedAmount;
+        allocationBps = venusAllocationBps;
+        enabled = venusEnabled;
+
+        if (venusEnabled && address(venusVBNB) != address(0)) {
+            // Use stored exchange rate for view (non-mutating)
+            uint256 rate = venusVBNB.exchangeRateStored();
+            uint256 vTokenBal = venusVBNB.balanceOf(address(this));
+            currentValue = (vTokenBal * rate) / 1e18;
+            pendingYield = currentValue > deployed ? currentValue - deployed : 0;
+        }
+    }
+
+    /**
+     * @notice Get user's stablecoin balance from stop-loss conversions
+     */
+    function getStablecoinBalance(address user) external view returns (uint256) {
+        return stablecoinBalances[user];
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -656,9 +1060,92 @@ contract AegisVault is Ownable, ReentrancyGuard {
         emit TokenGateUpdated(_tokenGate);
     }
 
+    /**
+     * @notice Update performance fee on yield
+     * @param newFeeBps New performance fee in basis points (max 3000 = 30%)
+     */
+    function setPerformanceFeeBps(uint256 newFeeBps) external onlyOwner {
+        if (newFeeBps > 3000) revert PerformanceFeeTooHigh();
+        uint256 oldFee = performanceFeeBps;
+        performanceFeeBps = newFeeBps;
+        emit PerformanceFeeUpdated(oldFee, newFeeBps);
+    }
+
+    /**
+     * @notice Withdraw accumulated performance fees from yield (owner only)
+     */
+    function withdrawPerformanceFees() external onlyOwner {
+        uint256 amount = accumulatedPerformanceFees;
+        if (amount == 0) revert ZeroAmount();
+        accumulatedPerformanceFees = 0;
+        (bool sent, ) = payable(owner()).call{value: amount}("");
+        if (!sent) revert TransferFailed();
+    }
+
+    /**
+     * @notice Configure Venus Protocol integration addresses
+     * @param _vBNB Venus vBNB market address
+     * @param _router PancakeSwap V2 router address
+     * @param _stablecoin Stablecoin (USDT/BUSD) address for stop-loss
+     */
+    function setVenusConfig(address _vBNB, address _router, address _stablecoin) external onlyOwner {
+        venusVBNB = IVenusBNB(_vBNB);
+        pancakeRouter = IPancakeRouter(_router);
+        stablecoin = _stablecoin;
+        emit VenusConfigUpdated(_vBNB, _router, _stablecoin);
+    }
+
+    /**
+     * @notice Enable or disable Venus auto-deployment
+     */
+    function setVenusEnabled(bool _enabled) external onlyOwner {
+        venusEnabled = _enabled;
+    }
+
+    /**
+     * @notice Set Venus allocation percentage (basis points)
+     * @param _allocationBps e.g., 8000 = 80% of deposits go to Venus
+     */
+    function setVenusAllocationBps(uint256 _allocationBps) external onlyOwner {
+        require(_allocationBps <= 9500, "Max 95%"); // Keep 5% liquid
+        venusAllocationBps = _allocationBps;
+    }
+
+    /**
+     * @notice Approve stablecoin spending for PancakeSwap (one-time setup)
+     */
+    function approveRouterStablecoin() external onlyOwner {
+        if (address(pancakeRouter) == address(0) || stablecoin == address(0)) revert VenusNotEnabled();
+        IERC20(stablecoin).approve(address(pancakeRouter), type(uint256).max);
+    }
+
     // ═══════════════════════════════════════════════════════════════
     //                   INTERNAL FUNCTIONS
     // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * @notice Supply BNB to Venus vBNB market
+     */
+    function _supplyToVenus(uint256 amount) internal {
+        uint256 result = venusVBNB.mint{value: amount}();
+        if (result != 0) revert VenusSupplyFailed();
+        venusDeployedAmount += amount;
+        emit VenusSupplied(amount, venusDeployedAmount);
+    }
+
+    /**
+     * @notice Redeem BNB from Venus vBNB market
+     */
+    function _redeemFromVenus(uint256 amount) internal {
+        uint256 result = venusVBNB.redeemUnderlying(amount);
+        if (result != 0) revert VenusRedeemFailed();
+        if (venusDeployedAmount >= amount) {
+            venusDeployedAmount -= amount;
+        } else {
+            venusDeployedAmount = 0;
+        }
+        emit VenusRedeemed(amount, venusDeployedAmount);
+    }
 
     function _getUserTokenCount(address user) internal view returns (uint256 count) {
         address[] storage tokens = userTokens[user];

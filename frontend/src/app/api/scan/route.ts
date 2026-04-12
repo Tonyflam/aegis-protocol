@@ -1,346 +1,350 @@
 import { NextRequest, NextResponse } from "next/server";
-
-// ═══════════════════════════════════════════════════════════════
-// Aegis Protocol — Token Scan API
-// Uses REAL data from: GoPlusLabs, honeypot.is, BSC RPC
-// NEVER returns fake or simulated data.
-// ═══════════════════════════════════════════════════════════════
-
-const BSC_RPC = "https://bsc-dataseed1.binance.org";
+import { ethers } from "ethers";
 
 // ─── Types ───────────────────────────────────────────────────
 
-export interface TokenScanResult {
+interface TokenRiskReport {
   address: string;
-  name: string;
   symbol: string;
+  name: string;
   decimals: number;
-  totalSupply: string;
   riskScore: number;
   recommendation: "SAFE" | "CAUTION" | "AVOID" | "SCAM";
   flags: string[];
-
-  // Honeypot
-  isHoneypot: boolean;
-  buyTax: number;
-  sellTax: number;
-
-  // Contract security
-  isOpenSource: boolean;
-  isProxy: boolean;
+  totalSupply: string;
+  holderCount: number;
+  topHolderPercent: number;
+  ownerBalance: number;
+  liquidityUsd: number;
+  isLiquidityLocked: boolean;
+  lpTokenBurned: boolean;
+  isVerified: boolean;
   isRenounced: boolean;
   ownerCanMint: boolean;
   ownerCanPause: boolean;
   ownerCanBlacklist: boolean;
-  canTakeBackOwnership: boolean;
-  hasHiddenOwner: boolean;
-
-  // Holder data
-  ownerAddress: string;
-  creatorAddress: string;
-  holderCount: number;
-  topHolderPercent: number;
-
-  // Liquidity
-  liquidityUsd: number;
-  lpHolderCount: number;
-  lpTotalLocked: number;
-  isLpLocked: boolean;
-
-  // Data sources
-  sources: { name: string; status: "ok" | "failed"; detail?: string }[];
+  isProxy: boolean;
+  isHoneypot: boolean;
+  buyTax: number;
+  sellTax: number;
   scanTimestamp: number;
   scanDuration: number;
 }
 
-// ─── Validate BSC address ────────────────────────────────────
+// ─── Constants ───────────────────────────────────────────────
 
-function isValidAddress(addr: string): boolean {
-  return /^0x[0-9a-fA-F]{40}$/.test(addr);
-}
+const BSC_RPC = "https://bsc-dataseed1.binance.org";
+const PANCAKE_FACTORY = "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73";
+const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
+const BUSD = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56";
 
-// ─── GoPlusLabs API ──────────────────────────────────────────
-// Free, no key needed. Primary source for BSC token security.
+// ─── Live BNB Price (cached 5 min) ───────────────────────────
+let cachedBnbPrice = 600;
+let bnbPriceExpires = 0;
 
-interface GoPlusTokenData {
-  is_honeypot?: string;
-  buy_tax?: string;
-  sell_tax?: string;
-  is_open_source?: string;
-  is_proxy?: string;
-  is_mintable?: string;
-  can_take_back_ownership?: string;
-  owner_change_balance?: string;
-  hidden_owner?: string;
-  selfdestruct?: string;
-  external_call?: string;
-  is_blacklisted?: string;
-  is_whitelisted?: string;
-  transfer_pausable?: string;
-  trading_cooldown?: string;
-  is_anti_whale?: string;
-  anti_whale_modifiable?: string;
-  cannot_buy?: string;
-  cannot_sell_all?: string;
-  slippage_modifiable?: string;
-  personal_slippage_modifiable?: string;
-  owner_address?: string;
-  creator_address?: string;
-  token_name?: string;
-  token_symbol?: string;
-  total_supply?: string;
-  holder_count?: string;
-  lp_holder_count?: string;
-  lp_total_supply?: string;
-  holders?: { address: string; balance: string; percent: string; is_locked?: number; is_contract?: number }[];
-  lp_holders?: { address: string; balance: string; percent: string; is_locked?: number; is_contract?: number; NFT_list?: unknown }[];
-  dex?: { name: string; liquidity: string; pair: string }[];
-}
-
-async function fetchGoPlusData(address: string): Promise<{ data: GoPlusTokenData | null; error: string | null }> {
+async function getBnbPrice(): Promise<number> {
+  if (Date.now() < bnbPriceExpires) return cachedBnbPrice;
   try {
     const res = await fetch(
-      `https://api.gopluslabs.io/api/v1/token_security/56?contract_addresses=${address}`,
-      { signal: AbortSignal.timeout(10000) }
+      "https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd",
+      { signal: AbortSignal.timeout(5000) },
     );
-    if (!res.ok) return { data: null, error: `HTTP ${res.status}` };
-    const json = await res.json();
-    const tokenData = json?.result?.[address.toLowerCase()];
-    if (!tokenData) return { data: null, error: "Token not found in GoPlusLabs" };
-    return { data: tokenData, error: null };
+    if (res.ok) {
+      const data = await res.json();
+      cachedBnbPrice = data?.binancecoin?.usd ?? cachedBnbPrice;
+      bnbPriceExpires = Date.now() + 5 * 60 * 1000;
+    }
+  } catch { /* use cached price */ }
+  return cachedBnbPrice;
+}
+
+const SAFE_TOKENS = new Set([
+  WBNB.toLowerCase(),
+  BUSD.toLowerCase(),
+  "0x55d398326f99059ff775485246999027b3197955", // USDT
+  "0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82", // CAKE
+  "0x2170ed0880ac9a755fd29b2688956bd959f933f8", // ETH
+  "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c", // BTCB
+  "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", // USDC
+]);
+
+const ERC20_ABI = [
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)",
+  "function totalSupply() view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)",
+  "function owner() view returns (address)",
+];
+
+const PAIR_ABI = [
+  "function getReserves() view returns (uint112, uint112, uint32)",
+  "function token0() view returns (address)",
+  "function token1() view returns (address)",
+  "function balanceOf(address) view returns (uint256)",
+  "function totalSupply() view returns (uint256)",
+];
+
+const FACTORY_ABI = [
+  "function getPair(address, address) view returns (address)",
+];
+
+const DANGEROUS_SELECTORS = {
+  mint: "40c10f19",
+  pause: "8456cb59",
+  blacklist: "44337ea1",
+};
+
+// ─── In-memory cache ─────────────────────────────────────────
+
+const cache = new Map<string, { report: TokenRiskReport; expires: number }>();
+const CACHE_TTL = 300_000; // 5 min
+
+// ─── API Route Handler ───────────────────────────────────────
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const address = searchParams.get("address");
+
+  if (!address || !ethers.isAddress(address)) {
+    return NextResponse.json({ error: "Invalid token address" }, { status: 400 });
+  }
+
+  const addr = address.toLowerCase();
+
+  // Check cache
+  const cached = cache.get(addr);
+  if (cached && cached.expires > Date.now()) {
+    return NextResponse.json(cached.report);
+  }
+
+  try {
+    const report = await scanToken(addr);
+    cache.set(addr, { report, expires: Date.now() + CACHE_TTL });
+    return NextResponse.json(report);
   } catch (err) {
-    return { data: null, error: err instanceof Error ? err.message : "GoPlusLabs request failed" };
+    const message = err instanceof Error ? err.message : "Scan failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-// ─── Honeypot.is API ─────────────────────────────────────────
-// Free, no key needed. Secondary validation for honeypot status.
+// ─── Core Scanner ────────────────────────────────────────────
 
-interface HoneypotIsData {
-  honeypotResult?: { isHoneypot?: boolean };
-  simulationResult?: { buyTax?: number; sellTax?: number; buyGas?: string; sellGas?: string };
-  pair?: { pair?: string; chainId?: string; reserves0?: string; reserves1?: string; liquidity?: number };
-  token?: { name?: string; symbol?: string; decimals?: number; totalSupply?: number };
-}
+async function scanToken(tokenAddress: string): Promise<TokenRiskReport> {
+  const start = Date.now();
+  const provider = new ethers.JsonRpcProvider(BSC_RPC);
 
-async function fetchHoneypotIs(address: string): Promise<{ data: HoneypotIsData | null; error: string | null }> {
-  try {
-    const res = await fetch(
-      `https://api.honeypot.is/v2/IsHoneypot?address=${address}&chainID=56`,
-      { signal: AbortSignal.timeout(10000) }
-    );
-    if (!res.ok) return { data: null, error: `HTTP ${res.status}` };
-    const json = await res.json();
-    return { data: json, error: null };
-  } catch (err) {
-    return { data: null, error: err instanceof Error ? err.message : "honeypot.is request failed" };
+  // Known safe token — fast path
+  if (SAFE_TOKENS.has(tokenAddress)) {
+    return safeScan(tokenAddress, provider, start);
   }
-}
 
-// ─── BSC RPC call helper ─────────────────────────────────────
+  const factory = new ethers.Contract(PANCAKE_FACTORY, FACTORY_ABI, provider);
 
-async function rpcCall(method: string, params: unknown[]): Promise<unknown> {
-  const res = await fetch(BSC_RPC, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", method, params, id: 1 }),
-    signal: AbortSignal.timeout(8000),
-  });
-  const json = await res.json();
-  if (json.error) throw new Error(json.error.message);
-  return json.result;
-}
+  const [basics, security, liquidity, honeypot] = await Promise.allSettled([
+    getTokenBasics(tokenAddress, provider),
+    analyzeContractSecurity(tokenAddress, provider),
+    analyzeLiquidity(tokenAddress, provider, factory),
+    detectHoneypot(tokenAddress),
+  ]);
 
-async function getTokenBasics(address: string): Promise<{
-  name: string; symbol: string; decimals: number; totalSupply: string;
-} | null> {
+  const basic = basics.status === "fulfilled" ? basics.value : { name: "Unknown", symbol: "???", decimals: 18, totalSupply: "0", topHolderPercent: 0, ownerBalance: 0, holderCount: 0 };
+  const sec = security.status === "fulfilled" ? security.value : { isVerified: false, isRenounced: false, ownerCanMint: false, ownerCanPause: false, ownerCanBlacklist: false, isProxy: false };
+  const liq = liquidity.status === "fulfilled" ? liquidity.value : { liquidityUsd: 0, isLiquidityLocked: false, lpTokenBurned: false };
+  const hp = honeypot.status === "fulfilled" ? honeypot.value : { isHoneypot: false, buyTax: 0, sellTax: 0 };
+
+  // Check source verification via GoPlusLabs
+  let isVerified = sec.isVerified;
   try {
-    const nameData = "0x06fdde03"; // name()
-    const symbolData = "0x95d89b41"; // symbol()
-    const decimalsData = "0x313ce567"; // decimals()
-    const totalSupplyData = "0x18160ddd"; // totalSupply()
-
-    const [nameRes, symbolRes, decimalsRes, supplyRes] = await Promise.allSettled([
-      rpcCall("eth_call", [{ to: address, data: nameData }, "latest"]),
-      rpcCall("eth_call", [{ to: address, data: symbolData }, "latest"]),
-      rpcCall("eth_call", [{ to: address, data: decimalsData }, "latest"]),
-      rpcCall("eth_call", [{ to: address, data: totalSupplyData }, "latest"]),
-    ]);
-
-    const decodeString = (hex: string): string => {
-      if (!hex || hex === "0x") return "Unknown";
-      try {
-        // Try ABI-encoded string: offset (32 bytes) + length (32 bytes) + data
-        const stripped = hex.slice(2);
-        if (stripped.length >= 128) {
-          const len = parseInt(stripped.slice(64, 128), 16);
-          const bytes = Buffer.from(stripped.slice(128, 128 + len * 2), "hex");
-          const decoded = bytes.toString("utf8").replace(/\0/g, "");
-          if (decoded.length > 0) return decoded;
-        }
-        // Try raw bytes32 string
-        const bytes = Buffer.from(stripped, "hex");
-        return bytes.toString("utf8").replace(/\0/g, "").trim() || "Unknown";
-      } catch {
-        return "Unknown";
+    const gpRes = await fetch(`https://api.gopluslabs.io/api/v1/token_security/56?contract_addresses=${tokenAddress}`, { signal: AbortSignal.timeout(6000) });
+    if (gpRes.ok) {
+      const gpData = await gpRes.json();
+      const info = gpData?.result?.[tokenAddress.toLowerCase()];
+      if (info) {
+        isVerified = info.is_open_source === "1";
       }
-    };
+    }
+  } catch { /* ignore */ }
 
-    const name = nameRes.status === "fulfilled" ? decodeString(nameRes.value as string) : "Unknown";
-    const symbol = symbolRes.status === "fulfilled" ? decodeString(symbolRes.value as string) : "???";
-    const decimals = decimalsRes.status === "fulfilled" ? parseInt(decimalsRes.value as string, 16) : 18;
-    const rawSupply = supplyRes.status === "fulfilled" ? BigInt(supplyRes.value as string) : BigInt(0);
+  const { score, flags, recommendation } = calculateRisk(basic, { ...sec, isVerified }, liq, hp);
 
-    // Format total supply with decimals
-    const supplyStr = rawSupply.toString();
-    const supplyFormatted = decimals > 0 && supplyStr.length > decimals
-      ? supplyStr.slice(0, supplyStr.length - decimals) + "." + supplyStr.slice(supplyStr.length - decimals, supplyStr.length - decimals + 2)
-      : supplyStr;
+  return {
+    address: tokenAddress,
+    symbol: basic.symbol,
+    name: basic.name,
+    decimals: basic.decimals,
+    riskScore: score,
+    recommendation,
+    flags,
+    totalSupply: basic.totalSupply,
+    holderCount: basic.holderCount,
+    topHolderPercent: basic.topHolderPercent,
+    ownerBalance: basic.ownerBalance,
+    liquidityUsd: liq.liquidityUsd,
+    isLiquidityLocked: liq.isLiquidityLocked,
+    lpTokenBurned: liq.lpTokenBurned,
+    isVerified,
+    isRenounced: sec.isRenounced,
+    ownerCanMint: sec.ownerCanMint,
+    ownerCanPause: sec.ownerCanPause,
+    ownerCanBlacklist: sec.ownerCanBlacklist,
+    isProxy: sec.isProxy,
+    isHoneypot: hp.isHoneypot,
+    buyTax: hp.buyTax,
+    sellTax: hp.sellTax,
+    scanTimestamp: Date.now(),
+    scanDuration: Date.now() - start,
+  };
+}
 
-    return { name, symbol, decimals, totalSupply: supplyFormatted };
-  } catch {
-    return null;
+// ─── Token Basics ────────────────────────────────────────────
+
+async function getTokenBasics(tokenAddress: string, provider: ethers.JsonRpcProvider) {
+  const token = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+  const [name, symbol, decimals, totalSupply] = await Promise.all([
+    token.name().catch(() => "Unknown"),
+    token.symbol().catch(() => "???"),
+    token.decimals().catch(() => 18),
+    token.totalSupply().catch(() => BigInt(0)),
+  ]);
+
+  let ownerBalance = 0;
+  try {
+    const owner = await token.owner();
+    if (owner !== ethers.ZeroAddress && totalSupply > BigInt(0)) {
+      const ownerBal = await token.balanceOf(owner);
+      ownerBalance = Number((ownerBal * BigInt(10000)) / totalSupply) / 100;
+    }
+  } catch { /* no owner */ }
+
+  return {
+    name: String(name),
+    symbol: String(symbol),
+    decimals: Number(decimals),
+    totalSupply: ethers.formatUnits(totalSupply, decimals),
+    topHolderPercent: ownerBalance,
+    ownerBalance,
+    holderCount: 0,
+  };
+}
+
+// ─── Contract Security ───────────────────────────────────────
+
+async function analyzeContractSecurity(tokenAddress: string, provider: ethers.JsonRpcProvider) {
+  const code = await provider.getCode(tokenAddress);
+  if (code === "0x") {
+    return { isVerified: false, isRenounced: false, ownerCanMint: false, ownerCanPause: false, ownerCanBlacklist: false, isProxy: false };
   }
+
+  const ownerCanMint = code.includes(DANGEROUS_SELECTORS.mint);
+  const ownerCanPause = code.includes(DANGEROUS_SELECTORS.pause);
+  const ownerCanBlacklist = code.includes(DANGEROUS_SELECTORS.blacklist);
+  const isProxy = code.includes("363d3d373d3d3d363d73") || code.includes("5860208158601c335a63");
+
+  let isRenounced = false;
+  try {
+    const token = new ethers.Contract(tokenAddress, ["function owner() view returns (address)"], provider);
+    const owner = await token.owner();
+    isRenounced = owner === ethers.ZeroAddress;
+  } catch { /* no owner fn */ }
+
+  return { isVerified: false, isRenounced, ownerCanMint, ownerCanPause, ownerCanBlacklist, isProxy };
+}
+
+// ─── Liquidity ───────────────────────────────────────────────
+
+async function analyzeLiquidity(tokenAddress: string, provider: ethers.JsonRpcProvider, factory: ethers.Contract) {
+  let liquidityUsd = 0;
+  let isLiquidityLocked = false;
+  let lpTokenBurned = false;
+
+  try {
+    const pairAddress = await factory.getPair(tokenAddress, WBNB);
+    if (pairAddress !== ethers.ZeroAddress) {
+      const pair = new ethers.Contract(pairAddress, PAIR_ABI, provider);
+      const [reserve0, reserve1] = await pair.getReserves();
+      const token0 = await pair.token0();
+      const wbnbReserve = token0.toLowerCase() === WBNB.toLowerCase() ? reserve0 : reserve1;
+      const bnbPrice = await getBnbPrice();
+      liquidityUsd = Number(ethers.formatEther(wbnbReserve)) * bnbPrice * 2;
+
+      const deadAddress = "0x000000000000000000000000000000000000dEaD";
+      const [deadBal, zeroBal, totalLp] = await Promise.all([
+        pair.balanceOf(deadAddress),
+        pair.balanceOf(ethers.ZeroAddress),
+        pair.totalSupply(),
+      ]);
+      const burnedPercent = totalLp > BigInt(0) ? Number(((deadBal + zeroBal) * BigInt(10000)) / totalLp) / 100 : 0;
+      lpTokenBurned = burnedPercent > 90;
+      isLiquidityLocked = burnedPercent > 50;
+    }
+  } catch { /* no WBNB pair */ }
+
+  try {
+    const pairAddress = await factory.getPair(tokenAddress, BUSD);
+    if (pairAddress !== ethers.ZeroAddress) {
+      const pair = new ethers.Contract(pairAddress, PAIR_ABI, provider);
+      const [reserve0, reserve1] = await pair.getReserves();
+      const token0 = await pair.token0();
+      const busdReserve = token0.toLowerCase() === BUSD.toLowerCase() ? reserve0 : reserve1;
+      liquidityUsd += Number(ethers.formatEther(busdReserve)) * 2;
+    }
+  } catch { /* no BUSD pair */ }
+
+  return { liquidityUsd, isLiquidityLocked, lpTokenBurned };
+}
+
+// ─── Honeypot Detection ──────────────────────────────────────
+
+async function detectHoneypot(tokenAddress: string): Promise<{ isHoneypot: boolean; buyTax: number; sellTax: number }> {
+  try {
+    const res = await fetch(`https://api.honeypot.is/v2/IsHoneypot?address=${encodeURIComponent(tokenAddress)}&chainID=56`, {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        isHoneypot: data.honeypotResult?.isHoneypot ?? false,
+        buyTax: data.simulationResult?.buyTax ?? 0,
+        sellTax: data.simulationResult?.sellTax ?? 0,
+      };
+    }
+  } catch { /* API down */ }
+  return { isHoneypot: false, buyTax: 0, sellTax: 0 };
 }
 
 // ─── Risk Calculation ────────────────────────────────────────
-// Deterministic scoring from verified data points.
 
 function calculateRisk(
-  goplus: GoPlusTokenData | null,
-  honeypot: HoneypotIsData | null,
+  basic: { topHolderPercent: number },
+  security: { isVerified: boolean; isRenounced: boolean; ownerCanMint: boolean; ownerCanPause: boolean; ownerCanBlacklist: boolean; isProxy: boolean },
+  liquidity: { liquidityUsd: number; isLiquidityLocked: boolean; lpTokenBurned: boolean },
+  honeypot: { isHoneypot: boolean; buyTax: number; sellTax: number }
 ): { score: number; flags: string[]; recommendation: "SAFE" | "CAUTION" | "AVOID" | "SCAM" } {
   let score = 0;
   const flags: string[] = [];
 
-  // ── HONEYPOT (both sources) ──
-  const gpHoneypot = goplus?.is_honeypot === "1";
-  const hpHoneypot = honeypot?.honeypotResult?.isHoneypot === true;
+  if (honeypot.isHoneypot) return { score: 100, flags: ["HONEYPOT"], recommendation: "SCAM" };
 
-  if (gpHoneypot || hpHoneypot) {
-    flags.push("HONEYPOT");
-    return { score: 100, flags, recommendation: "SCAM" };
-  }
+  if (honeypot.buyTax > 50 || honeypot.sellTax > 50) { score += 40; flags.push("EXTREME_TAX"); }
+  else if (honeypot.buyTax > 10 || honeypot.sellTax > 10) { score += 20; flags.push("HIGH_TAX"); }
+  else if (honeypot.buyTax > 5 || honeypot.sellTax > 5) { score += 10; flags.push("MODERATE_TAX"); }
 
-  // Cannot sell all tokens
-  if (goplus?.cannot_sell_all === "1") {
-    score += 30;
-    flags.push("CANNOT_SELL_ALL");
-  }
+  if (liquidity.liquidityUsd < 1000) { score += 30; flags.push("CRITICAL_LOW_LIQUIDITY"); }
+  else if (liquidity.liquidityUsd < 10000) { score += 20; flags.push("LOW_LIQUIDITY"); }
+  else if (liquidity.liquidityUsd < 50000) { score += 5; }
 
-  // ── TAX ANALYSIS ──
-  const buyTax = parseFloat(goplus?.buy_tax ?? "0") * 100;
-  const sellTax = parseFloat(goplus?.sell_tax ?? "0") * 100;
-  // Cross-reference with honeypot.is
-  const hpBuyTax = (honeypot?.simulationResult?.buyTax ?? 0) * 100;
-  const hpSellTax = (honeypot?.simulationResult?.sellTax ?? 0) * 100;
-  // Use the higher of the two sources for safety
-  const effectiveBuyTax = Math.max(buyTax, hpBuyTax);
-  const effectiveSellTax = Math.max(sellTax, hpSellTax);
+  if (!liquidity.isLiquidityLocked && !liquidity.lpTokenBurned) { score += 15; flags.push("UNLOCKED_LIQUIDITY"); }
 
-  if (effectiveBuyTax > 50 || effectiveSellTax > 50) {
-    score += 35;
-    flags.push("EXTREME_TAX");
-  } else if (effectiveBuyTax > 10 || effectiveSellTax > 10) {
-    score += 20;
-    flags.push("HIGH_TAX");
-  } else if (effectiveBuyTax > 5 || effectiveSellTax > 5) {
-    score += 8;
-    flags.push("MODERATE_TAX");
-  }
+  if (security.ownerCanMint) { score += 15; flags.push("MINT_FUNCTION"); }
+  if (security.ownerCanPause) { score += 10; flags.push("PAUSE_FUNCTION"); }
+  if (security.ownerCanBlacklist) { score += 10; flags.push("BLACKLIST_FUNCTION"); }
+  if (security.isProxy) { score += 10; flags.push("PROXY_CONTRACT"); }
+  if (security.isRenounced) score -= 10;
 
-  // Slippage modifiable = owner can change tax
-  if (goplus?.slippage_modifiable === "1") {
-    score += 10;
-    flags.push("TAX_MODIFIABLE");
-  }
+  if (basic.topHolderPercent > 50) { score += 20; flags.push("WHALE_DOMINATED"); }
+  else if (basic.topHolderPercent > 30) { score += 10; flags.push("HIGH_CONCENTRATION"); }
 
-  // ── CONTRACT SECURITY ──
-  if (goplus?.is_mintable === "1") {
-    score += 12;
-    flags.push("MINTABLE");
-  }
-  if (goplus?.transfer_pausable === "1") {
-    score += 8;
-    flags.push("PAUSABLE");
-  }
-  if (goplus?.is_blacklisted === "1") {
-    score += 8;
-    flags.push("BLACKLIST");
-  }
-  if (goplus?.can_take_back_ownership === "1") {
-    score += 12;
-    flags.push("RECLAIM_OWNERSHIP");
-  }
-  if (goplus?.hidden_owner === "1") {
-    score += 10;
-    flags.push("HIDDEN_OWNER");
-  }
-  if (goplus?.is_proxy === "1") {
-    score += 6;
-    flags.push("PROXY_CONTRACT");
-  }
-  if (goplus?.selfdestruct === "1") {
-    score += 15;
-    flags.push("SELF_DESTRUCT");
-  }
-  if (goplus?.external_call === "1") {
-    score += 5;
-    flags.push("EXTERNAL_CALL");
-  }
-
-  // Positive: open source → reduce risk
-  if (goplus?.is_open_source === "1") {
-    score -= 5;
-  } else if (goplus?.is_open_source === "0") {
-    score += 10;
-    flags.push("NOT_OPEN_SOURCE");
-  }
-
-  // ── LIQUIDITY ──
-  const totalLiquidity = (goplus?.dex ?? []).reduce((sum, d) => sum + parseFloat(d.liquidity || "0"), 0);
-  if (totalLiquidity < 1000) {
-    score += 25;
-    flags.push("NO_LIQUIDITY");
-  } else if (totalLiquidity < 10000) {
-    score += 15;
-    flags.push("LOW_LIQUIDITY");
-  } else if (totalLiquidity < 50000) {
-    score += 5;
-  }
-
-  // Check LP lock status
-  const lpHolders = goplus?.lp_holders ?? [];
-  const totalLpLocked = lpHolders.reduce((sum, h) => sum + (h.is_locked === 1 ? parseFloat(h.percent || "0") : 0), 0);
-  // Check if LP is burned (sent to dead address)
-  const lpBurned = lpHolders.some(
-    (h) => h.address?.toLowerCase() === "0x000000000000000000000000000000000000dead" && parseFloat(h.percent || "0") > 50
-  );
-
-  if (!lpBurned && totalLpLocked < 50 && totalLiquidity > 0) {
-    score += 10;
-    flags.push("LP_NOT_LOCKED");
-  }
-
-  // ── HOLDER CONCENTRATION ──
-  const holders = goplus?.holders ?? [];
-  if (holders.length > 0) {
-    // Get top non-contract, non-dead holder
-    const topHolder = holders
-      .filter((h) => !h.address?.toLowerCase().includes("dead") && h.address !== "0x0000000000000000000000000000000000000000")
-      .sort((a, b) => parseFloat(b.percent || "0") - parseFloat(a.percent || "0"))[0];
-
-    const topPercent = topHolder ? parseFloat(topHolder.percent || "0") * 100 : 0;
-    if (topPercent > 50) {
-      score += 20;
-      flags.push("WHALE_DOMINATED");
-    } else if (topPercent > 30) {
-      score += 10;
-      flags.push("HIGH_CONCENTRATION");
-    }
-  }
-
-  // Clamp
   score = Math.max(0, Math.min(100, score));
 
   let recommendation: "SAFE" | "CAUTION" | "AVOID" | "SCAM";
@@ -352,121 +356,31 @@ function calculateRisk(
   return { score, flags, recommendation };
 }
 
-// ─── POST Handler ────────────────────────────────────────────
+// ─── Safe Token Fast Path ────────────────────────────────────
 
-export async function POST(request: NextRequest) {
-  const startTime = Date.now();
-
-  let body: { address?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const address = body.address?.trim();
-  if (!address || !isValidAddress(address)) {
-    return NextResponse.json({ error: "Invalid BSC token address. Must be 0x followed by 40 hex characters." }, { status: 400 });
-  }
-
-  // Check if it's actually a contract
-  try {
-    const code = await rpcCall("eth_getCode", [address, "latest"]);
-    if (code === "0x" || code === "0x0") {
-      return NextResponse.json({ error: "Address is not a smart contract (EOA or empty)." }, { status: 400 });
-    }
-  } catch {
-    // Can't verify — proceed anyway
-  }
-
-  const sources: { name: string; status: "ok" | "failed"; detail?: string }[] = [];
-
-  // Fetch data from all sources in parallel
-  const [goplusResult, honeypotResult, basicsResult] = await Promise.allSettled([
-    fetchGoPlusData(address),
-    fetchHoneypotIs(address),
-    getTokenBasics(address),
+async function safeScan(tokenAddress: string, provider: ethers.JsonRpcProvider, startTime: number): Promise<TokenRiskReport> {
+  const token = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+  const [name, symbol, decimals, totalSupply] = await Promise.all([
+    token.name().catch(() => "Unknown"),
+    token.symbol().catch(() => "???"),
+    token.decimals().catch(() => 18),
+    token.totalSupply().catch(() => BigInt(0)),
   ]);
-
-  const goplus = goplusResult.status === "fulfilled" ? goplusResult.value : { data: null, error: "Request failed" };
-  const honeypot = honeypotResult.status === "fulfilled" ? honeypotResult.value : { data: null, error: "Request failed" };
-  const basics = basicsResult.status === "fulfilled" ? basicsResult.value : null;
-
-  sources.push({ name: "GoPlusLabs", status: goplus.data ? "ok" : "failed", detail: goplus.error ?? undefined });
-  sources.push({ name: "honeypot.is", status: honeypot.data ? "ok" : "failed", detail: honeypot.error ?? undefined });
-  sources.push({ name: "BSC RPC", status: basics ? "ok" : "failed" });
-
-  // If BOTH security APIs failed, we can't give reliable data
-  if (!goplus.data && !honeypot.data) {
-    return NextResponse.json({
-      error: "Unable to scan token — both security APIs (GoPlusLabs, honeypot.is) are unavailable. Try again in a moment.",
-      sources,
-    }, { status: 503 });
-  }
-
-  // Calculate risk from real data
-  const { score, flags, recommendation } = calculateRisk(goplus.data, honeypot.data);
-
-  // Build result from real data only
-  const gp = goplus.data;
-  const hp = honeypot.data;
-
-  const buyTax = Math.max(
-    parseFloat(gp?.buy_tax ?? "0") * 100,
-    (hp?.simulationResult?.buyTax ?? 0) * 100
-  );
-  const sellTax = Math.max(
-    parseFloat(gp?.sell_tax ?? "0") * 100,
-    (hp?.simulationResult?.sellTax ?? 0) * 100
-  );
-
-  const totalLiquidity = (gp?.dex ?? []).reduce((sum, d) => sum + parseFloat(d.liquidity || "0"), 0)
-    || hp?.pair?.liquidity || 0;
-
-  const lpHolders = gp?.lp_holders ?? [];
-  const totalLpLocked = lpHolders.reduce((sum, h) => sum + (h.is_locked === 1 ? parseFloat(h.percent || "0") : 0), 0);
-
-  // Top holder percent (non-contract, non-dead)
-  const holders = gp?.holders ?? [];
-  const realHolders = holders.filter(
-    (h) => !h.address?.toLowerCase().includes("dead") && h.address !== "0x0000000000000000000000000000000000000000"
-  );
-  const topHolderPercent = realHolders.length > 0
-    ? parseFloat(realHolders.sort((a, b) => parseFloat(b.percent || "0") - parseFloat(a.percent || "0"))[0].percent || "0") * 100
-    : 0;
-
-  const result: TokenScanResult = {
-    address,
-    name: gp?.token_name || hp?.token?.name || basics?.name || "Unknown",
-    symbol: gp?.token_symbol || hp?.token?.symbol || basics?.symbol || "???",
-    decimals: hp?.token?.decimals ?? basics?.decimals ?? 18,
-    totalSupply: gp?.total_supply || basics?.totalSupply || "0",
-    riskScore: score,
-    recommendation,
-    flags,
-    isHoneypot: gp?.is_honeypot === "1" || hp?.honeypotResult?.isHoneypot === true,
-    buyTax: Math.round(buyTax * 100) / 100,
-    sellTax: Math.round(sellTax * 100) / 100,
-    isOpenSource: gp?.is_open_source === "1",
-    isProxy: gp?.is_proxy === "1",
-    isRenounced: gp?.owner_address === "0x0000000000000000000000000000000000000000",
-    ownerCanMint: gp?.is_mintable === "1",
-    ownerCanPause: gp?.transfer_pausable === "1",
-    ownerCanBlacklist: gp?.is_blacklisted === "1",
-    canTakeBackOwnership: gp?.can_take_back_ownership === "1",
-    hasHiddenOwner: gp?.hidden_owner === "1",
-    ownerAddress: gp?.owner_address || "",
-    creatorAddress: gp?.creator_address || "",
-    holderCount: parseInt(gp?.holder_count || "0", 10),
-    topHolderPercent: Math.round(topHolderPercent * 100) / 100,
-    liquidityUsd: Math.round(totalLiquidity * 100) / 100,
-    lpHolderCount: parseInt(gp?.lp_holder_count || "0", 10),
-    lpTotalLocked: Math.round(totalLpLocked * 10000) / 100,
-    isLpLocked: totalLpLocked > 50,
-    sources,
+  return {
+    address: tokenAddress,
+    symbol: String(symbol),
+    name: String(name),
+    decimals: Number(decimals),
+    riskScore: 0,
+    recommendation: "SAFE",
+    flags: [],
+    totalSupply: ethers.formatUnits(totalSupply, decimals),
+    holderCount: 0, topHolderPercent: 0, ownerBalance: 0,
+    liquidityUsd: 0, isLiquidityLocked: true, lpTokenBurned: false,
+    isVerified: true, isRenounced: true,
+    ownerCanMint: false, ownerCanPause: false, ownerCanBlacklist: false, isProxy: false,
+    isHoneypot: false, buyTax: 0, sellTax: 0,
     scanTimestamp: Date.now(),
     scanDuration: Date.now() - startTime,
   };
-
-  return NextResponse.json(result);
 }

@@ -9,6 +9,8 @@ import { RiskAnalyzer, RiskLevel, SuggestedAction } from "./analyzer";
 import { OnChainExecutor } from "./executor";
 import { AIReasoningEngine } from "./ai-engine";
 import { PancakeSwapProvider, BSC_TOKENS } from "./pancakeswap";
+import { VenusMonitor } from "./venus-monitor";
+import { StopLossMonitor } from "./stop-loss";
 import { ethers } from "ethers";
 
 dotenv.config({ path: "../.env" });
@@ -99,6 +101,8 @@ class AegisAgent {
   private executor: OnChainExecutor;
   private aiEngine: AIReasoningEngine;
   private pancakeSwap: PancakeSwapProvider;
+  private venusMonitor: VenusMonitor;
+  private stopLossMonitor: StopLossMonitor;
   private isRunning = false;
   private cycleCount = 0;
   private startTime = Date.now();
@@ -134,6 +138,24 @@ class AegisAgent {
       },
       this.monitor.getProvider()
     );
+
+    // Initialize Venus Protocol Monitor
+    this.venusMonitor = new VenusMonitor(
+      CONFIG.vaultAddress,
+      CONFIG.privateKey,
+      this.monitor.getProvider()
+    );
+
+    // Initialize Stop-Loss Monitor
+    this.stopLossMonitor = new StopLossMonitor(
+      {
+        vaultAddress: CONFIG.vaultAddress,
+        privateKey: CONFIG.privateKey,
+        dryRun: CONFIG.dryRun,
+        slippageBps: 300, // 3% slippage tolerance
+      },
+      this.monitor.getProvider()
+    );
   }
 
   /**
@@ -150,6 +172,8 @@ class AegisAgent {
     console.log(`  Operator: ${this.executor.getOperatorAddress()}`);
     console.log(`  AI Engine: ${this.aiEngine.isEnabled() ? "LLM-Powered ✓" : "Heuristic Fallback"}`);
     console.log(`  PancakeSwap: Connected ✓`);
+    console.log(`  Venus Monitor: Active ✓`);
+    console.log(`  Stop-Loss Monitor: Active ✓`);
     console.log("");
 
     this.isRunning = true;
@@ -227,14 +251,60 @@ class AegisAgent {
 
     // ─── Phase 2.7: DEX DATA (PancakeSwap) ────────────────
     console.log("\n📊 Phase 2.7: DEX DATA — PancakeSwap on-chain prices...");
+    let dexBnbPrice = 0;
     try {
-      const bnbPrice = await this.pancakeSwap.getBNBPrice();
-      if (bnbPrice > 0) {
-        console.log(`  BNB/USD (PancakeSwap): $${bnbPrice.toFixed(2)}`);
-        console.log(`  Price Delta (CoinGecko vs DEX): ${((marketData.price - bnbPrice) / bnbPrice * 100).toFixed(3)}%`);
+      dexBnbPrice = await this.pancakeSwap.getBNBPrice();
+      if (dexBnbPrice > 0) {
+        console.log(`  BNB/USD (PancakeSwap): $${dexBnbPrice.toFixed(2)}`);
+        console.log(`  Price Delta (CoinGecko vs DEX): ${((marketData.price - dexBnbPrice) / dexBnbPrice * 100).toFixed(3)}%`);
       }
     } catch (err: any) {
       console.log(`  DEX data unavailable: ${err.message}`);
+    }
+
+    // ─── Phase 2.8: VENUS PROTOCOL STATUS ─────────────────
+    console.log("\n🏦 Phase 2.8: VENUS — Lending position status...");
+    const venusStatus = await this.venusMonitor.getStatus();
+    this.venusMonitor.logStatus(venusStatus);
+
+    // Auto-harvest Venus yield if due
+    const watchedAddresses = this.monitor.getWatchedAddresses();
+    if (venusStatus.enabled && venusStatus.pendingYield > 0n && watchedAddresses.length > 0) {
+      // Equal share distribution to all watched users
+      const sharePerUser = Math.floor(10000 / watchedAddresses.length);
+      const shares = watchedAddresses.map((_, i) =>
+        i === watchedAddresses.length - 1
+          ? 10000 - sharePerUser * (watchedAddresses.length - 1)
+          : sharePerUser
+      );
+      const harvestTx = await this.venusMonitor.checkAndHarvest(
+        watchedAddresses,
+        shares,
+        CONFIG.dryRun
+      );
+      if (harvestTx) {
+        console.log(`  Yield harvested: ${harvestTx}`);
+      }
+    }
+
+    // ─── Phase 2.9: STOP-LOSS MONITOR ─────────────────────
+    console.log("\n🛑 Phase 2.9: STOP-LOSS — Checking price thresholds...");
+    const currentPrice = dexBnbPrice > 0 ? dexBnbPrice : marketData.price;
+
+    // Set entry prices for any new users
+    for (const addr of watchedAddresses) {
+      this.stopLossMonitor.setEntryPrice(addr, currentPrice);
+    }
+
+    if (watchedAddresses.length > 0) {
+      const slResult = await this.stopLossMonitor.checkAndExecuteAll(watchedAddresses, currentPrice);
+      console.log(`  Checked: ${slResult.checked} users`);
+      if (slResult.triggered > 0) {
+        console.log(`  ⚠️  Stop-loss triggered: ${slResult.triggered} users`);
+        console.log(`  Executed: ${slResult.executed} swaps`);
+      } else {
+        console.log(`  All positions within thresholds ✓`);
+      }
     }
 
     // ─── Phase 3: DECIDE ──────────────────────────────────
@@ -262,7 +332,6 @@ class AegisAgent {
     }
 
     // Log decision for each watched address
-    const watchedAddresses = this.monitor.getWatchedAddresses();
     const targetUser = watchedAddresses[0] || ethers.ZeroAddress;
     
     // Hash includes both heuristic reasoning AND LLM analysis for on-chain attestation

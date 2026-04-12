@@ -1,501 +1,553 @@
-# AEGIS PROTOCOL — FOUNDER'S GUIDE
-## Everything You Need to Know to Own Every Conversation
+# AEGIS PROTOCOL — FOUNDER GUIDE
 
-**Last Updated**: March 30, 2026
-**For**: Tony (Solo Founder, Uniq Minds)
-**Purpose**: Your cheat-sheet for calls, AMAs, investor meetings, Twitter spaces, and everything in between. No code — just what you need to speak confidently.
+**Last Updated**: April 9, 2026
+**Version**: 2.0 — Post-Venus Integration, Mainnet-Ready
 
 ---
 
-## TABLE OF CONTENTS
+## ELEVATOR PITCH
 
-1. [The 30-Second Pitch](#1-the-30-second-pitch)
-2. [What Aegis Protocol Actually Does](#2-what-aegis-protocol-actually-does)
-3. [Why This Matters (The Problem)](#3-why-this-matters-the-problem)
-4. [How It Works (Plain English)](#4-how-it-works-plain-english)
-5. [What's Built and Live Right Now](#5-whats-built-and-live-right-now)
-6. [The Smart Contracts (What They Do)](#6-the-smart-contracts-what-they-do)
-7. [$UNIQ Token — Full Breakdown](#7-uniq-token--full-breakdown)
-8. [The Roadmap — Where We Are and Where We're Going](#8-the-roadmap--where-we-are-and-where-were-going)
-9. [Timeline at a Glance](#9-timeline-at-a-glance)
-10. [Key Numbers You Should Know](#10-key-numbers-you-should-know)
-11. [Revenue Model — How We Make Money](#11-revenue-model--how-we-make-money)
-12. [Competitive Landscape](#12-competitive-landscape)
-13. [Risk Acknowledgment (Shows Maturity)](#13-risk-acknowledgment-shows-maturity)
-14. [FAQs — Potential Hard Questions and How to Answer Them](#14-faqs--potential-hard-questions-and-how-to-answer-them)
-15. [Key Links — Have These Ready](#15-key-links--have-these-ready)
-16. [Your Story — The Narrative](#16-your-story--the-narrative)
-17. [Glossary — Terms You'll Hear](#17-glossary--terms-you-ll-hear)
+Aegis Protocol is an  **AI-powered DeFi guardian** on BNB Chain. Users scan tokens for rug pulls, scan their entire wallet for hidden threats, deposit BNB into a protected vault that earns Venus Protocol yield, and set automated stop-loss orders — all managed by an autonomous AI agent that monitors 24/7.
+
+
+**One sentence**: *Scan it, protect it, earn on it — the AI guardian for your BNB.*
 
 ---
 
-## 1. THE 30-SECOND PITCH
+## THE PRODUCT (What Users Actually Do)
 
-> **"Aegis Protocol is an AI-powered guardian for DeFi. It watches your crypto positions 24/7, detects threats like rug pulls and crashes in real-time, and automatically protects your assets — all on-chain, all transparent, all non-custodial. We built it for BNB Chain, won Top 10 at the BNB Chain hackathon out of 200 projects, and our $UNIQ token gives holders reduced fees and protocol access. Think of it as a security system for your crypto wallet that never sleeps."**
+### Three Products, One Platform
 
-Shorter version (10 seconds):
-> **"We're building an AI bodyguard for DeFi. It monitors your crypto 24/7 and auto-protects you from hacks, rugs, and crashes — on BNB Chain."**
+| Product | Type | What It Does | Revenue |
+|---------|------|-------------|----------|
+| **Token Scanner** | Free | Scan any token OR your entire wallet for honeypots, rug pulls, hidden taxes. Shareable results. | User acquisition |
+| **Guardian Shield** | Freemium | Always-on 24/7 wallet monitoring. Auto-refreshes every 60s. Real-time alerts for rug pulls, whale dumps, liquidity pulls. | $UNIQ tier upgrades |
+| **Protected Vault** | Paid | Deposit BNB → Venus/PancakeSwap yield → AI auto-protects. Performance fee on yield. | 10-20% performance fee |
 
----
+### User Journey
 
-## 2. WHAT AEGIS PROTOCOL ACTUALLY DOES
+```
+1. SCAN A TOKEN       →  Paste any BSC address, get instant risk score (FREE)
+2. SCAN YOUR WALLET   →  Connect wallet, scan ALL tokens, find dangerous ones (FREE)
+3. GUARDIAN SHIELD     →  Activate 24/7 monitoring with real-time alerts (FREEMIUM)
+4. DEPOSIT BNB         →  Protected vault, earning Venus Protocol yield (PAID)
+5. HOLD $UNIQ          →  Reduced fees, priority alerts, Telegram, AI analysis
+```
 
-Imagine you have money in DeFi (decentralized finance) — lending, trading, farming. You go to sleep. At 3 AM, the token you're holding gets rug-pulled, or there's a flash crash, or someone exploits the protocol you're in.
+### Frontend Routes (Live)
 
-**Without Aegis**: You wake up, your money's gone. Nothing you can do.
+| Route | Purpose | Description |
+|-------|---------|-------------|
+| `/` | Landing | Hero, features, journey flow, contract proof |
+| `/scanner` | Token Scanner | Paste any BSC token address → instant honeypot/rug pull/whale risk analysis |
+| `/guardian` | Guardian Shield | Connect wallet → AI monitors every token for rug pulls, whale dumps, liquidity pulls |
+| `/vault` | Protected Vault | Deposit BNB → Venus yield + stop-loss + AI monitoring |
+| `/scan/[address]` | Token Details | Deep dive on a specific token's risk profile |
 
-**With Aegis**: Our AI agent was watching 24/7. It detected abnormal price movement at 3:01 AM, assessed the risk, and by 3:02 AM had already moved your funds to safety — all autonomously, all recorded on-chain for proof.
-
-### The 6-Step Loop (What the AI Does Every 30 Seconds):
-
-| Step | What Happens | Plain English |
-|------|-------------|---------------|
-| **1. OBSERVE** | Fetches live price, volume, liquidity data | "Checks the market" |
-| **2. ANALYZE** | Scores risk across 5 factors (0-100) | "How dangerous is this right now?" |
-| **3. AI REASON** | LLM (like ChatGPT but for crypto) analyzes the situation | "AI thinks about what's happening" |
-| **4. DEX VERIFY** | Checks PancakeSwap on-chain prices to confirm | "Double-checks the numbers can't be faked" |
-| **5. DECIDE** | Determines threat level + what to do | "Should I act or just watch?" |
-| **6. EXECUTE** | Runs a protective transaction if needed | "Moves your funds to safety" |
-
-**Key principle**: The user is ALWAYS in control. They set their own risk limits. They can pull their money out anytime. The AI can only protect — it can never steal.
-
----
-
-## 3. WHY THIS MATTERS (THE PROBLEM)
-
-Use these stats in conversations:
-
-- **$3.8 billion** lost to DeFi hacks/exploits in 2022 alone
-- **$1.7 billion** lost in 2023
-- The average DeFi user checks their portfolio **2-3 times per day** — attacks happen in **seconds**
-- **73% of DeFi exploits** happen outside business hours (nights, weekends)
-- Most protection tools today are just **price alerts** — they tell you, they don't act for you
-
-**The gap**: There's no product that autonomously protects your DeFi positions with AI reasoning AND on-chain execution. That's what we're building.
+**Live**: [aegis-protocol-1.vercel.app](https://aegis-protocol-1.vercel.app/)
 
 ---
 
-## 4. HOW IT WORKS (PLAIN ENGLISH)
+## WHAT'S BUILT (April 2026)
 
-### For Users:
-1. Connect your wallet to our dashboard
-2. Deposit BNB (the native currency of BNB Chain) into the Aegis Vault
-3. Authorize an AI agent as your guardian
-4. Set your personal risk preferences (how aggressive/conservative you want protection)
-5. That's it — the agent watches and protects 24/7
+### Smart Contracts — 7 contracts, 2,660 LOC Solidity
 
-### For $UNIQ Holders:
-- Hold $UNIQ tokens → get reduced protocol fees
-- More tokens = bigger discount (Bronze/Silver/Gold tiers)
-- No need to stake or lock — just holding triggers the discount
+| Contract | LOC | What It Does |
+|----------|-----|-------------|
+| **AegisVault** | 1,164 | BNB/token deposits, Venus yield integration, stop-loss via PancakeSwap, per-user risk profiles, agent authorization, performance fees with $UNIQ discounts |
+| **AegisRegistry** | 557 | ERC-721 agent NFT identity, 4 tiers (Scout → Archon), reputation scoring, $UNIQ holder badges |
+| **DecisionLogger** | 337 | Immutable audit trail: every AI decision hashed and stored on-chain |
+| **AegisScanner** | 181 | On-chain token risk registry (0-100 score), risk flags, honeypot/rug detection |
+| **AegisTokenGate** | 200 | $UNIQ holder tiers (Bronze/Silver/Gold), fee discounts (0.10%–0.40%) |
+| **MockVenusBNB** | 130 | Testnet Venus simulator |
+| **MockERC20** | 19 | Testnet token helper |
 
-### What Makes It Different:
-| Feature | Other Products | Aegis |
-|---------|---------------|-------|
-| Monitoring | Price alerts | AI-powered analysis every 30 seconds |
-| Response | Sends you a notification | Executes protective transaction autonomously |
-| Custody | Some require keys | Fully non-custodial — you always control your funds |
-| Transparency | Black box algorithms | Every decision logged on-chain with proof |
-| Agent Identity | Anonymous bots | Each agent is an NFT with a public reputation score |
+### AI Agent Engine — 11 modules, 3,473 LOC TypeScript
 
----
+| Module | LOC | Purpose |
+|--------|-----|---------|
+| **token-scanner.ts** | 522 | Multi-source honeypot/rug pull/whale risk scanning |
+| **analyzer.ts** | 448 | 5-vector weighted risk scoring engine |
+| **index.ts** | 406 | Main loop: OBSERVE → ANALYZE → AI REASON → DEX VERIFY → DECIDE → EXECUTE |
+| **ai-engine.ts** | 380 | LLM-powered threat analysis (Groq Llama 3.3 70B / OpenAI GPT-4o) |
+| **whale-tracker.ts** | 328 | Real-time BSC large transfer monitoring |
+| **pancakeswap.ts** | 299 | On-chain DEX price verification via PancakeSwap V2 |
+| **executor.ts** | 260 | On-chain transaction execution (protection actions) |
+| **market-provider.ts** | 252 | CoinGecko + DeFiLlama live data feeds |
+| **monitor.ts** | 230 | Position & market data monitor |
+| **stop-loss.ts** | 196 | BNB price monitoring → auto stop-loss swap via PancakeSwap |
+| **venus-monitor.ts** | 152 | Venus vBNB yield harvesting monitor |
 
-## 5. WHAT'S BUILT AND LIVE RIGHT NOW
+### Telegram Bot — 554 LOC
+ 
+- `/start` — Subscriber registration with $UNIQ tier detection
+- `/scan <address>` — Token risk scan
+- `/vault` — Your vault position, Venus yield, stop-loss status
+- `/alerts` — Subscribe to whale/price/vault alerts
+- `/price` — Live BNB price
+- Tier-gated features: Gold gets all alerts, Bronze gets basics
 
-This is important — you're not selling a whitepaper. You have working product.
+### Frontend — Next.js 14, 5,241 LOC
 
-### Live Right Now:
-| What | Where | Status |
-|------|-------|--------|
-| **Dashboard** | [aegis-protocol-1.vercel.app](https://aegis-protocol-1.vercel.app/) | ✅ Live, anyone can try |
-| **Smart Contracts** | BSC Testnet (BNB Chain's test network) | ✅ 5 contracts deployed + verified |
-| **AI Agent** | Backend engine | ✅ Functional, using Groq AI (Llama 3.3 70B) |
-| **Test Suite** | GitHub CI/CD | ✅ 198 tests, all passing |
-| **Token Scanner** | Dashboard /scanner page | ✅ Live — paste any BSC token, get AI risk analysis |
-| **Whale Alerts** | Dashboard /alerts page | ✅ Live — real-time large-transfer tracking per token |
-| **Multi-Page Frontend** | 6 dedicated routes | ✅ Dashboard, Scanner, Alerts, Positions, Agent pages |
-| **$UNIQ Token** | BNB Chain Mainnet | ✅ Live, tradeable on flap.sh |
-| **On-Chain Proof** | BSCScan | ✅ 13 verified transactions showing full lifecycle |
-| **Production Audit** | All simulated data removed | ✅ 100% real data — no fakes anywhere |
+- 4 user-facing pages + 1 dynamic route + 4 API routes
+- Real-time market data (CoinGecko + PancakeSwap)
+- Wallet connection (MetaMask) or read-only mode (public BSC RPC)
+- Journey flow: Scanner → Guardian Shield → Vault
+- Live on Vercel with BSC Testnet
 
-### What "Verified on BSCScan" Means (Say This in Calls):
-> "Our smart contracts are verified — meaning anyone in the world can read the actual code running on the blockchain. Nothing is hidden. The source code matches what's deployed."
+### Tests — 184 passing, 2,317 LOC
 
-### What Has Been Proven On-Chain (13 Transactions):
-1. Deployed 3 contracts
-2. Registered an AI agent (minted an NFT)
-3. User deposited BNB
-4. User authorized the agent
-5. User set risk profile
-6. Agent detected a threat
-7. Agent executed emergency withdrawal
-8. Agent triggered stop-loss
-9. All decisions logged with AI reasoning hashes
-10. Reputation feedback given to agent
-
-**This is not a mockup. These are real transactions anyone can verify on BSCScan.**
+```
+AegisVault:      ~89 tests (Venus, stop-loss, deposits, fees, risk profiles)
+AegisTokenGate:  ~36 tests (tiers, discounts, threshold updates)
+AegisScanner:    ~31 tests (scan submission, risk tracking, authorization)
+DecisionLogger:  ~28 tests (decision logging, risk snapshots, edge cases)
+```
 
 ---
 
-## 6. THE SMART CONTRACTS (WHAT THEY DO)
+## TOTAL LOC
 
-You have **5 smart contracts**. Think of them as 5 programs running on the blockchain:
-
-### 1. AegisRegistry (The Phone Book)
-- Every AI agent is registered here as an NFT (like a digital ID card)
-- Each agent has a name, a reputation score, and a performance track record
-- Agents have 4 tiers: Scout → Guardian → Sentinel → Archon (higher = more trusted)
-- Anyone can see how well an agent has performed
-- **Why it matters**: "We don't trust AI blindly — every agent has a public track record"
-
-### 2. AegisVault (The Safe)
-- Users deposit their BNB here
-- Users authorize which agent can protect them
-- Users set their own risk limits (how much the agent can move, when to trigger)
-- The agent can protect assets but CANNOT withdraw to itself — only back to the user
-- Has emergency withdrawal — user can ALWAYS pull everything out instantly
-- **Why it matters**: "Your money, your rules. The AI protects, it never controls"
-
-### 3. DecisionLogger (The Black Box Recorder)
-- Every single decision the AI makes is permanently recorded on-chain
-- Includes: What risk it detected, how confident it was, what action it took
-- Stores a hash of the full AI analysis (proof of what the AI was thinking)
-- **Why it matters**: "Full transparency. If our AI makes a bad call, everyone can see exactly why"
-
-### 4. AegisTokenGate (The VIP Pass)
-- Checks how many $UNIQ tokens you hold
-- Assigns you a tier: Bronze (10K), Silver (100K), Gold (1M)
-- Gives you a fee discount based on your tier
-- Works automatically — just hold $UNIQ, no staking needed
-- **Why it matters**: "Holding $UNIQ isn't just speculative — it gives you real protocol benefits"
-
-### 5. AegisScanner (The Token Detector)
-- Scans any BSC token address for risk signals
-- Checks holder concentration, liquidity depth, contract patterns
-- Returns a risk score from 0-100
-- Powers the Token Scanner page on the dashboard
-- **Why it matters**: "Before you buy any token, scan it — our AI tells you if it looks like a rug"
-
-### Security Features Built In:
-- **ReentrancyGuard** — prevents a common hack where attackers re-enter a function
-- **Ownable** — only the protocol owner can change admin settings
-- **Custom errors** — gas-optimized error handling (saves users money on failed TXs)
-- **OpenZeppelin** — uses the most audited, battle-tested smart contract libraries in crypto
+| Component | Lines of Code |
+|-----------|--------------|
+| Smart Contracts | 2,660 |
+| AI Agent Engine | 3,473 |
+| Telegram Bot | 554 |
+| Frontend (Next.js) | 5,241 |
+| Tests | 2,317 |
+| **Total** | **14,245** |
 
 ---
 
-## 7. $UNIQ TOKEN — FULL BREAKDOWN
+## DEPLOYED CONTRACTS (BSC Testnet — Chain ID 97)
 
-### The Basics
+Deployed April 9, 2026.
+
+| Contract | Address |
+|----------|---------|
+| AegisRegistry | [`0x806677bAb187157Ba567820e857e321c92E6C1EF`](https://testnet.bscscan.com/address/0x806677bAb187157Ba567820e857e321c92E6C1EF) |
+| AegisVault | [`0xfa80515136Fc8CB2db3b25C317A1c9a04bcD3536`](https://testnet.bscscan.com/address/0xfa80515136Fc8CB2db3b25C317A1c9a04bcD3536) |
+| DecisionLogger | [`0x978308DF80FE3AEDf228D58c3625db49e50FE51B`](https://testnet.bscscan.com/address/0x978308DF80FE3AEDf228D58c3625db49e50FE51B) |
+| AegisScanner | [`0x8fa659D8edeffF0bBdEC37cB2c16C2f85491C840`](https://testnet.bscscan.com/address/0x8fa659D8edeffF0bBdEC37cB2c16C2f85491C840) |
+| AegisTokenGate | [`0x0F998bb1B3866B73CAaBc54B7A84156b8F9f7543`](https://testnet.bscscan.com/address/0x0F998bb1B3866B73CAaBc54B7A84156b8F9f7543) |
+| Venus vBNB (testnet) | [`0xb3798541B08916528e37457259Eb723DB662d77E`](https://testnet.bscscan.com/address/0xb3798541B08916528e37457259Eb723DB662d77E) |
+| USDT (testnet) | [`0x6a3654cb5ae1D1377831714aA2fBF30794e836BE`](https://testnet.bscscan.com/address/0x6a3654cb5ae1D1377831714aA2fBF30794e836BE) |
+
+**Configuration**:
+- Registration fee: 0.001 BNB
+- Protocol fee: 0.5% (50 bps) — reduced by $UNIQ tier
+- Performance fee: 15% (1,500 bps) on Venus yield
+- Min deposit: 0.001 BNB
+- Max agents: 10,000
+
+---
+
+## $UNIQ TOKEN
+
 | Property | Value |
 |----------|-------|
-| Name | $UNIQ |
-| Chain | BNB Smart Chain (BSC) |
-| Contract | `0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777` |
-| Total Supply | 1,000,000,000 (1 billion) |
-| Tax | 3% on transactions |
-| Ownership | **Renounced** (no one can change the token contract) |
-| Liquidity | **Locked** |
-| Where to Buy | [flap.sh](https://flap.sh/bnb/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777) |
+| Contract | [`0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777`](https://bscscan.com/token/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777) |
+| Chain | BNB Smart Chain (BSC Mainnet) |
+| Supply | 1,000,000,000 (1B) |
+| Tax | 3% |
+| Ownership | Renounced |
+| LP | Locked |
 
-### What "Renounced" and "Locked LP" Mean (People Will Ask):
-- **Renounced**: The creator gave up all control over the token contract. Nobody can mint new tokens, change the tax, or modify the code. It's permanent.
-- **Locked LP**: The liquidity (the money that allows trading) is locked and can't be pulled out = can't be rug-pulled.
+### Holder Tiers (On-Chain via AegisTokenGate)
 
-### Holder Tiers and Benefits (Live in Code)
-| Tier | $UNIQ Required | Fee Discount | What It Means |
-|------|---------------|-------------|---------------|
-| **None** | 0 | 0% | Standard 0.50% protocol fee |
-| **Bronze** | 10,000 | 0.10% off | Pay 0.40% instead of 0.50% |
-| **Silver** | 100,000 | 0.25% off | Pay 0.25% instead of 0.50% |
-| **Gold** | 1,000,000 | 0.40% off | Pay 0.10% instead of 0.50% (80% discount!) |
+| Tier | $UNIQ Required | Fee Discount | Benefits |
+|------|---------------|--------------|----------|
+| Free | 0 | 0% | Basic token scanner, public whale alerts |
+| Bronze | 10,000 (~$30) | 10% | Wallet monitoring, personal whale alerts |
+| Silver | 100,000 (~$300) | 25% | Priority alerts, Telegram notifications |
+| Gold | 1,000,000 (~$3,000) | 40% | AI risk explanations, custom stop-loss, early access |
 
-### Current Utility (Built and Coded):
-- ✅ Fee discounts on Vault operations (coded in AegisTokenGate.sol)
-- ✅ Holder badge on agent profiles (coded in AegisRegistry.sol)
-- ✅ Tier system (Bronze/Silver/Gold) displayed on dashboard
+### Token Utility
 
-### Planned Utility (Roadmap):
-- Agent registration paid in $UNIQ (cheaper than BNB)
-- Staking $UNIQ → earn share of protocol fees (Phase 5)
-- Governance voting on protocol decisions (Phase 5)
-- Buyback mechanism — protocol buys $UNIQ from market with fees (Phase 5)
+1. **Fee discounts** — Hold more $UNIQ, pay less on vault operations
+2. **Agent registration** — Register agents with $UNIQ at discounted rates
+3. **Tier-gated features** — Telegram bot commands, alert types, priority
+4. **Reputation boost** — $UNIQ holders get holder badge on agent NFTs
+5. **Future**: Staking rewards from protocol fee revenue, governance voting
 
-### How to Talk About the Token:
-> "We didn't launch a token for speculation. $UNIQ has real, coded utility — hold it, pay less fees. That's live in our smart contracts today. In Phase 5, stakers will earn a share of protocol revenue. The ownership is renounced, the liquidity is locked. It's as safe as a token can be."
+**Links**: [BSCScan](https://bscscan.com/token/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777) · [flap.sh](https://flap.sh/bnb/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777) · [Twitter](https://x.com/uniq_minds)
 
 ---
 
-## 8. THE ROADMAP — WHERE WE ARE AND WHERE WE'RE GOING
+## KEY FEATURES — DETAILED
 
-### Phase 1 — Foundation & Branding ✅ COMPLETE
-- Rebranded everything to "Aegis Protocol by Uniq Minds"
-- Gas-optimized the Vault contract (15-20% cheaper operations)
-- Grew tests from 54 → 98
-- Set up CI/CD (automated testing on every code change)
-- Twitter, dashboard, README all aligned
+### 1. Token Scanner (Free — User Acquisition)
 
-### Phase 2 — $UNIQ Token Integration + Full Product Build ✅ COMPLETE
-- ✅ Created AegisTokenGate contract (holder tiers + fee discounts)
-- ✅ Created AegisScanner contract (on-chain token risk scoring)
-- ✅ Upgraded Vault with token-gated fees
-- ✅ Upgraded Registry with holder badges
-- ✅ All 5 contracts deployed + verified on BSC Testnet
-- ✅ Tests from 98 → 198 (all passing)
-- ✅ Token Scanner page — paste any BSC token, get AI risk analysis
-- ✅ Whale Alerts page — real-time large-transfer tracking
-- ✅ Multi-page frontend — 6 dedicated routes with navbar
-- ✅ Production data audit — all simulated/fake data removed
-- ✅ Multi-RPC rotation with 6 BSC endpoints for reliability
+Two modes on one page:
+- **Scan a Token** — Paste any BSC token address → instant honeypot/rug pull/whale risk report, shareable via X/Telegram
+- **Scan Your Wallet** — Connect wallet → scan ALL tokens you hold → flag dangerous ones
 
-### Phase 3 — Security & BSC Mainnet Launch (Weeks 4-8)
-What's happening:
-- Security audit (internal + potentially external via Code4rena or Hacken)
-- Bug bounty program on Immunefi
-- Gnosis Safe multisig (multi-signature wallet = multiple people need to approve changes)
-- **Deploy to BSC Mainnet** (real money, real users)
-- Soft launch: invite-only, $1K per user cap, monitored closely
-- Then: public launch with gradual TVL cap increases
+Risk score: 0-100 with severity levels (LOW / MEDIUM / HIGH / CRITICAL).
 
-**Why this matters for calls**: "We're not rushing to mainnet. We're doing security audit, bug bounty, multisig, soft launch — the full responsible process."
+### 2. Guardian Shield (Freemium — Retention)
 
-### Phase 4 — Multi-Protocol Support (Month 2)
-- Support PancakeSwap V3 positions (concentrated liquidity)
-- Support Venus Protocol (lending/borrowing on BSC)
-- Auto-detect any BSC token in user's wallet
-- Pluggable adapter system (easy to add new protocols)
+Connect your wallet and Guardian Shield monitors continuously:
+- Auto-refreshes every 60 seconds (always-on, not a one-time scan)
+- Real-time alerts: rug pull signals, whale dumps, liquidity pulls, dev wallet movements
+- Alert severity tiers: Critical / Warning / Info
+- AI generates overall portfolio risk analysis
+- Free tier: Basic alerts
+- $UNIQ tier: Priority alerts, Telegram notifications, AI risk explanations
 
-### Phase 5 — Staking & Revenue Share (Month 3)
-- **Stake $UNIQ → Earn a share of protocol fees**
-- Revenue split: 30% stakers, 30% treasury, 20% buyback, 20% operations
-- Governance voting via Snapshot
-- This is where $UNIQ becomes a real yield-bearing asset
+### 3. Protected Vault with Venus Yield
 
-### Phase 6 — Multi-Chain Expansion (Month 4+)
-- Bring Aegis to Ethereum, Arbitrum, Base, Polygon
-- Same product, more chains
-- Bridge $UNIQ cross-chain via LayerZero or Wormhole
+Deposit BNB into the Aegis Vault:
+- **Venus Protocol integration** — Vault deploys BNB to Venus vBNB lending market
+- **Configurable allocation** — Owner sets % of vault supplied to Venus (default 80%)
+- **Yield harvesting** — Agent monitors and harvests Venus yield periodically
+- **Performance fee** — 15% on yield earned (reduced by $UNIQ tier)
+- **Per-user yield tracking** — Each depositor sees their share of yield earned
+- **Emergency withdraw** — Always available, bypasses agent authorization
 
----
+### 4. Automated Stop-Loss
 
-## 9. TIMELINE AT A GLANCE
+Per-user stop-loss protection:
+- User sets `stopLossThreshold` in their risk profile (e.g., 1000 bps = 10% drop)
+- User enables `allowAutoSwap` flag
+- Agent monitors BNB price via CoinGecko
+- When price drops past threshold: auto-swaps BNB → USDT via PancakeSwap V2 Router
+- USDT held in vault, withdrawable anytime
+- Slippage protection built-in
 
-| When | What | Status |
-|------|------|--------|
-| **Feb 2026** | Hackathon submission | ✅ Done |
-| **Early Mar** | Won Top 10 of 200 projects | ✅ Done |
-| **Mar W2** | Phase 1: Branding + Gas Optimization + 98 Tests | ✅ Done |
-| **Mar W3** | Phase 2: $UNIQ Integration + 150 Tests | ✅ Done |
-| **Mar W4** | Phase 2: Scanner + Token Scanner + Whale Alerts + 198 Tests | ✅ Done |
-| **Apr** | Phase 3: Audit + Mainnet deploy + Soft launch | Planned |
-| **May** | Phase 4: Multi-protocol (PancakeSwap V3 + Venus) | Planned |
-| **Jun** | Phase 5: Staking + Revenue sharing + Governance | Planned |
-| **Jul+** | Phase 6: Multi-chain expansion | Planned |
+### 5. AI Agent (Autonomous)
+
+The guardian agent runs a continuous loop:
+
+```
+OBSERVE → ANALYZE → AI REASON → DEX VERIFY → DECIDE → EXECUTE
+```
+
+- **5-vector risk scoring**: Price (30%), Liquidity (25%), Volume (15%), Holders (15%), Momentum (15%)
+- **LLM reasoning**: Groq (Llama 3.3 70B) or OpenAI (GPT-4o) for natural language threat analysis
+- **DEX verification**: Cross-references CoinGecko prices against PancakeSwap V2 on-chain reserves
+- **On-chain attestation**: Every decision hashed (keccak256) and stored in DecisionLogger
+- **Heuristic fallback**: Works without API keys using rule-based analysis
+
+### 6. Telegram Bot
+
+Push alerts to Telegram:
+- Token scan alerts — rug pull warnings
+- Whale movement alerts — large BSC transfers
+- Vault position updates — deposits, withdrawals, yield
+- Stop-loss triggers — when protection fires
+- BNB price feeds
+- All tier-gated by $UNIQ balance
 
 ---
 
-## 10. KEY NUMBERS YOU SHOULD KNOW
+## ARCHITECTURE
 
-Memorize these — they come up in every conversation:
-
-| Metric | Value | Context |
-|--------|-------|---------|
-| **Hackathon Rank** | #6 of Top 10 | Out of 200 projects, BNB Chain "Good Vibes Only" |
-| **Smart Contracts** | 5 | Registry, Vault, Logger, TokenGate, Scanner |
-| **Lines of Code** | ~9,300+ | 1,971 LOC contracts + 3,236 LOC agent + 4,154 LOC frontend |
-| **Tests** | 198 / 198 passing | Comprehensive coverage, ran on every commit |
-| **On-Chain Proofs** | 13 verified TXs | Full lifecycle demonstrated on BSC Testnet |
-| **$UNIQ Supply** | 1 billion | Renounced ownership, locked LP |
-| **$UNIQ Tax** | 3% | On buys and sells |
-| **Protocol Fee** | 0.50% | On protective actions (discounted for $UNIQ holders) |
-| **Max Fee Discount** | 80% | Gold tier (1M $UNIQ) pays only 0.10% |
-| **AI Providers** | Groq + OpenAI | With heuristic fallback (no single point of failure) |
-| **Dashboard** | Live on Vercel | Anyone can try, no wallet needed for readonly mode |
-| **Chain** | BNB Smart Chain | Low fees (~$0.03/TX), fast (3s blocks) |
-
----
-
-## 11. REVENUE MODEL — HOW WE MAKE MONEY
-
-### Now (Phase 2-3):
-- **Protocol fee**: 0.50% on every protective action the AI takes
-- Example: AI protects $10,000 → protocol earns $50
-- $UNIQ holders get up to 80% discount, but still pay something
-
-### Future (Phase 5):
-- **Revenue Split**:
-  - 30% → $UNIQ stakers (rewards)
-  - 30% → Treasury (development fund, controlled by multisig)
-  - 20% → Buyback (buy $UNIQ from market → creates buy pressure)
-  - 20% → Operations (servers, API costs, team)
-
-### Revenue Drivers:
-- More users depositing = more TVP (Total Value Protected)
-- More threats detected + acted on = more fees generated
-- More protocols integrated = more positions to protect = more volume
-
-### How to Talk About Revenue:
-> "We take a small fee — 0.50% — only when the AI actually protects your assets. If nothing happens, you pay nothing. And if you hold $UNIQ, that fee drops to as low as 0.10%. In Phase 5, 30% of all protocol revenue goes back to $UNIQ stakers."
-
----
-
-## 12. COMPETITIVE LANDSCAPE
-
-### Who else is in this space:
-| Project | What They Do | How We're Different |
-|---------|-------------|-------------------|
-| **DeFi Saver** | Automated DeFi management (Ethereum) | They focus on Ethereum lending. We're AI-powered + BNB Chain native + multi-vector risk analysis |
-| **Gelato Network** | Automated smart contract execution | Infrastructure layer, not user-facing. We're a full product with dashboard + AI reasoning |
-| **HAL (now Notify)** | DeFi notifications | They alert you. We act. Notifications aren't protection. |
-| **Chainlink Automation** | Keeper-based execution | Infrastructure tool for devs. We're a consumer product. |
-
-### Your Edge (What to Say):
-> "Most tools in this space either just alert you or are infrastructure for developers. We're the first to combine AI reasoning with autonomous on-chain execution specifically for protecting DeFi users. Plus our AI decisions are permanently logged — full transparency, not a black box."
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       USER JOURNEY                              │
+│                                                                 │
+│  Scan Token → Scan Wallet → Deposit BNB → Set Stop-Loss        │
+│       ↓            ↓             ↓             ↓                │
+│   /scanner    /guardian       /vault        Risk Profile        │
+└──────┬────────────┬─────────────┬──────────────┬────────────────┘
+       │            │             │              │
+┌──────▼────────────▼─────────────▼──────────────▼────────────────┐
+│                    SMART CONTRACTS (BSC)                         │
+│                                                                 │
+│  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌──────────────┐   │
+│  │ Aegis    │  │ Aegis    │  │ Decision  │  │ AegisToken   │   │
+│  │ Scanner  │  │ Vault    │  │ Logger    │  │ Gate ($UNIQ) │   │
+│  │          │  │          │  │           │  │              │   │
+│  │ Risk     │  │ Venus    │  │ AI Hash   │  │ Tiers +      │   │
+│  │ Registry │  │ Yield    │  │ Audit     │  │ Discounts    │   │
+│  │          │  │ StopLoss │  │ Trail     │  │              │   │
+│  └──────────┘  └────┬─────┘  └───────────┘  └──────────────┘   │
+│                      │                                          │
+│              ┌───────▼────────┐  ┌────────────────┐             │
+│              │  Venus vBNB    │  │  PancakeSwap   │             │
+│              │  (Lending)     │  │  V2 Router     │             │
+│              │                │  │  (Stop-Loss)   │             │
+│              └────────────────┘  └────────────────┘             │
+│                                                                 │
+│  ┌──────────────┐                                               │
+│  │AegisRegistry │  ERC-721 Agent NFTs + Reputation              │
+│  └──────────────┘                                               │
+└─────────────────────────────────────────────────────────────────┘
+       │
+┌──────▼──────────────────────────────────────────────────────────┐
+│                    AI AGENT ENGINE                               │
+│                                                                 │
+│  Market Data ──▶ Risk Analysis ──▶ LLM Reasoning ──▶ Execute    │
+│  (CoinGecko)    (5-vector)        (Groq/OpenAI)    (On-chain)  │
+│  (DeFiLlama)                                                    │
+│  (PancakeSwap)   Venus Monitor ──▶ Yield Harvest                │
+│                  StopLoss Monitor ──▶ BNB→USDT Swap             │
+└─────────────────────────────────────────────────────────────────┘
+       │
+┌──────▼──────────────────────────────────────────────────────────┐
+│                    TELEGRAM BOT                                  │
+│                                                                 │
+│  Scan alerts · Whale alerts · Vault updates · Price feeds       │
+│  Tier-gated by $UNIQ balance                                    │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 13. RISK ACKNOWLEDGMENT (SHOWS MATURITY)
+## TECH STACK
 
-Founders who acknowledge risks look 10x more credible than those who say everything is perfect.
-
-| Risk | How We Handle It |
-|------|-----------------|
-| **Smart contract bug** | 198 tests, upcoming audit, bug bounty, gradual TVL caps, multisig |
-| **AI makes a bad call** | Emergency withdrawal always works. User can override. All decisions logged for review. Heuristic fallback if AI APIs fail. |
-| **Low adoption** | $UNIQ fee incentives, free testnet access, community marketing |
-| **$UNIQ price drops** | Real utility (fee discounts are coded, not promises), buyback mechanism in Phase 5, LP locked, ownership renounced |
-| **Competitor launches first** | We have working product now + hackathon credibility + transparent AI decisions as a moat |
-| **Regulatory concerns** | Non-custodial (we never hold user funds), no securities language, utility token with real function |
-
----
-
-## 14. FAQs — POTENTIAL HARD QUESTIONS AND HOW TO ANSWER THEM
-
-### "Is this just another memecoin project?"
-> "No. We have 5 deployed smart contracts, 198 passing tests, a live dashboard, 13 verified on-chain transactions, and won Top 10 at the BNB Chain hackathon. The token has real utility — it gives you fee discounts that are programmed into the smart contracts. It's not a promise, it's code."
-
-### "Can the AI steal my funds?"
-> "No. The architecture is non-custodial — the AI agent can only execute protective actions (emergency withdraw, stop-loss) that send funds BACK to the user. It physically cannot transfer funds to any address other than the user's own. Plus, there's always an emergency withdrawal that bypasses the agent entirely."
-
-### "What if the AI makes a wrong decision?"
-> "Three things protect against this. First, users set their own risk limits — the AI operates within those boundaries. Second, every single decision is permanently recorded on-chain, so we can review and improve. Third, there's always an emergency exit — the user can override anything and withdraw instantly."
-
-### "Why BNB Chain and not Ethereum?"
-> "Two reasons: cost and speed. On BNB Chain, a protective transaction costs about 3 cents and confirms in 3 seconds. On Ethereum, the same transaction costs $5-50 and takes 12 seconds. When the AI needs to act fast to protect your money, speed and cost matter. We plan to expand to Ethereum in Phase 6."
-
-### "Why should I trust an AI with my money?"
-> "You're not trusting an AI — you're trusting a smart contract. The AI can suggest and execute actions, but only within the boundaries YOU set, and only protective actions (it can't send your funds to someone else). Everything the AI does is logged on-chain permanently. And you always have emergency withdrawal — one click, full exit, no AI involved."
-
-### "The token ownership is renounced — can you upgrade the contract?"
-> "The $UNIQ token contract is renounced, yes — nobody can change that. The protocol contracts (Vault, Registry, etc.) are owned by us now, and will be moved to a multisig wallet before mainnet. This is standard and necessary — we need to be able to add features and fix bugs. But with a multisig, no single person can make changes alone."
-
-### "What's your background? You're a solo builder?"
-> "Yes, I'm a solo founder. I used AI extensively to build this — that's literally what the hackathon encouraged. I designed the architecture, guided every decision, and understand every piece of it. The AI was my engineering team. I've documented every step of the build process in our AI Build Log, and the hackathon judges reviewed it. The code quality speaks for itself — Top 10 out of 200 projects."
-
-### "How do you make money?"
-> "0.50% protocol fee on protective actions. If the AI saves $10,000 for you, we earn $50. $UNIQ holders pay less. In Phase 5, 30% of all revenue goes to $UNIQ stakers, 20% buys $UNIQ from the market."
-
-### "Why would someone buy $UNIQ?"
-> "Real, coded utility: hold 10K $UNIQ, pay 0.40% instead of 0.50% on fees. Hold 1M, pay 0.10%. In Phase 5, stakers earn revenue share. In Phase 5, buyback mechanism creates buy pressure. It's not about hype — it's about protocol access."
-
-### "Is this audited?"
-> "Not yet — Phase 2 is complete and Phase 3 is the security audit. We're considering Code4rena (competitive audit) or Hacken/CertiK. We have 198 tests covering all 5 contracts, gas optimization, and we're launching a bug bounty on Immunefi. The responsible process is: build → test → audit → testnet → soft launch → mainnet. We're following that exactly."
-
-### "What happens if CoinGecko or Groq goes down?"
-> "We have fallbacks at every level. If Groq (our AI provider) goes down, we fall back to OpenAI. If that goes down, we fall back to pure heuristic analysis (no AI, just math). If CoinGecko goes down, we read prices directly from PancakeSwap on-chain data. The system is designed to degrade gracefully, not crash."
-
-### "How is AI analysis different from just setting a price alert?"
-> "A price alert looks at one number. Our AI looks at 5 vectors simultaneously — price movement, liquidity changes, trading volume anomalies, holder concentration, and momentum patterns. It weighs them together and reasons about what's happening. A 10% price drop with steady liquidity is different from a 10% drop while liquidity is draining — that's a rug. Price alerts can't tell the difference. Our AI can."
+| Layer | Technology |
+|-------|-----------|
+| Smart Contracts | Solidity 0.8.24, OpenZeppelin 5.6.1, Hardhat 2.22.17 |
+| AI Reasoning | Groq (Llama 3.3 70B) / OpenAI (GPT-4o) + heuristic fallback |
+| DeFi Integrations | Venus Protocol (lending/yield), PancakeSwap V2 (stop-loss swaps, price oracle) |
+| Risk Engine | 5-vector weighted scoring, per-user configurable thresholds |
+| Live Data | CoinGecko (price/volume), DeFiLlama (TVL/liquidity), PancakeSwap (on-chain reserves) |
+| Frontend | Next.js 14, Tailwind CSS, ethers.js v6, Vercel |
+| Telegram | node-telegram-bot-api, tier-gated commands |
+| Blockchain | BNB Smart Chain (BSC Testnet → Mainnet) |
+| Testing | Hardhat + Chai, 184 tests |
 
 ---
 
-## 15. KEY LINKS — HAVE THESE READY
+## SECURITY
 
-Save these in your phone notes. You'll share them constantly:
-
-| What | Link |
-|------|------|
-| **Live Dashboard** | https://aegis-protocol-1.vercel.app/ |
-| **$UNIQ on flap.sh** | https://flap.sh/bnb/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777 |
-| **$UNIQ on BSCScan** | https://bscscan.com/token/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777 |
-| **Twitter** | https://x.com/uniq_minds |
-| **GitHub** | https://github.com/Tonyflam/aegis-protocol |
-| **Registry (BSCScan)** | https://testnet.bscscan.com/address/0x7908c25C63AbAB47cb82bE50DBD874ED807EE8fF |
-| **Vault (BSCScan)** | https://testnet.bscscan.com/address/0x15Ef23024c2b90beA81E002349C70f0C2A09433F |
-| **Logger (BSCScan)** | https://testnet.bscscan.com/address/0x874d78947bd660665de237b16Ca05cd39b7feF6f |
-| **TokenGate (BSCScan)** | https://testnet.bscscan.com/address/0x672c5cC370085c3c6B5bcf2870e1A0Aa62Ff3D69 |
-| **Demo Video** | https://youtu.be/zEeFEduh6eg |
-| **Roadmap** | ROADMAP.md in the GitHub repo |
+| Feature | Implementation |
+|---------|---------------|
+| Non-custodial | Users retain full control — emergency withdrawal always available |
+| Agent authorization | Users explicitly authorize which agents can act |
+| Risk profiles | Per-user configurable limits (slippage, stop-loss, action caps) |
+| On-chain audit trail | Every AI decision hashed (keccak256) and stored in DecisionLogger |
+| ReentrancyGuard | All fund-moving functions protected |
+| OpenZeppelin | Battle-tested contract libraries (v5.6.1) |
+| Dual-source price verification | CoinGecko + PancakeSwap on-chain cross-reference |
+| Custom errors | Gas-optimized revert messages (19 custom errors) |
+| Unchecked loop increments | Gas optimization on non-overflow paths |
 
 ---
 
-## 16. YOUR STORY — THE NARRATIVE
+## MAINNET READINESS
 
-People don't invest in products, they invest in stories and founders. Here's yours:
+### What's Done
+- [x] All contracts deployed and tested on BSC Testnet
+- [x] 184 tests passing (zero failures)
+- [x] Venus Protocol integration with real yield mechanics
+- [x] Stop-loss with PancakeSwap V2 Router
+- [x] Frontend live on Vercel
+- [x] Telegram bot with tier-gated features
+- [x] Real mainnet protocol addresses configured:
+  - Venus vBNB: `0xA07c5b74C9B40447a954e1466938b865b6BBea36`
+  - USDT: `0x55d398326f99059fF775485246999027B3197955`
+  - PancakeSwap V2 Router: `0x10ED43C718714eb63d5aA57B78B54704E256024E`
+  - WBNB: `0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c`
 
-### The Arc:
-1. **Saw the problem**: Billions lost in DeFi every year because people can't monitor 24/7
-2. **Entered the hackathon**: BNB Chain's "Good Vibes Only: OpenClaw Edition" — 200 projects competing
-3. **Built it with AI**: Used AI as your engineering team (exactly what the hackathon encouraged)
-4. **Won Top 10**: Judges validated the architecture, code quality, and innovation
-5. **Now building in public**: $UNIQ token live, dashboard live, 198 tests, 5 smart contracts
-6. **Roadmap to mainnet**: Audit → Bug bounty → Multisig → Soft launch → Public launch
-7. **Vision**: Become the default DeFi protection layer across every EVM chain
-
-### The Founder Angle:
-> "I'm a solo builder who used AI to build what would normally take a team of 5. That's not a weakness — it's the future. If I can build a Top 10 hackathon-winning DeFi protocol as a one-person team, imagine what I can build with resources. The product is real, the code is public, and the results speak for themselves."
-
-### How to Handle the "No Coding Experience" Question:
-Don't hide it — lean into it:
-> "I'm not a traditional developer, and I think that's actually an advantage. I approach this from the user's perspective — what does a normal person need to feel safe in DeFi? The technical execution was done with AI assistance, but the product vision, architecture decisions, and every strategic choice is mine. The hackathon judges evaluated the code quality and we placed Top 10. The 198 passing tests don't lie."
-
----
-
-## 17. GLOSSARY — TERMS YOU'LL HEAR
-
-| Term | What It Means |
-|------|--------------|
-| **DeFi** | Decentralized Finance — financial services (lending, trading, farming) built on blockchain without banks |
-| **Smart Contract** | A program that runs on the blockchain. Once deployed, it runs exactly as coded — nobody can change it (unless designed to be upgradable) |
-| **Non-Custodial** | We never hold your funds. Your crypto stays in a smart contract that only YOU control |
-| **TVL / TVP** | Total Value Locked / Total Value Protected — how much money is in the protocol |
-| **BSC / BNB Chain** | Binance Smart Chain — a fast, cheap blockchain. $0.03 per transaction, 3-second blocks |
-| **Testnet** | A practice version of the blockchain for testing. No real money. We're here now |
-| **Mainnet** | The real blockchain. Real money. Phase 3 |
-| **ERC-721 / NFT** | A unique digital token. Each of our AI agents is an NFT with its own identity |
-| **ERC-20** | A standard token format. $UNIQ is an ERC-20 token |
-| **Rug Pull** | When a project creator drains the liquidity pool, making the token worthless |
-| **Flash Loan Attack** | An exploit where someone borrows millions, manipulates a price, profits, and repays — all in one transaction |
-| **Liquidity** | The money available for trading. Low liquidity = easy to manipulate |
-| **Gas / Gas Fees** | The cost to execute a transaction on the blockchain. On BSC, it's ~$0.03 |
-| **Basis Points (bps)** | 1 basis point = 0.01%. So 50 bps = 0.50%. Our protocol fee is 50 bps |
-| **Multisig** | A wallet that requires multiple people to approve a transaction. Like needing 2 keys to open a safe |
-| **Renounced** | The creator permanently gave up control of the token contract. No more changes possible |
-| **Locked LP** | Liquidity pool tokens are locked. Prevents the creator from pulling out all the trading liquidity |
-| **Slippage** | The difference between the expected price and actual execution price |
-| **Stop-Loss** | An automatic sell when a price drops below a certain level |
-| **Oracle** | A data source that feeds real-world information to smart contracts |
-| **PancakeSwap** | The biggest DEX (decentralized exchange) on BNB Chain |
-| **Groq** | An AI company that hosts LLM models. We use their Llama 3.3 70B model — free tier |
-| **LLM** | Large Language Model — AI that can reason about text (like ChatGPT). We use it for market analysis |
-| **Heuristic** | A rule-based analysis method (math-based, no AI). Our fallback if AI APIs go down |
-| **Sourcify** | A service that verifies smart contract source code matches what's deployed on-chain |
-| **CI/CD** | Continuous Integration / Continuous Deployment — automated testing that runs on every code change |
-| **Gnosis Safe** | The most popular multisig wallet in crypto. We'll use it to manage protocol contracts on mainnet |
-| **Immunefi** | The biggest bug bounty platform in crypto. We'll launch a bounty there in Phase 3 |
+### What's Needed for Mainnet
+- [ ] Security audit (Slither + Mythril at minimum, external audit recommended)
+- [ ] Gnosis Safe multisig for contract ownership
+- [ ] Mainnet RPC (Ankr or QuickNode for reliability)
+- [ ] Agent hosting (24/7 uptime — Railway, AWS, or VPS)
+- [ ] Deploy script for mainnet (`scripts/deploy-mainnet.ts`)
+- [ ] Frontend chain switch (testnet → mainnet toggle)
+- [ ] Soft launch with TVL caps
+- [ ] Bug bounty program (Immunefi)
 
 ---
 
-## FINAL NOTE
+## COMPETITIVE ADVANTAGES
 
-You built something real. 200 projects entered that hackathon and you came Top 10. You have 5 smart contracts, 198 tests, a live dashboard with 6 pages, a live token, and a clear roadmap from testnet to mainnet.
-
-When in doubt, come back to this:
-
-> **"The code is public. The contracts are verified. The tests pass. The dashboard is live. The token has real utility. Go look."**
-
-That's the most powerful thing you can say — because it's true.
+| Advantage | Detail |
+|-----------|--------|
+| **Full journey** | Scan → Protect → Earn. Not just monitoring, not just a vault — the complete path. |
+| **AI-native** | Real LLM reasoning (Groq/OpenAI), not just threshold alerts |
+| **Venus yield** | Idle BNB earns lending yield automatically |
+| **Automated stop-loss** | On-chain BNB→USDT swap, no manual intervention needed |
+| **Non-custodial** | Emergency withdraw always available, user retains full control |
+| **On-chain proof** | Every AI decision hashed and stored immutably |
+| **$UNIQ utility** | Real on-chain utility: fee discounts, tier gating, holder badges |
+| **Telegram integration** | Push alerts — users don't need to check a dashboard |
+| **BSC-native** | Low gas, fast blocks, massive DeFi ecosystem |
 
 ---
 
-*This guide is for internal founder reference. Not for public distribution.*
+## BUSINESS MODEL
+
+### Revenue Streams
+
+| Source | Fee | Description |
+|--------|-----|-------------|
+| Protocol fee | 0.5% | On protection actions (reduced by $UNIQ tier) |
+| Performance fee | 15% | On Venus yield earned |
+| Agent registration | 0.001 BNB | Optional $UNIQ payment path |
+
+### Fee Discount Schedule ($UNIQ Holders)
+
+| Tier | Holding | Fee Discount |
+|------|---------|-------------|
+| Free | 0 | 0% (full fee) |
+| Bronze | 10K $UNIQ | 10% off |
+| Silver | 100K $UNIQ | 25% off |
+| Gold | 1M $UNIQ | 40% off |
+
+### Future Revenue (Roadmap)
+- Staking rewards distribution (30% of fees to stakers)
+- Multi-chain deployment fees
+- Premium agent features
+
+---
+
+## PROJECT STRUCTURE
+
+```
+aegis-protocol/
+├── contracts/                             # Solidity (2,660 LOC)
+│   ├── AegisRegistry.sol                  # ERC-721 agent identity & reputation
+│   ├── AegisVault.sol                     # Vault + Venus yield + stop-loss
+│   ├── DecisionLogger.sol                 # On-chain decision audit log
+│   ├── AegisScanner.sol                   # Token risk registry
+│   ├── AegisTokenGate.sol                 # $UNIQ holder tiers & fee discounts
+│   ├── interfaces/
+│   │   ├── IVenusBNB.sol                  # Venus Protocol interface
+│   │   └── IPancakeRouter.sol             # PancakeSwap V2 interface
+│   └── mocks/
+│       ├── MockVenusBNB.sol               # Testnet Venus simulator
+│       └── MockERC20.sol                  # Testnet token helper
+│
+├── agent/                                 # AI Agent Engine (3,473 LOC)
+│   └── src/
+│       ├── index.ts                       # Main guardian loop
+│       ├── ai-engine.ts                   # LLM reasoning (Groq/OpenAI)
+│       ├── analyzer.ts                    # 5-vector risk scoring
+│       ├── executor.ts                    # On-chain TX execution
+│       ├── market-provider.ts             # CoinGecko + DeFiLlama feeds
+│       ├── monitor.ts                     # Position & market monitor
+│       ├── pancakeswap.ts                 # On-chain DEX price feeds
+│       ├── token-scanner.ts              # Multi-source token risk scanner
+│       ├── whale-tracker.ts               # Whale transfer monitoring
+│       ├── venus-monitor.ts               # Venus yield harvesting
+│       └── stop-loss.ts                   # BNB stop-loss via PancakeSwap
+│
+├── bot/                                   # Telegram Bot (554 LOC)
+│   └── src/index.ts                       # Alert bot with tier-gated features
+│
+├── frontend/                              # Next.js 14 (5,241 LOC)
+│   └── src/
+│       ├── app/
+│       │   ├── page.tsx                   # Landing page
+│       │   ├── scanner/page.tsx           # Token scanner
+│       │   ├── guardian/page.tsx           # Portfolio security (wallet scan)
+│       │   ├── vault/page.tsx             # Protected vault + Venus + stop-loss
+│       │   ├── scan/[address]/page.tsx    # Token detail page
+│       │   └── api/                       # Backend API routes
+│       │       ├── guardian/route.ts      # Wallet scan API
+│       │       ├── scan/route.ts          # Token scan API
+│       │       ├── vault/route.ts         # Vault data API
+│       │       └── wallet/route.ts        # Wallet data API
+│       ├── components/
+│       │   ├── Navbar.tsx                 # Nav: Scanner, Guardian Shield, Vault
+│       │   ├── Footer.tsx                 # Contract links, social
+│       │   └── ClientLayout.tsx           # Wallet provider wrapper
+│       └── lib/
+│           ├── constants.ts               # Contract addresses, chain config
+│           ├── WalletContext.tsx           # Wallet connection context
+│           ├── abis.ts                    # Contract ABIs
+│           ├── useContracts.ts            # Contract read/write hooks
+│           ├── useLiveMarket.ts           # Live market data hook
+│           └── useScrollReveal.ts         # Scroll animation hook
+│
+├── test/                                  # 184 tests (2,317 LOC)
+│   ├── AegisVault.test.ts                 # Vault + Venus + stop-loss tests
+│   ├── AegisTokenGate.test.ts             # Tier & discount tests
+│   ├── AegisScanner.test.ts               # Scanner tests
+│   └── DecisionLogger.test.ts             # Logger tests
+│
+├── scripts/
+│   ├── deploy.ts                          # BSC Testnet deployment
+│   ├── demo-e2e.ts                        # Local Hardhat E2E demo
+│   ├── demo-onchain.ts                    # BSC Testnet demo (6 TXs)
+│   └── demo-comprehensive.ts             # Full 15-phase threat lifecycle demo
+│
+├── hardhat.config.ts                      # BSC Testnet + Mainnet + opBNB config
+├── deployment.json                        # Current deployed addresses
+├── ROADMAP.md                             # 6-phase launch roadmap
+├── FOUNDER_GUIDE.md                       # This file
+└── README.md                              # Project documentation
+```
+
+---
+
+## COMMANDS
+
+```bash
+# Install
+npm install --legacy-peer-deps
+
+# Run all 184 tests
+npx hardhat test
+
+# Compile contracts
+npx hardhat compile
+
+# Deploy to BSC Testnet
+npx hardhat run scripts/deploy.ts --network bscTestnet
+
+# Start AI agent
+cd agent && npm install && npx ts-node src/index.ts
+
+# Start Telegram bot
+cd bot && npm install && npx ts-node src/index.ts
+
+# Start frontend
+cd frontend && npm install && npm run dev
+
+# Build frontend for production
+cd frontend && npm run build
+```
+
+---
+
+## LINKS
+
+| Resource | URL |
+|----------|-----|
+| Live Dashboard | [aegis-protocol-1.vercel.app](https://aegis-protocol-1.vercel.app/) |
+| GitHub | [github.com/Tonyflam/aegis-protocol](https://github.com/Tonyflam/aegis-protocol) |
+| $UNIQ Token | [BSCScan](https://bscscan.com/token/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777) |
+| $UNIQ Chart | [flap.sh](https://flap.sh/bnb/0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777) |
+| Twitter | [@uniq_minds](https://x.com/uniq_minds) |
+| Demo Video | [YouTube](https://youtu.be/zEeFEduh6eg) |
+| Contracts (Testnet) | [BSCScan](https://testnet.bscscan.com/address/0xfa80515136Fc8CB2db3b25C317A1c9a04bcD3536) |
+
+---
+
+## MILESTONES
+
+| Phase | Status | What Shipped |
+|-------|--------|-------------|
+| 1. Foundation | ✅ Complete | 5 contracts, 98 tests, CI/CD, gas optimization, branding |
+| 2. $UNIQ Integration | ✅ Complete | AegisTokenGate, holder tiers, fee discounts, scanner, whale alerts |
+| 3. Venus + Stop-Loss | ✅ Complete | Venus yield, PancakeSwap stop-loss, Telegram bot, 184 tests |
+| 4. Multi-Protocol | Planned | PancakeSwap V3, additional lending protocols |
+| 5. Staking | Planned | AegisStaking.sol, revenue share, governance |
+| 6. Multi-Chain | Planned | Ethereum, Arbitrum, Base, Polygon |
+
+**Next**: Security audit → Mainnet deployment → Soft launch with TVL caps.
+
+---
+
+## THE STORY
+
+Aegis Protocol won **#6 out of 200 projects** in the BNB Chain "Good Vibes Only: OpenClaw Edition" hackathon. Since the hackathon:
+
+- Rewrote the vault with Venus Protocol yield integration
+- Added automated stop-loss via PancakeSwap
+- Built a Telegram alert bot with tier-gated features
+- Redesigned the frontend journey (Scanner → Guardian Shield → Vault)
+- Expanded from 98 to 184 passing tests
+- Prepared mainnet deployment tooling with real protocol addresses
+
+The protocol is testnet-live, fully functional, and preparing for BSC Mainnet deployment.
+
+---
+
+*Aegis Protocol by [Uniq Minds](https://x.com/uniq_minds)*
+*Your DeFi positions deserve a guardian that never sleeps.*

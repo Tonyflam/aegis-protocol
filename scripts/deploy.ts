@@ -19,10 +19,11 @@ async function main() {
   // ─── Deploy AegisVault ────────────────────────────────────
   const protocolFeeBps = 50; // 0.5%
   const minDeposit = ethers.parseEther("0.001"); // 0.001 BNB
+  const performanceFeeBps = 1500; // 15% of yield
 
   console.log("\n2. Deploying AegisVault...");
   const Vault = await ethers.getContractFactory("AegisVault");
-  const vault = await Vault.deploy(registryAddress, protocolFeeBps, minDeposit);
+  const vault = await Vault.deploy(registryAddress, protocolFeeBps, minDeposit, performanceFeeBps);
   await vault.waitForDeployment();
   const vaultAddress = await vault.getAddress();
   console.log("   AegisVault deployed to:", vaultAddress);
@@ -58,6 +59,22 @@ async function main() {
   const scannerAddress = await scanner.getAddress();
   console.log("   AegisScanner deployed to:", scannerAddress);
 
+  // ─── Deploy Venus vBNB (Testnet) ───────────────────────────
+  console.log("\n3d. Deploying Venus vBNB (Testnet)...");
+  const VenusBNB = await ethers.getContractFactory("MockVenusBNB");
+  const venusBnb = await VenusBNB.deploy();
+  await venusBnb.waitForDeployment();
+  const venusBnbAddress = await venusBnb.getAddress();
+  console.log("   Venus vBNB deployed to:", venusBnbAddress);
+
+  // ─── Deploy USDT (Testnet) ────────────────────────────────
+  console.log("\n3e. Deploying USDT (Testnet)...");
+  const USDT = await ethers.getContractFactory("MockERC20");
+  const usdt = await USDT.deploy("Tether USD", "USDT", ethers.parseEther("1000000"));
+  await usdt.waitForDeployment();
+  const usdtAddress = await usdt.getAddress();
+  console.log("   USDT deployed to:", usdtAddress);
+
   // ─── Configure Permissions ────────────────────────────────
   console.log("\n4. Configuring permissions...");
 
@@ -92,6 +109,30 @@ async function main() {
   await tx5.wait();
   console.log("   ✓ Deployer authorized as scanner in AegisScanner");
 
+  // ─── Configure Venus Protocol ─────────────────────────────
+  console.log("\n4b. Configuring Venus Protocol...");
+
+  // PancakeSwap V2 Router on BSC Testnet
+  const pancakeRouterAddress = "0xD99D1c33F9fC3444f8101754aBC46c52416550D1";
+
+  const txVenus = await vault.setVenusConfig(venusBnbAddress, pancakeRouterAddress, usdtAddress);
+  await txVenus.wait();
+  console.log("   ✓ Venus config set (vBNB, Router, Stablecoin)");
+
+  const txAlloc = await vault.setVenusAllocationBps(8000); // 80% to Venus
+  await txAlloc.wait();
+  console.log("   ✓ Venus allocation set to 80%");
+
+  const txEnable = await vault.setVenusEnabled(true);
+  await txEnable.wait();
+  console.log("   ✓ Venus auto-deployment enabled");
+
+  // Fund Venus vBNB with extra BNB for yield payouts (testnet only)
+  const fundAmount = ethers.parseEther("0.01");
+  const txFund = await deployer.sendTransaction({ to: venusBnbAddress, value: fundAmount });
+  await txFund.wait();
+  console.log("   ✓ Venus vBNB funded with", ethers.formatEther(fundAmount), "BNB for yield");
+
   // ─── Register Initial Agent ───────────────────────────────
   console.log("\n5. Registering initial Aegis Guardian Agent...");
   const tx4 = await registry.registerAgent(
@@ -114,6 +155,8 @@ async function main() {
   console.log(`  AegisVault:       ${vaultAddress}`);
   console.log(`  DecisionLogger:   ${loggerAddress}`);
   console.log(`  AegisScanner:     ${scannerAddress}`);
+  console.log(`  Venus vBNB:       ${venusBnbAddress}`);
+  console.log(`  USDT:             ${usdtAddress}`);
   if (tokenGateAddress) {
     console.log(`  AegisTokenGate:   ${tokenGateAddress}`);
   }
@@ -130,12 +173,15 @@ async function main() {
       AegisVault: vaultAddress,
       DecisionLogger: loggerAddress,
       AegisScanner: scannerAddress,
+      VenusVBNB: venusBnbAddress,
+      USDT: usdtAddress,
       ...(tokenGateAddress ? { AegisTokenGate: tokenGateAddress } : {}),
     },
     configuration: {
       registrationFee: ethers.formatEther(registrationFee),
       maxAgents: maxAgents,
       protocolFeeBps: protocolFeeBps,
+      performanceFeeBps: performanceFeeBps,
       minDeposit: ethers.formatEther(minDeposit),
     },
   };
