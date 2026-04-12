@@ -4,6 +4,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/guardian/cron",
+      "schedule": "*/5 * * * *"
+    }
+  ],
   "env": {
     "NEXT_PUBLIC_REGISTRY_ADDRESS": "0xac77139C2856788b7EEff767969353adF95D335e",
     "NEXT_PUBLIC_VAULT_ADDRESS": "0x73CE32Ece5d21836824C55c5EDB9d09b07F3a56E",
