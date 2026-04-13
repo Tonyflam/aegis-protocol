@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
+import { trackScan } from "@/lib/scan-tracker";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -133,6 +134,7 @@ export async function GET(request: NextRequest) {
   try {
     const report = await scanToken(addr);
     cache.set(addr, { report, expires: Date.now() + CACHE_TTL });
+    trackScan(report as unknown as Record<string, unknown>, "api");
     return NextResponse.json(report);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Scan failed";
