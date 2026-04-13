@@ -56,17 +56,23 @@ function timeAgo(ts: number): string {
 export default function AnalyticsPage() {
   const [data, setData] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [filter, setFilter] = useState<"all" | "SAFE" | "CAUTION" | "AVOID" | "SCAM">("all");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
       const res = await fetch("/api/analytics?view=dashboard");
       if (res.ok) {
         const analytics = await res.json();
         setData(analytics as Analytics);
+      } else {
+        setError(true);
       }
-    } catch { /* fail silently */ }
+    } catch {
+      setError(true);
+    }
     setLoading(false);
   }, []);
 
@@ -103,7 +109,7 @@ export default function AnalyticsPage() {
             Scan Analytics
           </h1>
           <p className="text-base mt-1" style={{ color: "var(--text-secondary)" }}>
-            Tracking data for every token scanned through Aegis Protocol
+            Global tracking data from every token scanned across all users
           </p>
         </div>
         <div className="flex gap-2">
@@ -125,14 +131,25 @@ export default function AnalyticsPage() {
       {loading && !data ? (
         <div className="flex items-center justify-center py-20">
           <RefreshCw className="w-6 h-6 animate-spin" style={{ color: "var(--accent)" }} />
-          <span className="ml-3 text-sm" style={{ color: "var(--text-muted)" }}>Loading analytics...</span>
+          <span className="ml-3 text-sm" style={{ color: "var(--text-muted)" }}>Loading global analytics...</span>
+        </div>
+      ) : error ? (
+        <div className="card p-12 text-center">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-4" style={{ color: "#f97316" }} />
+          <h2 className="text-lg font-semibold text-white mb-2">Failed to load analytics</h2>
+          <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
+            Could not connect to the analytics server. Try again.
+          </p>
+          <button onClick={fetchData} className="btn-primary inline-flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" /> Retry
+          </button>
         </div>
       ) : !data || data.totalScans === 0 ? (
         <div className="card p-12 text-center">
           <BarChart3 className="w-12 h-12 mx-auto mb-4" style={{ color: "var(--text-muted)" }} />
           <h2 className="text-lg font-semibold text-white mb-2">No scan data yet</h2>
           <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
-            Scan tokens using the Scanner to start building your analytics database.
+            Scan tokens using the Scanner to start building the global analytics database. Every scan from any user contributes.
           </p>
           <Link href="/scanner" className="btn-primary inline-flex items-center gap-2">
             <Search className="w-4 h-4" />
