@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { computeLocalAnalytics, getStoredScans, type StoredScan } from "../../lib/scan-store";
 import {
   BarChart3, Shield, AlertTriangle, Skull, CheckCircle, Activity,
   TrendingUp, Eye, Search, Download, RefreshCw, ExternalLink,
@@ -9,33 +10,6 @@ import {
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────
-
-interface ScanRecord {
-  address: string;
-  symbol: string;
-  name: string;
-  riskScore: number;
-  recommendation: string;
-  flags: string[];
-  isHoneypot: boolean;
-  buyTax: number;
-  sellTax: number;
-  liquidityUsd: number;
-  isLiquidityLocked: boolean;
-  lpLockedPercent: number;
-  holderCount: number;
-  topHolderPercent: number;
-  creatorPercent: number;
-  ownerCanMint: boolean;
-  isRenounced: boolean;
-  hiddenOwner: boolean;
-  canTakeBackOwnership: boolean;
-  isProxy: boolean;
-  isVerified: boolean;
-  scannedAt: number;
-  scanDuration: number;
-  scanSource: string;
-}
 
 interface Analytics {
   totalScans: number;
@@ -46,7 +20,7 @@ interface Analytics {
   avgRiskScore: number;
   topScannedTokens: { symbol: string; address: string; count: number }[];
   flagFrequency: Record<string, number>;
-  recentScans: ScanRecord[];
+  recentScans: StoredScan[];
   scansByHour: { hour: string; count: number }[];
 }
 
@@ -84,16 +58,27 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "SAFE" | "CAUTION" | "AVOID" | "SCAM">("all");
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(() => {
     setLoading(true);
     try {
-      const res = await fetch("/api/analytics");
-      if (res.ok) setData(await res.json());
+      const analytics = computeLocalAnalytics();
+      setData(analytics as Analytics);
     } catch { /* fail silently */ }
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleExport = () => {
+    const scans = getStoredScans();
+    const blob = new Blob([JSON.stringify(scans, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `aegis-scan-data-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const filteredScans = data?.recentScans.filter(
     (s) => filter === "all" || s.recommendation === filter
@@ -122,12 +107,12 @@ export default function AnalyticsPage() {
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
-          <a href="/api/analytics?view=export" download
+          <button onClick={handleExport}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
             style={{ background: "var(--bg-raised)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
             <Download className="w-4 h-4" />
             Export
-          </a>
+          </button>
         </div>
       </div>
 

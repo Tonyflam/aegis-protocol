@@ -8,6 +8,7 @@ import {
   Lock, Droplets, Eye, X, ChevronDown, ChevronUp,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { saveScan } from "../../../lib/scan-store";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -97,6 +98,7 @@ export default function ScanResultPage({ params }: { params: { address: string }
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         setResult(data);
+        saveScan(data as unknown as Record<string, unknown>);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to scan token");
       } finally {

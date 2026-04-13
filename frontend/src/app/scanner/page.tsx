@@ -11,6 +11,7 @@ import {
   Wallet, Activity,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { saveScan, saveScans } from "../../lib/scan-store";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -358,6 +359,7 @@ export default function ScannerPage() {
       }
       const result: ScanResult = await res.json();
       setScanResult(result);
+      saveScan(result as unknown as Record<string, unknown>);
       setRecentScans((prev) => {
         const filtered = prev.filter((s) => s.address.toLowerCase() !== result.address.toLowerCase());
         return [result, ...filtered].slice(0, 10);
@@ -381,6 +383,7 @@ export default function ScannerPage() {
       }
       const data: WalletScanResult = await res.json();
       setWalletResult(data);
+      if (data.scans) saveScans(data.scans as unknown as Record<string, unknown>[]);
       toast.success(`Wallet scanned — ${data.alertCount} issues found`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Wallet scan failed";
