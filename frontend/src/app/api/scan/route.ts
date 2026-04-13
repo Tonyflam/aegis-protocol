@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
 import { trackScan } from "@/lib/scan-tracker";
+import { redisSaveScan, isRedisConfigured } from "@/lib/redis-store";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -135,6 +136,9 @@ export async function GET(request: NextRequest) {
     const report = await scanToken(addr);
     cache.set(addr, { report, expires: Date.now() + CACHE_TTL });
     trackScan(report as unknown as Record<string, unknown>, "api");
+    if (isRedisConfigured()) {
+      redisSaveScan(report as unknown as Record<string, unknown>, "api").catch(() => {});
+    }
     return NextResponse.json(report);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Scan failed";

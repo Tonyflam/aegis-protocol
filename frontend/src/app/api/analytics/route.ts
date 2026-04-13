@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAllScans, getTokenHistory, getUniqueTokens, getAnalytics } from "@/lib/scan-tracker";
+import { isRedisConfigured, redisGetAnalytics, redisGetAllScans, redisGetRecentScans } from "@/lib/redis-store";
 
 // ─── Analytics API ───────────────────────────────────────────
 // GET /api/analytics                — full dashboard analytics
@@ -16,6 +17,10 @@ export async function GET(request: NextRequest) {
 
   switch (view) {
     case "dashboard": {
+      if (isRedisConfigured()) {
+        const analytics = await redisGetAnalytics();
+        return NextResponse.json(analytics);
+      }
       const analytics = getAnalytics();
       return NextResponse.json(analytics);
     }
@@ -27,6 +32,10 @@ export async function GET(request: NextRequest) {
 
     case "recent": {
       const limit = Math.min(Number(searchParams.get("limit") || 50), 200);
+      if (isRedisConfigured()) {
+        const scans = await redisGetRecentScans(limit);
+        return NextResponse.json({ scans, total: scans.length });
+      }
       const all = getAllScans();
       return NextResponse.json({ scans: all.slice(0, limit), total: all.length });
     }
@@ -49,7 +58,7 @@ export async function GET(request: NextRequest) {
     }
 
     case "export": {
-      const all = getAllScans();
+      const all = isRedisConfigured() ? await redisGetAllScans() : getAllScans();
       return new NextResponse(JSON.stringify(all, null, 2), {
         headers: {
           "Content-Type": "application/json",
