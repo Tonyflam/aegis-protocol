@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { computeLocalAnalytics, getStoredScans, type StoredScan } from "../../lib/scan-store";
+import { type GlobalScanRecord } from "../../lib/redis-store";
 import {
   BarChart3, Shield, AlertTriangle, Skull, CheckCircle, Activity,
   TrendingUp, Eye, Search, Download, RefreshCw, ExternalLink,
@@ -20,7 +20,7 @@ interface Analytics {
   avgRiskScore: number;
   topScannedTokens: { symbol: string; address: string; count: number }[];
   flagFrequency: Record<string, number>;
-  recentScans: StoredScan[];
+  recentScans: GlobalScanRecord[];
   scansByHour: { hour: string; count: number }[];
 }
 
@@ -58,26 +58,32 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "SAFE" | "CAUTION" | "AVOID" | "SCAM">("all");
 
-  const fetchData = useCallback(() => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const analytics = computeLocalAnalytics();
-      setData(analytics as Analytics);
+      const res = await fetch("/api/analytics?view=dashboard");
+      if (res.ok) {
+        const analytics = await res.json();
+        setData(analytics as Analytics);
+      }
     } catch { /* fail silently */ }
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleExport = () => {
-    const scans = getStoredScans();
-    const blob = new Blob([JSON.stringify(scans, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `aegis-scan-data-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExport = async () => {
+    try {
+      const res = await fetch("/api/analytics?view=export");
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `aegis-scan-data-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* fail silently */ }
   };
 
   const filteredScans = data?.recentScans.filter(
