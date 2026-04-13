@@ -47,6 +47,10 @@ interface TokenRiskReport {
 
 // ─── Constants ───────────────────────────────────────────────
 
+// Dedup: track recent Redis saves to avoid duplicate entries
+const recentRedisSaves = new Map<string, number>();
+const REDIS_DEDUP_WINDOW = 60_000; // 1 minute
+
 const BSC_RPC = "https://bsc-dataseed1.binance.org";
 const PANCAKE_FACTORY = "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73";
 const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
@@ -129,6 +133,14 @@ export async function GET(request: NextRequest) {
   // Check cache
   const cached = cache.get(addr);
   if (cached && cached.expires > Date.now()) {
+    // Still save to Redis on cache hit for global analytics (deduped)
+    if (isRedisConfigured()) {
+      const lastSave = recentRedisSaves.get(addr) || 0;
+      if (Date.now() - lastSave > REDIS_DEDUP_WINDOW) {
+        recentRedisSaves.set(addr, Date.now());
+        redisSaveScan(cached.report as unknown as Record<string, unknown>, "api").catch(() => {});
+      }
+    }
     return NextResponse.json(cached.report);
   }
 
@@ -137,6 +149,7 @@ export async function GET(request: NextRequest) {
     cache.set(addr, { report, expires: Date.now() + CACHE_TTL });
     trackScan(report as unknown as Record<string, unknown>, "api");
     if (isRedisConfigured()) {
+      recentRedisSaves.set(addr, Date.now());
       redisSaveScan(report as unknown as Record<string, unknown>, "api").catch(() => {});
     }
     return NextResponse.json(report);

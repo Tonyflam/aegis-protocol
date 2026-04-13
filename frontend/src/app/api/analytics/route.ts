@@ -26,6 +26,21 @@ export async function GET(request: NextRequest) {
     }
 
     case "tokens": {
+      if (isRedisConfigured()) {
+        const allScans = await redisGetAllScans();
+        const tokenMap = new Map<string, { count: number; latest: typeof allScans[0] }>();
+        for (const s of allScans) {
+          const a = s.address.toLowerCase();
+          const existing = tokenMap.get(a);
+          if (!existing) tokenMap.set(a, { count: 1, latest: s });
+          else existing.count++;
+        }
+        const tokens = [...tokenMap.entries()].map(([addr, d]) => ({
+          address: addr, symbol: d.latest.symbol, name: d.latest.name,
+          count: d.count, latestRisk: d.latest.riskScore,
+        }));
+        return NextResponse.json({ tokens, count: tokens.length });
+      }
       const tokens = getUniqueTokens();
       return NextResponse.json({ tokens, count: tokens.length });
     }
