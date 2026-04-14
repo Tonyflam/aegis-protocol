@@ -19,10 +19,10 @@ export async function GET(request: NextRequest) {
     case "dashboard": {
       if (isRedisConfigured()) {
         const analytics = await redisGetAnalytics();
-        return NextResponse.json({ ...analytics, source: "redis" });
+        return NextResponse.json(analytics);
       }
       const analytics = getAnalytics();
-      return NextResponse.json({ ...analytics, source: "memory" });
+      return NextResponse.json(analytics);
     }
 
     case "tokens": {
