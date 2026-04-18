@@ -1,13 +1,10 @@
 // ─── Upstash Redis Persistence (Global Scan Store) ──────────
 // Uses Upstash REST API — no SDK needed, just fetch().
 // Free tier: 10K commands/day, 256MB storage.
+// Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in Vercel env vars.
 
-const UPSTASH_URL =
-  process.env.UPSTASH_REDIS_REST_URL ||
-  "https://humorous-molly-87226.upstash.io";
-const UPSTASH_TOKEN =
-  process.env.UPSTASH_REDIS_REST_TOKEN ||
-  "gQAAAAAAAVS6AAIncDI2MTVjYjc0YjM0YjA0MzIyYjU2ZDVjZTkzNzQ3NTI2NnAyODcyMjY";
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || "";
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
 const SCANS_KEY = "aegis:scans";
 const MAX_SCANS = 5000;
 

@@ -57,6 +57,12 @@ contract AegisVault is Ownable, ReentrancyGuard {
     error InsufficientVenusBalance();
     error StopLossSwapFailed();
     error AutoSwapNotAllowed();
+    error OperatorPending();
+    error OperatorNotPending();
+    error TimelockNotExpired();
+    error StopLossCooldown();
+    error VenusSlippageExceeded();
+    error MinStablecoinTooLow();
 
     // ═══════════════════════════════════════════════════════════════
     //                        STRUCTS
@@ -160,6 +166,24 @@ contract AegisVault is Ownable, ReentrancyGuard {
     /// @notice Accumulated protocol fees (BNB)
     uint256 public accumulatedFees;
 
+    /// @notice Timelock delay for operator authorization (seconds)
+    uint256 public constant OPERATOR_TIMELOCK = 48 hours;
+
+    /// @notice Pending operator authorizations: operator => activation timestamp (0 = not pending)
+    mapping(address => uint256) public pendingOperators;
+
+    /// @notice On-chain stop-loss cooldown per user (seconds)
+    uint256 public constant STOP_LOSS_COOLDOWN = 1 hours;
+
+    /// @notice Last stop-loss execution timestamp per user
+    mapping(address => uint256) public lastStopLossTimestamp;
+
+    /// @notice Maximum Venus redeem slippage in basis points (e.g., 200 = 2%)
+    uint256 public venusRedeemSlippageBps = 200;
+
+    /// @notice Whether initial setup is complete (disables instant operator auth)
+    bool public setupFinalized;
+
     /// @notice Performance fee on yield in basis points (e.g., 1500 = 15%)
     uint256 public performanceFeeBps;
 
@@ -229,6 +253,10 @@ contract AegisVault is Ownable, ReentrancyGuard {
     event StopLossExecuted(address indexed user, uint256 bnbAmount, uint256 stablecoinReceived);
     event VenusConfigUpdated(address vBNB, address router, address stablecoin);
     event StablecoinWithdrawn(address indexed user, uint256 amount);
+    event OperatorAuthorizationQueued(address indexed operator, uint256 activationTime);
+    event OperatorAuthorizationCancelled(address indexed operator);
+    event OperatorAuthorizationFinalized(address indexed operator);
+    event SetupFinalized();
 
     // ═══════════════════════════════════════════════════════════════
     //                      MODIFIERS
@@ -742,9 +770,17 @@ contract AegisVault is Ownable, ReentrancyGuard {
 
         uint256 grossYield = currentValue - venusDeployedAmount;
 
+        // Record BNB balance before redeem for slippage check
+        uint256 bnbBefore = address(this).balance;
+
         // Redeem the yield portion from Venus
         uint256 result = venusVBNB.redeemUnderlying(grossYield);
         if (result != 0) revert VenusRedeemFailed();
+
+        // Validate actual BNB received against expected (slippage protection)
+        uint256 bnbReceived = address(this).balance - bnbBefore;
+        uint256 minAcceptable = grossYield - (grossYield * venusRedeemSlippageBps) / 10000;
+        if (bnbReceived < minAcceptable) revert VenusSlippageExceeded();
 
         // Performance fee
         uint256 totalFee = (grossYield * performanceFeeBps) / 10000;
@@ -826,6 +862,12 @@ contract AegisVault is Ownable, ReentrancyGuard {
         if (bnbAmount > pos.bnbBalance) revert InsufficientBalance();
         if (address(pancakeRouter) == address(0) || stablecoin == address(0)) revert VenusNotEnabled();
 
+        // On-chain stop-loss cooldown
+        if (block.timestamp < lastStopLossTimestamp[user] + STOP_LOSS_COOLDOWN) revert StopLossCooldown();
+
+        // Minimum stablecoin output floor: at least 1 unit (prevents zero-value swaps)
+        if (minStablecoinOut == 0) revert MinStablecoinTooLow();
+
         // Debit user's BNB balance
         pos.bnbBalance -= bnbAmount;
         totalBnbDeposited -= bnbAmount;
@@ -845,11 +887,14 @@ contract AegisVault is Ownable, ReentrancyGuard {
             minStablecoinOut,
             path,
             address(this),
-            block.timestamp + 300
+            block.timestamp + 1800  // 30 min deadline for BSC congestion
         );
 
         uint256 stablecoinReceived = amounts[amounts.length - 1];
         stablecoinBalances[user] += stablecoinReceived;
+
+        // Update on-chain cooldown
+        lastStopLossTimestamp[user] = block.timestamp;
 
         // Record the action
         uint256 actionId = actionHistory.length;
@@ -1022,11 +1067,61 @@ contract AegisVault is Ownable, ReentrancyGuard {
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * @notice Set authorized operator status
+     * @notice Instantly set operator authorization (only during initial setup)
+     * @dev After finalizeSetup() is called, use queueOperatorAuthorization() + timelock
      */
     function setOperatorAuthorization(address operator, bool authorized) external onlyOwner {
+        require(!setupFinalized, "Use timelock after setup");
         if (operator == address(0)) revert InvalidOperator();
         authorizedOperators[operator] = authorized;
+    }
+
+    /**
+     * @notice Finalize initial setup — disables instant operator authorization forever
+     * @dev Call this after deploying and configuring all initial operators
+     */
+    function finalizeSetup() external onlyOwner {
+        setupFinalized = true;
+        emit SetupFinalized();
+    }
+
+    /**
+     * @notice Queue an operator authorization (starts timelock)
+     * @dev Revoking is instant; only granting requires timelock
+     */
+    function queueOperatorAuthorization(address operator) external onlyOwner {
+        if (operator == address(0)) revert InvalidOperator();
+        pendingOperators[operator] = block.timestamp + OPERATOR_TIMELOCK;
+        emit OperatorAuthorizationQueued(operator, block.timestamp + OPERATOR_TIMELOCK);
+    }
+
+    /**
+     * @notice Finalize operator authorization after timelock expires
+     */
+    function finalizeOperatorAuthorization(address operator) external onlyOwner {
+        uint256 activation = pendingOperators[operator];
+        if (activation == 0) revert OperatorNotPending();
+        if (block.timestamp < activation) revert TimelockNotExpired();
+        authorizedOperators[operator] = true;
+        pendingOperators[operator] = 0;
+        emit OperatorAuthorizationFinalized(operator);
+    }
+
+    /**
+     * @notice Cancel a pending operator authorization
+     */
+    function cancelOperatorAuthorization(address operator) external onlyOwner {
+        pendingOperators[operator] = 0;
+        emit OperatorAuthorizationCancelled(operator);
+    }
+
+    /**
+     * @notice Instantly revoke an existing operator
+     */
+    function revokeOperatorAuthorization(address operator) external onlyOwner {
+        if (operator == address(0)) revert InvalidOperator();
+        authorizedOperators[operator] = false;
+        pendingOperators[operator] = 0;
     }
 
     /**
@@ -1117,6 +1212,15 @@ contract AegisVault is Ownable, ReentrancyGuard {
     function approveRouterStablecoin() external onlyOwner {
         if (address(pancakeRouter) == address(0) || stablecoin == address(0)) revert VenusNotEnabled();
         IERC20(stablecoin).approve(address(pancakeRouter), type(uint256).max);
+    }
+
+    /**
+     * @notice Update Venus redeem slippage tolerance
+     * @param _slippageBps Max slippage in basis points (max 500 = 5%)
+     */
+    function setVenusRedeemSlippage(uint256 _slippageBps) external onlyOwner {
+        require(_slippageBps <= 500, "Max 5% slippage");
+        venusRedeemSlippageBps = _slippageBps;
     }
 
     // ═══════════════════════════════════════════════════════════════

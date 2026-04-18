@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAllSubs } from "../../../../lib/telegram-store";
 
 // ─── Guardian Shield Cron ────────────────────────────────────
 // GET /api/guardian/cron — Background monitoring for all subscribed wallets.
@@ -22,12 +23,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Access shared subscription store
-  const subs = (globalThis as Record<string, unknown>).__aegisTgSubs as
-    | Map<string, { chatId: string; registeredAt: number }>
-    | undefined;
+  // Access Redis-persisted subscription store
+  const subs = await getAllSubs();
 
-  if (!subs || subs.size === 0) {
+  if (subs.size === 0) {
     return NextResponse.json({ message: "No subscribed wallets", checked: 0 });
   }
 

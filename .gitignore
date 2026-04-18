@@ -35,3 +35,5 @@ ignition/deployments/
 # Misc
 *.log
 npm-debug.log*
+slither-output.json
+slither-sarif.json
