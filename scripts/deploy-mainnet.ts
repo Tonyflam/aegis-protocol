@@ -129,6 +129,12 @@ async function main() {
   await txAgent.wait();
   console.log("   ✓ Agent 'Aegis Guardian Alpha' registered (ID: 0)");
 
+  // ─── Finalize Setup (locks instant operator auth) ─────────
+  console.log("\n9. Finalizing setup (enabling operator timelock)...");
+  const txFinalize = await vault.finalizeSetup();
+  await txFinalize.wait();
+  console.log("   ✓ Setup finalized — operator changes now require 48h timelock");
+
   // ─── Summary ──────────────────────────────────────────────
   console.log("\n" + "═".repeat(60));
   console.log("  BSC MAINNET DEPLOYMENT COMPLETE");

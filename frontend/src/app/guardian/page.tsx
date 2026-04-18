@@ -10,6 +10,7 @@ import {
   ExternalLink, Activity, Bot, Shield,
   Crown, Clock, TrendingUp, Lock,
   Zap, ChevronDown, ChevronUp, Send,
+  Target, ShieldAlert, ShieldCheck, Crosshair,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -56,6 +57,14 @@ interface Alert {
   minTier: "Free" | "Bronze" | "Silver" | "Gold";
 }
 
+interface AiAnalysis {
+  summary: string;
+  riskRating: "SAFE" | "CAUTION" | "AT_RISK" | "DANGEROUS";
+  topThreats: string[];
+  actions: string[];
+  holdingBreakdown: { symbol: string; verdict: string }[];
+}
+
 interface GuardianResult {
   address: string;
   bnbBalance: string;
@@ -65,6 +74,7 @@ interface GuardianResult {
   overallRisk: "SAFE" | "AT_RISK" | "DANGEROUS";
   maxRiskScore: number;
   aiSummary: string;
+  aiAnalysis: AiAnalysis;
   tier: string;
   uniqBalance: number;
   tokenCount: number;
@@ -88,23 +98,35 @@ function riskColor(score: number) {
   return "#22c55e";
 }
 
-
 function overallBadge(risk: string) {
   switch (risk) {
     case "DANGEROUS":
-      return { color: "#ef4444", bg: "rgba(239, 68, 68, 0.08)", label: "At Risk", icon: Skull };
+      return { color: "#ef4444", bg: "rgba(239, 68, 68, 0.06)", label: "Dangerous", icon: Skull };
     case "AT_RISK":
-      return { color: "#f97316", bg: "rgba(249, 115, 22, 0.08)", label: "Caution", icon: AlertTriangle };
+      return { color: "#f97316", bg: "rgba(249, 115, 22, 0.06)", label: "At Risk", icon: AlertTriangle };
     default:
-      return { color: "#22c55e", bg: "rgba(34, 197, 94, 0.08)", label: "Healthy", icon: CheckCircle };
+      return { color: "#22c55e", bg: "rgba(34, 197, 94, 0.06)", label: "Secure", icon: ShieldCheck };
+  }
+}
+
+function aiRatingStyle(rating: string) {
+  switch (rating) {
+    case "DANGEROUS":
+      return { color: "#ef4444", bg: "rgba(239, 68, 68, 0.06)", border: "rgba(239, 68, 68, 0.15)" };
+    case "AT_RISK":
+      return { color: "#f97316", bg: "rgba(249, 115, 22, 0.06)", border: "rgba(249, 115, 22, 0.15)" };
+    case "CAUTION":
+      return { color: "#eab308", bg: "rgba(234, 179, 8, 0.06)", border: "rgba(234, 179, 8, 0.15)" };
+    default:
+      return { color: "#22c55e", bg: "rgba(34, 197, 94, 0.06)", border: "rgba(34, 197, 94, 0.15)" };
   }
 }
 
 function formatBalance(bal: string) {
   const n = parseFloat(bal);
   if (isNaN(n)) return "0";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
   if (n >= 1) return n.toFixed(4);
   return n.toPrecision(4);
 }
@@ -139,30 +161,26 @@ export default function GuardianShieldPage() {
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL);
   const [expandedToken, setExpandedToken] = useState<string | null>(null);
-  const [threatsOpen, setThreatsOpen] = useState(true);
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Telegram notification state
   const [tgChatId, setTgChatId] = useState("");
   const [tgConnected, setTgConnected] = useState(false);
   const [tgLoading, setTgLoading] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [tgConfigured, setTgConfigured] = useState(false);
 
   const scanWallet = useCallback(async (addr: string, silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/guardian?address=${encodeURIComponent(addr)}`);
+      const res = await fetch("/api/guardian?address=" + encodeURIComponent(addr));
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Scan failed (${res.status})`);
+        throw new Error(data.error || "Scan failed (" + res.status + ")");
       }
       const data: GuardianResult = await res.json();
       setResult(data);
       setCountdown(REFRESH_INTERVAL);
-      if (!silent) toast.success(`Scan complete — ${data.alertCount} issues found`);
+      if (!silent) toast.success("Scan complete — " + data.alertCount + " issues found");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Scan failed";
       if (!silent) {
@@ -174,7 +192,6 @@ export default function GuardianShieldPage() {
     }
   }, []);
 
-  // Auto-scan on wallet connect
   useEffect(() => {
     if (isConnected && address && !result && !loading) {
       scanWallet(address);
@@ -182,7 +199,6 @@ export default function GuardianShieldPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, address]);
 
-  // Auto-refresh countdown
   useEffect(() => {
     if (!result || !address) return;
     countdownRef.current = setInterval(() => {
@@ -199,7 +215,6 @@ export default function GuardianShieldPage() {
     };
   }, [result, address, scanWallet]);
 
-  // Check Telegram status when wallet connects
   useEffect(() => {
     if (!isConnected || !address) return;
     fetch("/api/telegram", {
@@ -208,10 +223,7 @@ export default function GuardianShieldPage() {
       body: JSON.stringify({ action: "status", address }),
     })
       .then((r) => r.json())
-      .then((d) => {
-        setTgConnected(!!d.registered);
-        setTgConfigured(!!d.configured);
-      })
+      .then((d) => setTgConnected(!!d.registered))
       .catch(() => {});
   }, [isConnected, address]);
 
@@ -227,7 +239,6 @@ export default function GuardianShieldPage() {
       const data = await res.json();
       if (data.success) {
         setTgConnected(true);
-        setTgConfigured(!!data.configured);
         toast.success("Telegram alerts activated!");
       } else {
         toast.error(data.error || "Registration failed");
@@ -263,7 +274,6 @@ export default function GuardianShieldPage() {
 
   const tierRank: Record<string, number> = { Free: 0, Bronze: 1, Silver: 2, Gold: 3 };
   const userRank = tierRank[result?.tier ?? "Free"] ?? 0;
-
   const critAlerts = result?.alerts.filter((a) => a.severity === "critical") || [];
   const warnAlerts = result?.alerts.filter((a) => a.severity === "warning") || [];
   const infoAlerts = result?.alerts.filter((a) => a.severity === "info") || [];
@@ -271,149 +281,137 @@ export default function GuardianShieldPage() {
   const tierColor = result ? (TIER_COLORS[result.tier] || TIER_COLORS.Free) : TIER_COLORS.Free;
   const badge = overallBadge(result?.overallRisk ?? "SAFE");
   const BadgeIcon = badge.icon;
+  const ai = result?.aiAnalysis;
+  const aiStyle = aiRatingStyle(ai?.riskRating || "SAFE");
+  const isGold = result?.tier === "Gold";
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg-base)" }}>
       <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
 
-        {/* ════════════════════════════════════════════════════
-            NOT CONNECTED — Landing
-        ════════════════════════════════════════════════════ */}
+        {/* NOT CONNECTED */}
         {!isConnected && (
-          <div className="space-y-8">
-            {/* Hero */}
-            <div className="text-center pt-8 pb-4">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
-                style={{ background: "var(--accent-muted)", border: "1px solid var(--accent-border)" }}>
-                <Shield className="w-8 h-8" style={{ color: "var(--accent)" }} />
+          <div className="space-y-10">
+            <div className="text-center pt-8 pb-2">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium mb-6"
+                style={{ background: "var(--accent-muted)", border: "1px solid var(--accent-border)", color: "var(--accent)" }}>
+                <Activity className="w-3.5 h-3.5" />
+                Real-time AI Wallet Security
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-3">
+              <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white mb-4">
                 Guardian Shield
               </h1>
-              <p className="text-sm sm:text-base max-w-lg mx-auto" style={{ color: "var(--text-muted)" }}>
-                Connect your wallet to activate real-time monitoring. Aegis reads your token holdings
-                and continuously watches for rug pull signals, whale dumps, liquidity pulls, and contract
-                risks — all read-only, no signatures required.
+              <p className="text-base sm:text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                Connect your wallet and Aegis will continuously scan every token you hold
+                for rug pulls, honeypots, whale dumps, and contract risks — refreshing every 60 seconds.
+                Read-only. No signatures required.
               </p>
               <button onClick={connect} disabled={isConnecting}
-                className="btn-primary inline-flex items-center gap-2 mt-6">
-                <Wallet className="w-4 h-4" />
-                {isConnecting ? "Connecting..." : "Connect & Start Monitoring"}
+                className="btn-primary inline-flex items-center gap-2 mt-8 text-base px-8 py-3.5">
+                <Wallet className="w-5 h-5" />
+                {isConnecting ? "Connecting..." : "Connect Wallet"}
               </button>
             </div>
 
-            {/* What We Monitor */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { icon: Skull, label: "Rug Pull Detection", desc: "Mint capability, owner dumps, LP pulls" },
-                { icon: Activity, label: "Whale Tracking", desc: "Large holder movements & concentration" },
-                { icon: Eye, label: "Liquidity Watch", desc: "LP depth, lock status, removal risk" },
-                { icon: AlertTriangle, label: "Contract Risks", desc: "Pause, blacklist, proxy, honeypot" },
+                { icon: Skull, label: "Rug Pull Detection", desc: "Mint capabilities, owner dumps, LP pulls", color: "#ef4444" },
+                { icon: Activity, label: "Whale Tracking", desc: "Large holder concentration & movements", color: "var(--accent)" },
+                { icon: Zap, label: "Honeypot Scanner", desc: "Simulated sells to detect trapped tokens", color: "#f97316" },
+                { icon: Eye, label: "Contract Analysis", desc: "Pause, blacklist, proxy, upgrade detection", color: "var(--purple)" },
               ].map((f) => (
-                <div key={f.label} className="card p-4 text-center">
-                  <f.icon className="w-5 h-5 mx-auto mb-2" style={{ color: "var(--accent)" }} />
-                  <div className="text-xs font-medium text-white">{f.label}</div>
-                  <div className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>{f.desc}</div>
+                <div key={f.label} className="card p-5">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <f.icon className="w-5 h-5" style={{ color: f.color }} />
+                  </div>
+                  <div className="text-sm font-semibold text-white mb-1">{f.label}</div>
+                  <div className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>{f.desc}</div>
                 </div>
               ))}
             </div>
 
-            {/* Tier Info */}
             <div className="card p-6">
               <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
                 <Crown className="w-4 h-4" style={{ color: "#ffd700" }} />
                 $UNIQ Holder Tiers
               </h3>
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {([
                   { tier: "Free", req: "0 $UNIQ", color: "#6b7280" },
                   { tier: "Bronze", req: "10K $UNIQ", color: "#cd7f32" },
                   { tier: "Silver", req: "100K $UNIQ", color: "#c0c0c0" },
                   { tier: "Gold", req: "1M $UNIQ", color: "#ffd700" },
                 ] as const).map((t) => (
-                  <div key={t.tier} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ background: `${t.color}15`, border: `1px solid ${t.color}30` }}>
+                  <div key={t.tier} className="p-4 rounded-xl" style={{ background: "var(--bg-elevated)", border: "1px solid " + t.color + "15" }}>
+                    <div className="flex items-center gap-2 mb-2">
                       <Shield className="w-4 h-4" style={{ color: t.color }} />
+                      <span className="text-sm font-bold" style={{ color: t.color }}>{t.tier}</span>
+                      <span className="text-[10px] font-mono ml-auto" style={{ color: "var(--text-muted)" }}>{t.req}</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold" style={{ color: t.color }}>{t.tier}</span>
-                        <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>{t.req}</span>
-                      </div>
-                      <p className="text-[11px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
-                        {HOLDER_TIER_BENEFITS[t.tier].features}
-                      </p>
-                    </div>
+                    <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                      {HOLDER_TIER_BENEFITS[t.tier].features}
+                    </p>
                   </div>
                 ))}
               </div>
-              <a href={`https://flap.sh/bnb/${CONTRACTS.UNIQ_TOKEN}`} target="_blank" rel="noopener noreferrer"
+              <a href={"https://flap.sh/bnb/" + CONTRACTS.UNIQ_TOKEN} target="_blank" rel="noopener noreferrer"
                 className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-medium transition-colors"
                 style={{ background: "rgba(167, 139, 250, 0.08)", color: "var(--purple)", border: "1px solid rgba(167, 139, 250, 0.15)" }}>
                 Get $UNIQ to Unlock Features <ExternalLink className="w-3 h-3" />
               </a>
             </div>
 
-            <div className="text-center pt-2">
-              <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
-                Want a quick one-time scan instead?
-              </p>
-              <Link href="/scanner" className="text-xs font-medium inline-flex items-center gap-1"
-                style={{ color: "var(--accent)" }}>
+            <div className="text-center">
+              <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>Want a quick one-time scan?</p>
+              <Link href="/scanner" className="text-xs font-medium inline-flex items-center gap-1" style={{ color: "var(--accent)" }}>
                 Open Token Scanner <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
           </div>
         )}
 
-        {/* ════════════════════════════════════════════════════
-            LOADING STATE
-        ════════════════════════════════════════════════════ */}
+        {/* LOADING */}
         {isConnected && loading && (
-          <div className="card p-12 text-center">
-            <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4" style={{ color: "var(--accent)" }} />
-            <h2 className="text-lg font-semibold text-white mb-2">Scanning Your Holdings</h2>
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          <div className="card p-16 text-center">
+            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-5" style={{ color: "var(--accent)" }} />
+            <h2 className="text-xl font-semibold text-white mb-2">Scanning Your Wallet</h2>
+            <p className="text-sm max-w-md mx-auto" style={{ color: "var(--text-muted)" }}>
               Checking each token for honeypots, hidden taxes, whale risks, and rug pull signals...
             </p>
-            <div className="mt-4 flex items-center justify-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            <div className="mt-6 flex items-center justify-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
               <Activity className="w-3.5 h-3.5 animate-pulse" />
               This takes 15-30 seconds
             </div>
           </div>
         )}
 
-        {/* ════════════════════════════════════════════════════
-            ERROR STATE
-        ════════════════════════════════════════════════════ */}
+        {/* ERROR */}
         {isConnected && error && !loading && (
-          <div className="card p-8 text-center" style={{ borderColor: "rgba(239, 68, 68, 0.2)" }}>
-            <Skull className="w-10 h-10 mx-auto mb-3" style={{ color: "#ef4444" }} />
-            <h2 className="text-lg font-semibold text-white mb-2">Scan Failed</h2>
-            <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>{error}</p>
+          <div className="card p-12 text-center" style={{ borderColor: "rgba(239, 68, 68, 0.15)" }}>
+            <Skull className="w-12 h-12 mx-auto mb-4" style={{ color: "#ef4444" }} />
+            <h2 className="text-xl font-semibold text-white mb-2">Scan Failed</h2>
+            <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>{error}</p>
             {address && (
               <button onClick={() => scanWallet(address)} className="btn-primary inline-flex items-center gap-2">
-                <RefreshCw className="w-4 h-4" /> Retry
+                <RefreshCw className="w-4 h-4" /> Retry Scan
               </button>
             )}
           </div>
         )}
 
-        {/* ════════════════════════════════════════════════════
-            MONITORING DASHBOARD
-        ════════════════════════════════════════════════════ */}
+        {/* DASHBOARD */}
         {isConnected && result && !loading && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in space-y-6">
 
-            {/* ═══ STICKY HEADER ═══ */}
+            {/* Header Bar */}
             <div className="sticky top-16 z-40 -mx-4 px-4 py-3 backdrop-blur-xl"
               style={{ background: "rgba(9,9,11,0.92)", borderBottom: "1px solid var(--border-subtle)" }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">Guardian Shield</h1>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
-                    style={{ background: `${tierColor}18`, color: tierColor, border: `1px solid ${tierColor}35` }}>
+                    style={{ background: tierColor + "18", color: tierColor, border: "1px solid " + tierColor + "35" }}>
                     {result.tier}
                   </span>
                   <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium"
@@ -438,435 +436,460 @@ export default function GuardianShieldPage() {
               </div>
             </div>
 
-            {/* ═══ ROW 1: HERO STATUS (full width) ═══ */}
-            <section className="mt-6 mb-8">
-              <div className="card p-0 overflow-hidden" style={{ borderColor: `${badge.color}20` }}>
-                <div className="h-1" style={{ background: `linear-gradient(90deg, ${badge.color}, ${badge.color}60, transparent)` }} />
-                <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-5">
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                      style={{ background: badge.bg, border: `2px solid ${badge.color}25` }}>
-                      <BadgeIcon className="w-7 h-7" style={{ color: badge.color }} />
-                    </div>
-                    <div>
-                      <div className="text-[10px] uppercase tracking-widest font-medium" style={{ color: "var(--text-muted)" }}>
-                        Security Status
-                      </div>
-                      <div className="text-2xl font-bold tracking-tight" style={{ color: badge.color }}>
-                        {badge.label}
-                      </div>
-                    </div>
+            {/* Status + Stats */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="card p-5 flex items-center gap-4" style={{ borderColor: badge.color + "15" }}>
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0"
+                  style={{ background: badge.bg, border: "2px solid " + badge.color + "20" }}>
+                  <BadgeIcon className="w-8 h-8" style={{ color: badge.color }} />
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-widest font-medium mb-0.5" style={{ color: "var(--text-muted)" }}>
+                    Security Status
                   </div>
-                  <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[
-                      { label: "Tokens", value: String(result.tokenCount), color: "var(--accent)", icon: Activity },
-                      { label: "Critical", value: String(critAlerts.length), color: critAlerts.length > 0 ? "#ef4444" : "var(--green)", icon: Skull },
-                      { label: "Warnings", value: String(warnAlerts.length), color: warnAlerts.length > 0 ? "#f97316" : "var(--green)", icon: AlertTriangle },
-                      { label: "BNB", value: parseFloat(result.bnbBalance).toFixed(4), color: "#f0b90b", icon: Wallet },
-                    ].map((s) => (
-                      <div key={s.label} className="flex items-center gap-3 p-3 rounded-xl"
-                        style={{ background: "var(--bg-elevated)" }}>
-                        <s.icon className="w-4 h-4 shrink-0" style={{ color: s.color }} />
+                  <div className="text-2xl font-bold tracking-tight" style={{ color: badge.color }}>
+                    {badge.label}
+                  </div>
+                </div>
+              </div>
+              <div className="lg:col-span-2 grid grid-cols-4 gap-3">
+                {[
+                  { label: "Tokens", value: String(result.tokenCount), color: "var(--accent)", icon: Activity },
+                  { label: "Critical", value: String(critAlerts.length), color: critAlerts.length > 0 ? "#ef4444" : "var(--green)", icon: Skull },
+                  { label: "Warnings", value: String(warnAlerts.length), color: warnAlerts.length > 0 ? "#f97316" : "var(--green)", icon: AlertTriangle },
+                  { label: "BNB", value: parseFloat(result.bnbBalance).toFixed(4), color: "#f0b90b", icon: Wallet },
+                ].map((s) => (
+                  <div key={s.label} className="card p-4 flex flex-col items-center justify-center text-center">
+                    <s.icon className="w-4 h-4 mb-1.5" style={{ color: s.color }} />
+                    <div className="text-xl font-bold leading-none" style={{ color: s.color }}>{s.value}</div>
+                    <div className="text-[10px] uppercase tracking-wider mt-1" style={{ color: "var(--text-muted)" }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 2-Column Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+              {/* LEFT: AI Analysis + Alerts */}
+              <div className="lg:col-span-3 space-y-6">
+                {ai && (
+                  <div className="card overflow-hidden" style={{ borderColor: aiStyle.border }}>
+                    <div className="px-6 py-4 flex items-center justify-between"
+                      style={{ background: aiStyle.bg, borderBottom: "1px solid " + aiStyle.border }}>
+                      <div className="flex items-center gap-3">
+                        <Bot className="w-5 h-5" style={{ color: aiStyle.color }} />
                         <div>
-                          <div className="text-[10px] uppercase tracking-wider font-medium" style={{ color: "var(--text-muted)" }}>
-                            {s.label}
-                          </div>
-                          <div className="text-lg font-bold leading-none mt-0.5" style={{ color: s.color }}>
-                            {s.value}
-                          </div>
+                          <h2 className="text-sm font-semibold text-white">
+                            {isGold ? "AI Security Analysis" : "Security Analysis"}
+                          </h2>
+                          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                            {isGold ? "Enhanced with LLM reasoning" : "Rule-based analysis"}
+                          </span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* ═══ ROW 2: TWO-COLUMN GRID (7/5 split) ═══ */}
-            <section className="mb-8">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-                {/* ─── LEFT (7/12): Security Alerts ─── */}
-                <div className="lg:col-span-7">
-                  <div className="card overflow-hidden">
-                    <button onClick={() => setThreatsOpen(!threatsOpen)}
-                      className="w-full px-5 py-4 flex items-center justify-between text-left"
-                      style={{ borderBottom: threatsOpen ? "1px solid var(--border-subtle)" : undefined }}>
-                      <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                        <Shield className="w-4 h-4" style={{ color: critAlerts.length > 0 ? "#ef4444" : "var(--accent)" }} />
-                        Security Alerts
-                      </h2>
                       <div className="flex items-center gap-2">
-                        {critAlerts.length > 0 && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse"
-                            style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444" }}>
-                            {critAlerts.length} CRITICAL
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider"
+                          style={{ background: aiStyle.bg, color: aiStyle.color, border: "1px solid " + aiStyle.border }}>
+                          {ai.riskRating.replace("_", " ")}
+                        </span>
+                        {isGold && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                            style={{ background: "rgba(255,215,0,0.1)", color: "#ffd700", border: "1px solid rgba(255,215,0,0.2)" }}>
+                            AI
                           </span>
                         )}
-                        {warnAlerts.length > 0 && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                            style={{ background: "rgba(249,115,22,0.08)", color: "#f97316" }}>
-                            {warnAlerts.length} WARN
-                          </span>
-                        )}
-                        {threatsOpen
-                          ? <ChevronUp className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
-                          : <ChevronDown className="w-4 h-4" style={{ color: "var(--text-muted)" }} />}
                       </div>
-                    </button>
+                    </div>
 
-                    {threatsOpen && (critAlerts.length > 0 || warnAlerts.length > 0 || infoAlerts.length > 0) && (
-                      <div>
-                        {/* ── Critical ── */}
-                        {critAlerts.length > 0 && (
-                          <>
-                            <div className="px-5 py-1.5 text-[10px] uppercase tracking-widest font-semibold"
-                              style={{ background: "rgba(239,68,68,0.04)", color: "#ef4444", borderBottom: "1px solid var(--border-subtle)" }}>
-                              Critical
+                    <div className="p-6 space-y-5">
+                      <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                        {ai.summary}
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {ai.topThreats.length > 0 && (
+                          <div className="p-4 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
+                            <h3 className="text-xs font-semibold text-white mb-3 flex items-center gap-2">
+                              <Target className="w-3.5 h-3.5" style={{ color: "#ef4444" }} />
+                              Top Threats
+                            </h3>
+                            <div className="space-y-2">
+                              {ai.topThreats.map((threat, i) => (
+                                <div key={i} className="flex items-start gap-2">
+                                  <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5"
+                                    style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>{i + 1}</span>
+                                  <span className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{threat}</span>
+                                </div>
+                              ))}
                             </div>
-                            {critAlerts.map((alert) => (
-                              <div key={alert.id} className="border-l-[3px] hover:bg-white/[0.015] transition-colors"
-                                style={{ borderLeftColor: "#ef4444", borderBottom: "1px solid var(--border-subtle)" }}>
-                                <button onClick={() => setExpandedAlert(expandedAlert === alert.id ? null : alert.id)}
-                                  className="w-full px-5 py-3 flex items-start gap-3 text-left">
-                                  <Skull className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#ef4444" }} />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-semibold" style={{ color: "#ef4444" }}>{alert.title}</div>
-                                    <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{alert.token}</div>
-                                  </div>
-                                  {expandedAlert === alert.id
-                                    ? <ChevronUp className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
-                                    : <ChevronDown className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />}
-                                </button>
-                                {expandedAlert === alert.id && (
-                                  <div className="pl-12 pr-5 pb-3 animate-fade-in">
-                                    <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>{alert.description}</p>
-                                    <a href={`https://bscscan.com/token/${alert.tokenAddress}`} target="_blank" rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 text-[10px] font-medium mt-2 hover:underline"
-                                      style={{ color: "var(--accent)" }}>
-                                      View on BscScan <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </>
+                          </div>
                         )}
-
-                        {/* ── Warnings ── */}
-                        {warnAlerts.length > 0 && (
-                          <>
-                            <div className="px-5 py-1.5 text-[10px] uppercase tracking-widest font-semibold"
-                              style={{ background: "rgba(249,115,22,0.03)", color: "#f97316", borderBottom: "1px solid var(--border-subtle)" }}>
-                              Warnings
+                        {ai.actions.length > 0 && (
+                          <div className="p-4 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
+                            <h3 className="text-xs font-semibold text-white mb-3 flex items-center gap-2">
+                              <Crosshair className="w-3.5 h-3.5" style={{ color: "var(--accent)" }} />
+                              Recommended Actions
+                            </h3>
+                            <div className="space-y-2">
+                              {ai.actions.map((action, i) => (
+                                <div key={i} className="flex items-start gap-2">
+                                  <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--accent)" }} />
+                                  <span className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{action}</span>
+                                </div>
+                              ))}
                             </div>
-                            {warnAlerts.map((alert) => (
-                              <div key={alert.id} className="border-l-[3px] hover:bg-white/[0.015] transition-colors"
-                                style={{ borderLeftColor: "#f97316", borderBottom: "1px solid var(--border-subtle)" }}>
-                                <button onClick={() => setExpandedAlert(expandedAlert === alert.id ? null : alert.id)}
-                                  className="w-full px-5 py-3 flex items-start gap-3 text-left">
-                                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#f97316" }} />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-semibold" style={{ color: "#f97316" }}>{alert.title}</div>
-                                    <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{alert.token}</div>
-                                  </div>
-                                  {expandedAlert === alert.id
-                                    ? <ChevronUp className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
-                                    : <ChevronDown className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />}
-                                </button>
-                                {expandedAlert === alert.id && (
-                                  <div className="pl-12 pr-5 pb-3 animate-fade-in">
-                                    <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>{alert.description}</p>
-                                    <a href={`https://bscscan.com/token/${alert.tokenAddress}`} target="_blank" rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 text-[10px] font-medium mt-2 hover:underline"
-                                      style={{ color: "var(--accent)" }}>
-                                      View on BscScan <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </>
+                          </div>
                         )}
+                      </div>
 
-                        {/* ── Informational ── */}
-                        {infoAlerts.length > 0 && (
-                          <>
-                            <div className="px-5 py-1.5 text-[10px] uppercase tracking-widest font-semibold"
-                              style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)" }}>
-                              Monitoring
-                            </div>
-                            {infoAlerts.filter(a => userRank >= (tierRank[a.minTier] ?? 0)).map((alert) => (
-                              <div key={alert.id} className="border-l-[3px] hover:bg-white/[0.015] transition-colors"
-                                style={{ borderLeftColor: "var(--accent)", borderBottom: "1px solid var(--border-subtle)" }}>
-                                <button onClick={() => setExpandedAlert(expandedAlert === alert.id ? null : alert.id)}
-                                  className="w-full px-5 py-3 flex items-start gap-3 text-left">
-                                  <Eye className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--accent)" }} />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{alert.title}</div>
-                                    <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{alert.token}</div>
-                                  </div>
-                                  {expandedAlert === alert.id
-                                    ? <ChevronUp className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
-                                    : <ChevronDown className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />}
-                                </button>
-                                {expandedAlert === alert.id && (
-                                  <div className="pl-12 pr-5 pb-3 animate-fade-in">
-                                    <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>{alert.description}</p>
-                                    <a href={`https://bscscan.com/token/${alert.tokenAddress}`} target="_blank" rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 text-[10px] font-medium mt-2 hover:underline"
-                                      style={{ color: "var(--accent)" }}>
-                                      View on BscScan <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-
-                            {/* Locked info alerts */}
-                            {(() => {
-                              const locked = infoAlerts.filter(a => userRank < (tierRank[a.minTier] ?? 0));
-                              if (locked.length === 0) return null;
+                      {ai.holdingBreakdown.length > 0 && (
+                        <div>
+                          <h3 className="text-xs font-semibold text-white mb-3 flex items-center gap-2">
+                            <Wallet className="w-3.5 h-3.5" style={{ color: "var(--purple)" }} />
+                            Token-by-Token Verdict
+                          </h3>
+                          <div className="space-y-2">
+                            {ai.holdingBreakdown.map((h, i) => {
+                              const vl = h.verdict.toLowerCase();
+                              const vColor = vl.includes("honeypot") || vl.includes("exit") || vl.includes("dangerous") ? "#ef4444"
+                                : vl.includes("high risk") || vl.includes("consider selling") ? "#f97316"
+                                : vl.includes("moderate") || vl.includes("monitor") ? "#eab308" : "#22c55e";
                               return (
-                                <div className="px-5 py-2.5 flex items-center justify-between"
-                                  style={{ background: "rgba(255,255,255,0.01)", borderBottom: "1px solid var(--border-subtle)" }}>
-                                  <div className="flex items-center gap-2">
-                                    <Lock className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
-                                    <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                                      +{locked.length} more with higher tier
-                                    </span>
-                                  </div>
-                                  <a href={`https://flap.sh/bnb/${CONTRACTS.UNIQ_TOKEN}`} target="_blank" rel="noopener noreferrer"
-                                    className="text-[10px] font-medium flex items-center gap-1" style={{ color: "var(--purple)" }}>
-                                    <Zap className="w-3 h-3" /> Upgrade
-                                  </a>
+                                <div key={i} className="flex items-start gap-3 p-3 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
+                                  <span className="text-xs font-bold text-white min-w-[48px] shrink-0 pt-0.5">{h.symbol}</span>
+                                  <span className="text-[11px] leading-relaxed" style={{ color: vColor }}>{h.verdict}</span>
                                 </div>
                               );
-                            })()}
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    {/* All clear */}
-                    {threatsOpen && result.alerts.length === 0 && (
-                      <div className="px-5 py-8 text-center">
-                        <CheckCircle className="w-8 h-8 mx-auto mb-2" style={{ color: "var(--green)" }} />
-                        <h3 className="text-xs font-semibold text-white">All Clear</h3>
-                        <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>No threats detected in your holdings.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* ─── RIGHT (5/12): Token Holdings ─── */}
-                <div className="lg:col-span-5">
-                  <div className="card overflow-hidden lg:sticky lg:top-32">
-                    <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                      <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                        <Wallet className="w-4 h-4" style={{ color: "var(--accent)" }} />
-                        Token Holdings
-                      </h2>
-                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                        style={{ background: "rgba(255,255,255,0.04)", color: "var(--text-muted)" }}>
-                        {sortedScans.length} token{sortedScans.length !== 1 ? "s" : ""}
-                      </span>
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {sortedScans.length > 0 && (
-                      <div className="divide-y" style={{ borderColor: "var(--border-subtle)" }}>
-                        {sortedScans.map((scan) => {
-                          const holding = result.holdings.find((h) => h.address.toLowerCase() === scan.address.toLowerCase());
-                          const isExpanded = expandedToken === scan.address;
-                          const color = riskColor(scan.riskScore);
-                          return (
-                            <div key={scan.address}>
-                              <button onClick={() => setExpandedToken(isExpanded ? null : scan.address)}
-                                className="w-full px-5 py-2.5 flex items-center gap-3 text-left hover:bg-white/[0.02] transition-colors">
-                                <span className="w-8 h-6 rounded text-[10px] font-bold flex items-center justify-center shrink-0"
-                                  style={{ background: `${color}10`, color, border: `1px solid ${color}15` }}>
-                                  {scan.riskScore}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                  <span className="text-xs font-semibold text-white">{scan.symbol}</span>
-                                  <span className="text-[10px] ml-1.5 hidden sm:inline truncate" style={{ color: "var(--text-muted)" }}>{scan.name}</span>
-                                </div>
-                                <span className="text-[11px] font-mono shrink-0" style={{ color: "var(--text-secondary)" }}>
-                                  {holding ? formatBalance(holding.balance) : "\u2014"}
-                                </span>
-                                {isExpanded
-                                  ? <ChevronUp className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />
-                                  : <ChevronDown className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />}
-                              </button>
-                              {isExpanded && (
-                                <div className="px-5 pb-4 pt-1 animate-fade-in" style={{ background: "var(--bg-elevated)" }}>
-                                  <div className="grid grid-cols-2 gap-2 mb-3">
-                                    {[
-                                      { label: "Buy Tax", val: `${scan.buyTax.toFixed(1)}%`, warn: scan.buyTax > 10 },
-                                      { label: "Sell Tax", val: `${scan.sellTax.toFixed(1)}%`, warn: scan.sellTax > 10 },
-                                      { label: "Liquidity", val: `$${scan.liquidityUsd >= 1000 ? `${(scan.liquidityUsd / 1000).toFixed(1)}K` : scan.liquidityUsd.toFixed(0)}`, warn: scan.liquidityUsd < 1000 },
-                                      { label: "Top Holder", val: `${scan.topHolderPercent}%`, warn: scan.topHolderPercent > 30 },
-                                    ].map((m) => (
-                                      <div key={m.label} className="p-2 rounded-lg text-center" style={{ background: "var(--bg-raised)" }}>
-                                        <div className="text-[9px] uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{m.label}</div>
-                                        <div className="text-xs font-bold mt-0.5" style={{ color: m.warn ? "#f97316" : "var(--text-primary)" }}>{m.val}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <div className="flex flex-wrap gap-1 mb-3">
-                                    {scan.flags.map((f) => (
-                                      <span key={f} className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ background: `${color}10`, color }}>{formatFlag(f)}</span>
-                                    ))}
-                                    {scan.isHoneypot && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444" }}>HONEYPOT</span>}
-                                    {scan.isLiquidityLocked && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(34,197,94,0.1)", color: "var(--green)" }}>LP Locked</span>}
-                                    {scan.isRenounced && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(34,197,94,0.1)", color: "var(--green)" }}>Renounced</span>}
-                                  </div>
-                                  <a href={`https://bscscan.com/token/${scan.address}`} target="_blank" rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-[10px] font-medium hover:underline" style={{ color: "var(--accent)" }}>
-                                    View on BscScan <ExternalLink className="w-3 h-3" />
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                    {!isGold && (
+                      <div className="px-6 py-3 flex items-center justify-between"
+                        style={{ background: "rgba(255,215,0,0.03)", borderTop: "1px solid rgba(255,215,0,0.08)" }}>
+                        <div className="flex items-center gap-2">
+                          <Crown className="w-3.5 h-3.5" style={{ color: "#ffd700" }} />
+                          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                            Upgrade to <span style={{ color: "#ffd700" }} className="font-semibold">Gold</span> for AI-powered analysis
+                          </span>
+                        </div>
+                        <a href={"https://flap.sh/bnb/" + CONTRACTS.UNIQ_TOKEN} target="_blank" rel="noopener noreferrer"
+                          className="text-[10px] font-medium px-2.5 py-1 rounded-md flex items-center gap-1"
+                          style={{ background: "rgba(255,215,0,0.08)", color: "#ffd700", border: "1px solid rgba(255,215,0,0.12)" }}>
+                          Get $UNIQ <ExternalLink className="w-3 h-3" />
+                        </a>
                       </div>
                     )}
-
-                    {sortedScans.length === 0 && (
-                      <div className="px-5 py-8 text-center">
-                        <CheckCircle className="w-8 h-8 mx-auto mb-2" style={{ color: "var(--green)" }} />
-                        <p className="text-xs font-medium text-white">
-                          {result.tokenCount > 0 ? "Only Known-Safe Tokens" : "No Tokens Found"}
-                        </p>
-                        <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
-                          {result.tokenCount > 0 ? "Your wallet holds recognized safe tokens." : "This wallet has no token holdings."}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* ═══ ROW 3: FEATURES (full width, 4-col) ═══ */}
-            <section>
-              <h2 className="text-[10px] uppercase tracking-widest font-semibold mb-3" style={{ color: "var(--text-muted)" }}>
-                Features
-              </h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-
-                {/* AI Analysis */}
-                {result.tier === "Gold" && result.aiSummary ? (
-                  <div className="card p-4" style={{ borderColor: "rgba(255,215,0,0.15)" }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Bot className="w-4 h-4" style={{ color: "#ffd700" }} />
-                      <span className="text-[11px] font-semibold" style={{ color: "#ffd700" }}>AI Analysis</span>
-                    </div>
-                    <p className="text-[10px] leading-relaxed line-clamp-4" style={{ color: "var(--text-secondary)" }}>
-                      {result.aiSummary}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="card p-4 flex items-center gap-3 opacity-60">
-                    <Lock className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} />
-                    <div>
-                      <div className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>AI Analysis</div>
-                      <div className="text-[9px] font-bold uppercase" style={{ color: "#ffd700" }}>Gold Tier</div>
-                    </div>
                   </div>
                 )}
 
-                {/* Telegram */}
-                {userRank >= 2 ? (
-                  <div className="card p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Send className="w-4 h-4" style={{ color: "#229ED9" }} />
-                      <span className="text-[11px] font-semibold text-white">Telegram</span>
-                      {tgConnected && (
-                        <span className="ml-auto flex items-center gap-1 text-[9px] font-medium" style={{ color: "var(--green)" }}>
-                          <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--green)" }} /> On
-                        </span>
+                {/* Security Alerts */}
+                <div className="card overflow-hidden">
+                  <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <ShieldAlert className="w-4 h-4" style={{ color: critAlerts.length > 0 ? "#ef4444" : "#f97316" }} />
+                      Security Alerts
+                    </h2>
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                      style={{ background: critAlerts.length > 0 ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.04)", color: critAlerts.length > 0 ? "#ef4444" : "var(--text-muted)" }}>
+                      {critAlerts.length + warnAlerts.length} issue{critAlerts.length + warnAlerts.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  {critAlerts.map((alert) => (
+                    <div key={alert.id} className="border-l-[3px] hover:bg-white/[0.015] transition-colors"
+                      style={{ borderLeftColor: "#ef4444", borderBottom: "1px solid var(--border-subtle)" }}>
+                      <button onClick={() => setExpandedAlert(expandedAlert === alert.id ? null : alert.id)}
+                        className="w-full px-5 py-3.5 flex items-start gap-3 text-left">
+                        <Skull className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#ef4444" }} />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold" style={{ color: "#ef4444" }}>{alert.title}</div>
+                          <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{alert.token}</div>
+                        </div>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                          style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>CRITICAL</span>
+                        {expandedAlert === alert.id
+                          ? <ChevronUp className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
+                          : <ChevronDown className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />}
+                      </button>
+                      {expandedAlert === alert.id && (
+                        <div className="pl-12 pr-5 pb-4 animate-fade-in">
+                          <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{alert.description}</p>
+                          <a href={"https://bscscan.com/token/" + alert.tokenAddress} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] font-medium mt-2 hover:underline" style={{ color: "var(--accent)" }}>
+                            View on BscScan <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
                       )}
                     </div>
-                    {tgConnected ? (
+                  ))}
+
+                  {warnAlerts.map((alert) => (
+                    <div key={alert.id} className="border-l-[3px] hover:bg-white/[0.015] transition-colors"
+                      style={{ borderLeftColor: "#f97316", borderBottom: "1px solid var(--border-subtle)" }}>
+                      <button onClick={() => setExpandedAlert(expandedAlert === alert.id ? null : alert.id)}
+                        className="w-full px-5 py-3.5 flex items-start gap-3 text-left">
+                        <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#f97316" }} />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold" style={{ color: "#f97316" }}>{alert.title}</div>
+                          <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{alert.token}</div>
+                        </div>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                          style={{ background: "rgba(249,115,22,0.1)", color: "#f97316" }}>WARN</span>
+                        {expandedAlert === alert.id
+                          ? <ChevronUp className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
+                          : <ChevronDown className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />}
+                      </button>
+                      {expandedAlert === alert.id && (
+                        <div className="pl-12 pr-5 pb-4 animate-fade-in">
+                          <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{alert.description}</p>
+                          <a href={"https://bscscan.com/token/" + alert.tokenAddress} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] font-medium mt-2 hover:underline" style={{ color: "var(--accent)" }}>
+                            View on BscScan <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {infoAlerts.filter(a => userRank >= (tierRank[a.minTier] ?? 0)).map((alert) => (
+                    <div key={alert.id} className="border-l-[3px] hover:bg-white/[0.015] transition-colors"
+                      style={{ borderLeftColor: "var(--accent)", borderBottom: "1px solid var(--border-subtle)" }}>
+                      <button onClick={() => setExpandedAlert(expandedAlert === alert.id ? null : alert.id)}
+                        className="w-full px-5 py-3 flex items-start gap-3 text-left">
+                        <Eye className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--accent)" }} />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{alert.title}</div>
+                          <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{alert.token}</div>
+                        </div>
+                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded shrink-0"
+                          style={{ background: "var(--accent-muted)", color: "var(--accent)" }}>INFO</span>
+                      </button>
+                      {expandedAlert === alert.id && (
+                        <div className="pl-12 pr-5 pb-3 animate-fade-in">
+                          <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>{alert.description}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {(() => {
+                    const locked = infoAlerts.filter(a => userRank < (tierRank[a.minTier] ?? 0));
+                    if (locked.length === 0) return null;
+                    return (
+                      <div className="px-5 py-2.5 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.01)" }}>
+                        <div className="flex items-center gap-2">
+                          <Lock className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+                          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>+{locked.length} more with higher tier</span>
+                        </div>
+                        <a href={"https://flap.sh/bnb/" + CONTRACTS.UNIQ_TOKEN} target="_blank" rel="noopener noreferrer"
+                          className="text-[10px] font-medium flex items-center gap-1" style={{ color: "var(--purple)" }}>
+                          <Zap className="w-3 h-3" /> Upgrade
+                        </a>
+                      </div>
+                    );
+                  })()}
+
+                  {result.alerts.length === 0 && (
+                    <div className="px-5 py-12 text-center">
+                      <CheckCircle className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--green)" }} />
+                      <h3 className="text-sm font-semibold text-white mb-1">All Clear</h3>
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>No threats detected.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* RIGHT: Holdings + Sidebar */}
+              <div className="lg:col-span-2 space-y-6">
+                <div className="card overflow-hidden">
+                  <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Wallet className="w-4 h-4" style={{ color: "var(--accent)" }} />
+                      Holdings
+                    </h2>
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(255,255,255,0.04)", color: "var(--text-muted)" }}>
+                      {sortedScans.length} token{sortedScans.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  {sortedScans.length > 0 ? sortedScans.map((scan) => {
+                    const holding = result.holdings.find((h) => h.address.toLowerCase() === scan.address.toLowerCase());
+                    const isExpanded = expandedToken === scan.address;
+                    const color = riskColor(scan.riskScore);
+                    return (
+                      <div key={scan.address} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                        <button onClick={() => setExpandedToken(isExpanded ? null : scan.address)}
+                          className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/[0.02] transition-colors">
+                          <span className="w-9 h-7 rounded-lg text-xs font-bold flex items-center justify-center shrink-0"
+                            style={{ background: color + "10", color: color, border: "1px solid " + color + "15" }}>
+                            {scan.riskScore}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-semibold text-white">{scan.symbol}</div>
+                            {scan.flags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                {scan.flags.slice(0, 2).map((f) => (
+                                  <span key={f} className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
+                                    style={{ background: color + "10", color: color }}>{formatFlag(f)}</span>
+                                ))}
+                                {scan.flags.length > 2 && (
+                                  <span className="text-[9px] px-1 py-0.5" style={{ color: "var(--text-muted)" }}>+{scan.flags.length - 2}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-xs font-mono shrink-0" style={{ color: "var(--text-secondary)" }}>
+                            {holding ? formatBalance(holding.balance) : "\u2014"}
+                          </span>
+                          {isExpanded
+                            ? <ChevronUp className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />
+                            : <ChevronDown className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />}
+                        </button>
+                        {isExpanded && (
+                          <div className="px-4 pb-4 pt-1 animate-fade-in" style={{ background: "var(--bg-elevated)" }}>
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                              {[
+                                { label: "Buy Tax", val: scan.buyTax.toFixed(1) + "%", warn: scan.buyTax > 10 },
+                                { label: "Sell Tax", val: scan.sellTax.toFixed(1) + "%", warn: scan.sellTax > 10 },
+                                { label: "Liquidity", val: "$" + (scan.liquidityUsd >= 1000 ? (scan.liquidityUsd / 1000).toFixed(1) + "K" : scan.liquidityUsd.toFixed(0)), warn: scan.liquidityUsd < 1000 },
+                                { label: "Top Holder", val: scan.topHolderPercent + "%", warn: scan.topHolderPercent > 30 },
+                              ].map((m) => (
+                                <div key={m.label} className="p-2 rounded-lg text-center" style={{ background: "var(--bg-raised)" }}>
+                                  <div className="text-[9px] uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{m.label}</div>
+                                  <div className="text-sm font-bold mt-0.5" style={{ color: m.warn ? "#f97316" : "var(--text-primary)" }}>{m.val}</div>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {scan.flags.map((f) => (
+                                <span key={f} className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ background: color + "10", color: color }}>{formatFlag(f)}</span>
+                              ))}
+                              {scan.isHoneypot && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444" }}>HONEYPOT</span>}
+                              {scan.isLiquidityLocked && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(34,197,94,0.1)", color: "var(--green)" }}>LP Locked</span>}
+                              {scan.isRenounced && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(34,197,94,0.1)", color: "var(--green)" }}>Renounced</span>}
+                            </div>
+                            <a href={"https://bscscan.com/token/" + scan.address} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-medium hover:underline" style={{ color: "var(--accent)" }}>
+                              View on BscScan <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }) : (
+                    <div className="px-5 py-10 text-center">
+                      <CheckCircle className="w-8 h-8 mx-auto mb-2" style={{ color: "var(--green)" }} />
+                      <p className="text-sm font-medium text-white mb-1">
+                        {result.tokenCount > 0 ? "Only Safe Tokens" : "No Tokens Found"}
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                        {result.tokenCount > 0 ? "Recognized safe tokens only." : "No token holdings."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Telegram */}
+                <div className="card p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Send className="w-4 h-4" style={{ color: "#229ED9" }} />
+                    <span className="text-sm font-semibold text-white">Telegram Alerts</span>
+                    {tgConnected && (
+                      <span className="ml-auto flex items-center gap-1 text-[9px] font-medium" style={{ color: "var(--green)" }}>
+                        <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--green)" }} /> Active
+                      </span>
+                    )}
+                  </div>
+                  {userRank >= 2 ? (
+                    tgConnected ? (
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Active</span>
+                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Push alerts active</span>
                         <button onClick={disconnectTelegram} disabled={tgLoading}
-                          className="text-[10px] font-medium px-2 py-0.5 rounded hover:bg-white/5 transition-colors"
+                          className="text-[10px] font-medium px-2 py-0.5 rounded hover:bg-white/5"
                           style={{ color: "#ef4444" }}>
-                          {tgLoading ? "..." : "Off"}
+                          {tgLoading ? "..." : "Disconnect"}
                         </button>
                       </div>
                     ) : (
                       <>
                         <div className="flex gap-1.5">
                           <input type="text" value={tgChatId} onChange={(e) => setTgChatId(e.target.value)}
-                            placeholder="Chat ID"
-                            className="flex-1 text-[10px] px-2 py-1.5 rounded outline-none min-w-0"
+                            placeholder="Your Chat ID"
+                            className="flex-1 text-[11px] px-2.5 py-2 rounded-lg outline-none min-w-0"
                             style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }} />
                           <button onClick={connectTelegram} disabled={tgLoading || !tgChatId.trim()}
-                            className="px-2.5 py-1.5 rounded text-[10px] font-medium disabled:opacity-40 shrink-0"
+                            className="px-3 py-2 rounded-lg text-[11px] font-medium disabled:opacity-40 shrink-0"
                             style={{ background: "#229ED9", color: "#fff" }}>
-                            {tgLoading ? "..." : "Link"}
+                            {tgLoading ? "..." : "Connect"}
                           </button>
                         </div>
                         <a href="https://t.me/aegis_protocol_bot" target="_blank" rel="noopener noreferrer"
-                          className="text-[9px] mt-1.5 inline-block hover:underline" style={{ color: "#229ED9" }}>
-                          Get ID from @aegis_protocol_bot
+                          className="text-[10px] mt-2 inline-flex items-center gap-1 hover:underline" style={{ color: "#229ED9" }}>
+                          Get ID from @aegis_protocol_bot <ExternalLink className="w-3 h-3" />
                         </a>
                       </>
-                    )}
+                    )
+                  ) : (
+                    <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
+                      <Lock className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+                      <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                        Requires <span className="font-semibold" style={{ color: "#c0c0c0" }}>Silver</span> tier (100K $UNIQ)
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Links */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Link href="/vault" className="card card-action p-4 group">
+                    <TrendingUp className="w-4 h-4 mb-2" style={{ color: "var(--green)" }} />
+                    <span className="text-xs font-semibold text-white block">Protected Vault</span>
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Earn yield with AI guard</span>
+                  </Link>
+                  <Link href="/scanner" className="card card-action p-4 group">
+                    <Shield className="w-4 h-4 mb-2" style={{ color: "var(--accent)" }} />
+                    <span className="text-xs font-semibold text-white block">Token Scanner</span>
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Scan any BSC token</span>
+                  </Link>
+                </div>
+
+                {/* Tier Badge */}
+                {result.tier === "Gold" ? (
+                  <div className="card p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Crown className="w-4 h-4" style={{ color: "#ffd700" }} />
+                      <span className="text-sm font-semibold" style={{ color: "#ffd700" }}>Gold Tier</span>
+                    </div>
+                    <p className="text-[11px] mb-2" style={{ color: "var(--text-muted)" }}>
+                      All features unlocked. {result.uniqBalance >= 1_000_000 ? (result.uniqBalance / 1_000_000).toFixed(1) + "M" : (result.uniqBalance / 1_000).toFixed(0) + "K"} $UNIQ
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {["AI Analysis", "Telegram", "Priority Alerts", "40% Fee Discount"].map(f => (
+                        <span key={f} className="text-[9px] font-medium px-1.5 py-0.5 rounded"
+                          style={{ background: "rgba(255,215,0,0.08)", color: "#ffd700" }}>{f}</span>
+                      ))}
+                    </div>
                   </div>
                 ) : (
-                  <div className="card p-4 flex items-center gap-3 opacity-60">
-                    <Lock className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} />
-                    <div>
-                      <div className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>Telegram</div>
-                      <div className="text-[9px] font-bold uppercase" style={{ color: "#c0c0c0" }}>Silver+</div>
+                  <a href={"https://flap.sh/bnb/" + CONTRACTS.UNIQ_TOKEN} target="_blank" rel="noopener noreferrer"
+                    className="card card-action p-4 block">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Zap className="w-4 h-4" style={{ color: "var(--purple)" }} />
+                      <span className="text-xs font-semibold text-white">Upgrade Tier</span>
+                      <ExternalLink className="w-3 h-3 ml-auto" style={{ color: "var(--text-muted)" }} />
                     </div>
-                  </div>
-                )}
-
-                {/* Vault */}
-                <Link href="/vault"
-                  className="card card-action p-4 flex items-center gap-3 group">
-                  <TrendingUp className="w-4 h-4 shrink-0" style={{ color: "var(--green)" }} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-semibold text-white">Protected Vault</div>
-                    <div className="text-[9px]" style={{ color: "var(--text-muted)" }}>Venus yield</div>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 shrink-0 transition-transform group-hover:translate-x-0.5"
-                    style={{ color: "var(--text-muted)" }} />
-                </Link>
-
-                {/* Upgrade */}
-                {result.tier !== "Gold" ? (
-                  <a href={`https://flap.sh/bnb/${CONTRACTS.UNIQ_TOKEN}`} target="_blank" rel="noopener noreferrer"
-                    className="card card-action p-4 flex items-center gap-3 group">
-                    <Crown className="w-4 h-4 shrink-0" style={{ color: "var(--purple)" }} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-semibold text-white">
-                        {result.tier === "Free" ? "Get $UNIQ" : "Upgrade"}
-                      </div>
-                      <div className="text-[9px]" style={{ color: "var(--text-muted)" }}>
-                        {result.tier === "Free" ? "Unlock features" : result.tier === "Bronze" ? "Silver unlock" : "Gold unlock"}
-                      </div>
-                    </div>
-                    <ExternalLink className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />
+                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                      Hold $UNIQ for AI analysis, alerts, and fee discounts.
+                    </p>
                   </a>
-                ) : (
-                  <div className="card p-4 flex items-center gap-3">
-                    <Crown className="w-4 h-4 shrink-0" style={{ color: "#ffd700" }} />
-                    <div>
-                      <div className="text-[11px] font-semibold" style={{ color: "#ffd700" }}>Gold Tier</div>
-                      <div className="text-[9px]" style={{ color: "var(--text-muted)" }}>All unlocked</div>
-                    </div>
-                  </div>
                 )}
               </div>
-            </section>
-
+            </div>
           </div>
         )}
       </div>

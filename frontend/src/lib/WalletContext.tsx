@@ -3,8 +3,12 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import { ethers } from "ethers";
 import toast from "react-hot-toast";
+import { CHAIN_CONFIG } from "./constants";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+const IS_MAINNET = process.env.NEXT_PUBLIC_CHAIN_ID === "56";
+const TARGET_CHAIN = IS_MAINNET ? CHAIN_CONFIG.bscMainnet : CHAIN_CONFIG.bscTestnet;
 
 interface WalletState {
   address: string | null;
@@ -89,18 +93,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       await (window as any).ethereum.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x61" }],
+        params: [{ chainId: TARGET_CHAIN.chainId }],
       });
     } catch (error: any) {
       if (error.code === 4902) {
         await (window as any).ethereum.request({
           method: "wallet_addEthereumChain",
           params: [{
-            chainId: "0x61",
-            chainName: "BNB Smart Chain Testnet",
-            nativeCurrency: { name: "tBNB", symbol: "tBNB", decimals: 18 },
-            rpcUrls: ["https://data-seed-prebsc-1-s1.binance.org:8545"],
-            blockExplorerUrls: ["https://testnet.bscscan.com"],
+            chainId: TARGET_CHAIN.chainId,
+            chainName: TARGET_CHAIN.chainName,
+            nativeCurrency: TARGET_CHAIN.nativeCurrency,
+            rpcUrls: TARGET_CHAIN.rpcUrls,
+            blockExplorerUrls: TARGET_CHAIN.blockExplorerUrls,
           }],
         });
       }

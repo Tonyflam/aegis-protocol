@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSub, setSub, deleteSub, getSubCount } from "../../../lib/telegram-store";
 
 // ─── Telegram Alert API ──────────────────────────────────────
 // POST /api/telegram — Register or send alerts via Telegram bot
@@ -11,11 +12,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
-
-// In-memory store — shared with guardian route via globalThis
-const globalSubs = (globalThis as Record<string, unknown>).__aegisTgSubs as Map<string, { chatId: string; registeredAt: number }> | undefined;
-const subscriptions = globalSubs ?? new Map<string, { chatId: string; registeredAt: number }>();
-if (!globalSubs) (globalThis as Record<string, unknown>).__aegisTgSubs = subscriptions;
 
 // ─── Send Telegram Message ───────────────────────────────────
 async function sendTelegramMessage(chatId: string, text: string, parseMode = "HTML"): Promise<boolean> {
@@ -107,7 +103,7 @@ export async function POST(request: NextRequest) {
         if (!chatId || typeof chatId !== "string") {
           return NextResponse.json({ error: "Missing chatId" }, { status: 400 });
         }
-        subscriptions.set(addr, { chatId, registeredAt: Date.now() });
+        await setSub(addr, chatId);
 
         // Send confirmation message
         if (BOT_TOKEN) {
@@ -137,19 +133,19 @@ export async function POST(request: NextRequest) {
       }
 
       case "unregister": {
-        const sub = subscriptions.get(addr);
+        const sub = await getSub(addr);
         if (sub && BOT_TOKEN) {
           await sendTelegramMessage(
             sub.chatId,
             `🔕 Aegis Guardian Shield alerts disabled for <code>${address.slice(0, 6)}...${address.slice(-4)}</code>.`,
           );
         }
-        subscriptions.delete(addr);
+        await deleteSub(addr);
         return NextResponse.json({ success: true, message: "Telegram alerts deactivated" });
       }
 
       case "send": {
-        const sub = subscriptions.get(addr);
+        const sub = await getSub(addr);
         if (!sub) {
           return NextResponse.json({ error: "No Telegram subscription for this wallet" }, { status: 404 });
         }
@@ -171,7 +167,7 @@ export async function POST(request: NextRequest) {
       }
 
       case "status": {
-        const sub = subscriptions.get(addr);
+        const sub = await getSub(addr);
         return NextResponse.json({
           registered: !!sub,
           configured: !!BOT_TOKEN,
@@ -189,8 +185,9 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint to check bot configuration status
 export async function GET() {
+  const count = await getSubCount();
   return NextResponse.json({
     configured: !!BOT_TOKEN,
-    subscriptionCount: subscriptions.size,
+    subscriptionCount: count,
   });
 }

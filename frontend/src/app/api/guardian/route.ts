@@ -1,14 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSub } from "../../../lib/telegram-store";
+import { rateLimit } from "../../../lib/rate-limit";
 
 // ─── Guardian Shield API ─────────────────────────────────────
 // Accepts a wallet address, fetches token holdings via /api/wallet,
 // scans each token via /api/scan, then generates AI risk alerts via Groq.
 
 const GROQ_KEY = process.env.GROQ_API_KEY || "";
+const TG_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+const TG_API = `https://api.telegram.org/bot${TG_BOT_TOKEN}`;
 
 // Telegram alert throttle: only send once per wallet per hour (or when alerts change)
 const tgLastSent = new Map<string, { hash: string; at: number }>();
 const TG_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+
+// ─── Push alerts to Telegram if subscribed ───────────────────
+async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<void> {
+  const addr = address.toLowerCase();
+  const sub = await getSub(addr);
+  if (!sub || !TG_BOT_TOKEN) return;
+
+  const actionable = alerts.filter(a => a.severity === "critical" || a.severity === "warning");
+  if (actionable.length === 0) return;
+
+  const alertHash = actionable.map(a => a.title).sort().join("|");
+  const prev = tgLastSent.get(addr);
+  const now = Date.now();
+  if (prev && prev.hash === alertHash && now - prev.at < TG_COOLDOWN_MS) return;
+  tgLastSent.set(addr, { hash: alertHash, at: now });
+
+  const criticals = actionable.filter(a => a.severity === "critical");
+  const warnings = actionable.filter(a => a.severity === "warning");
+  const emoji = criticals.length > 0 ? "\u{1F6A8}" : "\u26A0\uFE0F";
+  const status = criticals.length > 0 ? "CRITICAL ALERTS DETECTED" : "Warnings Found";
+
+  const lines = [
+    `${emoji} <b>Aegis Guardian Shield</b>`,
+    status, "",
+    `Wallet: <code>${address.slice(0, 6)}...${address.slice(-4)}</code>`,
+    `Alerts: ${criticals.length} critical, ${warnings.length} warnings`, "",
+  ];
+  for (const a of criticals.slice(0, 5)) {
+    lines.push(`\u{1F534} <b>${a.title}</b>`);
+    lines.push(`   ${a.description}`, "");
+  }
+  for (const a of warnings.slice(0, 5)) {
+    lines.push(`\u{1F7E1} <b>${a.title}</b>`);
+    lines.push(`   ${a.description}`, "");
+  }
+  lines.push(`<a href="https://aegisguardian.xyz/guardian">View Full Report \u2192</a>`);
+
+  try {
+    await fetch(`${TG_API}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: sub.chatId,
+        text: lines.join("\n"),
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch { /* Telegram unavailable */ }
+}
 
 interface WalletToken {
   address: string;
@@ -51,6 +106,70 @@ interface Alert {
   minTier: "Free" | "Bronze" | "Silver" | "Gold";
 }
 
+
+interface AiAnalysis {
+  summary: string;
+  riskRating: "SAFE" | "CAUTION" | "AT_RISK" | "DANGEROUS";
+  topThreats: string[];
+  actions: string[];
+  holdingBreakdown: { symbol: string; verdict: string }[];
+}
+
+// Build rule-based analysis (works for all tiers, no LLM needed)
+function buildRuleBasedAnalysis(
+  alerts: Alert[],
+  scans: TokenScan[],
+  holdings: WalletToken[],
+  bnbBalance: string,
+): AiAnalysis {
+  const critCount = alerts.filter((a) => a.severity === "critical").length;
+  const warnCount = alerts.filter((a) => a.severity === "warning").length;
+
+  const riskRating: AiAnalysis["riskRating"] =
+    critCount >= 2 ? "DANGEROUS" : critCount >= 1 ? "AT_RISK" : warnCount >= 2 ? "CAUTION" : "SAFE";
+
+  const topThreats = alerts
+    .filter((a) => a.severity === "critical" || a.severity === "warning")
+    .slice(0, 4)
+    .map((a) => `${a.token}: ${a.title}`);
+
+  const actions: string[] = [];
+  const honeypots = scans.filter((s) => s.isHoneypot);
+  if (honeypots.length > 0)
+    actions.push(`Sell ${honeypots.map((s) => s.symbol).join(", ")} immediately — honeypot detected`);
+  const highRisk = scans.filter((s) => s.riskScore >= 70 && !s.isHoneypot);
+  if (highRisk.length > 0)
+    actions.push(`Consider exiting ${highRisk.map((s) => s.symbol).join(", ")} — critical risk score`);
+  const mintable = scans.filter((s) => s.ownerCanMint && !s.isHoneypot);
+  if (mintable.length > 0)
+    actions.push(`Monitor ${mintable.map((s) => s.symbol).join(", ")} — owner can mint unlimited tokens`);
+  const lowLiq = scans.filter((s) => s.liquidityUsd < 10000 && s.liquidityUsd > 0 && !s.isHoneypot);
+  if (lowLiq.length > 0)
+    actions.push(`Be cautious with ${lowLiq.map((s) => s.symbol).join(", ")} — low liquidity`);
+  if (parseFloat(bnbBalance) < 0.01)
+    actions.push("Top up BNB — you may not have enough for gas fees");
+  if (actions.length === 0)
+    actions.push("No immediate action required — continue monitoring");
+
+  const holdingBreakdown = scans.map((s) => {
+    let verdict: string;
+    if (s.isHoneypot) verdict = "HONEYPOT — Cannot sell. Exit if possible.";
+    else if (s.riskScore >= 70) verdict = `High risk (${s.riskScore}/100). ${s.flags.slice(0, 2).join(", ")}. Consider selling.`;
+    else if (s.riskScore >= 40) verdict = `Moderate risk (${s.riskScore}/100). ${s.flags.slice(0, 2).join(", ")}. Monitor closely.`;
+    else if (s.riskScore >= 20) verdict = `Low risk (${s.riskScore}/100). Minor flags detected.`;
+    else verdict = `Safe (${s.riskScore}/100). No major issues found.`;
+    return { symbol: s.symbol, verdict };
+  });
+
+  const tokenWord = scans.length === 1 ? "token" : "tokens";
+  const summary = critCount > 0
+    ? `Your wallet contains ${scans.length} ${tokenWord} with ${critCount} critical issue${critCount > 1 ? "s" : ""} and ${warnCount} warning${warnCount !== 1 ? "s" : ""}. ${honeypots.length > 0 ? `${honeypots.map(h => h.symbol).join(", ")} ${honeypots.length === 1 ? "is a" : "are"} confirmed honeypot${honeypots.length > 1 ? "s" : ""}. ` : ""}Immediate action recommended.`
+    : warnCount > 0
+    ? `Your wallet holds ${scans.length} ${tokenWord} with ${warnCount} warning${warnCount !== 1 ? "s" : ""}. No critical threats but some elevated risk. Review flagged items below.`
+    : `Your wallet holds ${scans.length} ${tokenWord}. No critical threats detected. Holdings appear safe.`;
+
+  return { summary, riskRating, topThreats, actions, holdingBreakdown };
+}
 // ─── Build alerts from scan results ──────────────────────────
 function buildAlerts(scans: TokenScan[], holdings: WalletToken[]): Alert[] {
   const alerts: Alert[] = [];
@@ -202,17 +321,15 @@ function buildAlerts(scans: TokenScan[], holdings: WalletToken[]): Alert[] {
   return alerts;
 }
 
-// ─── AI Summary via Groq ─────────────────────────────────────
-async function generateAiSummary(
+// ─── Enhanced AI Analysis via Groq (Gold tier) ──────────────
+async function generateAiAnalysis(
   alerts: Alert[],
   scans: TokenScan[],
   holdings: WalletToken[],
   bnbBalance: string,
-): Promise<string> {
-  if (!GROQ_KEY) return "";
-
-  const critCount = alerts.filter((a) => a.severity === "critical").length;
-  const warnCount = alerts.filter((a) => a.severity === "warning").length;
+): Promise<AiAnalysis> {
+  const baseline = buildRuleBasedAnalysis(alerts, scans, holdings, bnbBalance);
+  if (!GROQ_KEY) return baseline;
 
   const holdingsSummary = holdings
     .map((h) => `${h.symbol}: ${Number(h.balance).toLocaleString()} tokens`)
@@ -221,42 +338,26 @@ async function generateAiSummary(
   const scanSummary = scans
     .map(
       (s) =>
-        `${s.symbol} (risk: ${s.riskScore}/100, ${s.recommendation}, tax: ${s.buyTax}/${s.sellTax}%, liq: $${s.liquidityUsd.toFixed(0)}, ${s.flags.join(", ")})`
+        `${s.symbol} (risk: ${s.riskScore}/100, ${s.recommendation}, tax: ${s.buyTax}/${s.sellTax}%, liq: $${s.liquidityUsd.toFixed(0)}, honeypot: ${s.isHoneypot}, mint: ${s.ownerCanMint}, renounced: ${s.isRenounced}, flags: [${s.flags.join(", ")}])`
     )
     .join("\n");
 
-  const safeCount = scans.filter((s) => s.riskScore < 20).length;
-  const cautionCount = scans.filter((s) => s.riskScore >= 20 && s.riskScore < 40).length;
-  const dangerCount = scans.filter((s) => s.riskScore >= 40).length;
+  const prompt = `You are Aegis Shield AI, an expert DeFi security analyst on BNB Chain. Analyze this wallet and return ONLY valid JSON.
 
-  const prompt = `You are Aegis Shield AI, a senior DeFi security analyst on BNB Chain.
-Your job is to give a balanced, accurate portfolio risk assessment.
+Wallet: ${bnbBalance} BNB
+Holdings: ${holdingsSummary}
 
-IMPORTANT RULES:
-- A risk score of 0-19 is SAFE — do NOT raise concern about safe tokens.
-- A risk score of 20-39 is CAUTION — minor flags, mention them briefly but do not panic.
-- A risk score of 40-69 is RISKY — clearly warn the user about these.
-- A risk score of 70-100 is CRITICAL — urgent action needed on these.
-- If most tokens are safe, the overall wallet IS safe. Do not inflate risk.
-- Never recommend selling a token just because it has a proxy or minor flags.
-- UNIQ is the Aegis Protocol utility token — treat it as a known project token, not suspicious.
-- Focus your warnings on the genuinely dangerous tokens (40+ risk), not the safe ones.
-
-WALLET DATA:
-- BNB Balance: ${bnbBalance}
-- Holdings: ${holdingsSummary}
-- Breakdown: ${safeCount} safe, ${cautionCount} caution, ${dangerCount} risky/critical
-- Critical alerts: ${critCount}, Warnings: ${warnCount}
-
-TOKEN SCANS:
+Token scans:
 ${scanSummary}
 
-Write a 3-5 sentence security briefing. Structure it as:
-1. Overall wallet health (Safe / Caution / At Risk / Dangerous) based on the WORST token, not the average.
-2. If any tokens are 40+ risk, name them and explain what to do.
-3. If all tokens are below 40, reassure the user their wallet looks healthy.
-4. One actionable tip.
-Be precise and proportional — don't overreact to low-risk findings.`;
+Return ONLY this JSON (no markdown, no backticks):
+{
+  "summary": "2-4 sentence security assessment. Be specific about which tokens are risky and why. Mention dollar amounts of liquidity. Be direct.",
+  "riskRating": "SAFE|CAUTION|AT_RISK|DANGEROUS",
+  "topThreats": ["specific threat 1", "specific threat 2", "specific threat 3"],
+  "actions": ["specific action 1 with token name", "specific action 2"],
+  "holdingBreakdown": [{"symbol": "TOKEN", "verdict": "1-sentence verdict with specific data"}]
+}`;
 
   try {
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -268,17 +369,28 @@ Be precise and proportional — don't overreact to low-risk findings.`;
       body: JSON.stringify({
         model: "llama-3.1-8b-instant",
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 300,
-        temperature: 0.3,
+        max_tokens: 600,
+        temperature: 0.2,
       }),
       signal: AbortSignal.timeout(15000),
     });
     if (res.ok) {
       const data = await res.json();
-      return data.choices?.[0]?.message?.content || "";
+      const content = data.choices?.[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          summary: parsed.summary || baseline.summary,
+          riskRating: ["SAFE", "CAUTION", "AT_RISK", "DANGEROUS"].includes(parsed.riskRating) ? parsed.riskRating : baseline.riskRating,
+          topThreats: Array.isArray(parsed.topThreats) ? parsed.topThreats.slice(0, 5) : baseline.topThreats,
+          actions: Array.isArray(parsed.actions) ? parsed.actions.slice(0, 5) : baseline.actions,
+          holdingBreakdown: Array.isArray(parsed.holdingBreakdown) ? parsed.holdingBreakdown.slice(0, 10) : baseline.holdingBreakdown,
+        };
+      }
     }
-  } catch { /* Groq unavailable */ }
-  return "";
+  } catch { /* Groq unavailable — fall back to rule-based */ }
+  return baseline;
 }
 
 // ─── Tier thresholds (must match constants.ts) ──────────────
@@ -298,6 +410,9 @@ function computeTier(holdings: WalletToken[]): { tier: string; uniqBalance: numb
 
 // ─── Main Handler ────────────────────────────────────────────
 export async function GET(request: NextRequest) {
+  const limited = rateLimit(request, { maxRequests: 10, windowMs: 60_000 });
+  if (limited) return limited;
+
   const { searchParams } = new URL(request.url);
   const walletAddress = searchParams.get("address");
 
@@ -348,10 +463,11 @@ export async function GET(request: NextRequest) {
     // 4. Build alerts from scan results
     const alerts = buildAlerts(scanResults, holdings);
 
-    // 5. AI summary — Gold tier only
-    const aiSummary = tier === "Gold"
-      ? await generateAiSummary(alerts, scanResults, holdings, bnbBalance)
-      : "";
+    // 5. AI analysis — structured for all tiers, LLM-enhanced for Gold
+    const aiAnalysis = tier === "Gold"
+      ? await generateAiAnalysis(alerts, scanResults, holdings, bnbBalance)
+      : buildRuleBasedAnalysis(alerts, scanResults, holdings, bnbBalance);
+    const aiSummary = aiAnalysis.summary;
 
     // 6. Overall risk level
     const hasCritical = alerts.some((a) => a.severity === "critical");
@@ -362,27 +478,8 @@ export async function GET(request: NextRequest) {
       ? Math.max(...scanResults.map((s) => s.riskScore))
       : 0;
 
-    // 7. Fire-and-forget: send Telegram alerts if subscribed (throttled — 1hr or new alerts)
-    if (hasCritical || hasWarning) {
-      const actionAlerts = alerts.filter((a) => a.severity === "critical" || a.severity === "warning");
-      const alertHash = actionAlerts.map((a) => a.id).sort().join(",");
-      const prev = tgLastSent.get(walletAddress.toLowerCase());
-      const now = Date.now();
-      const isNew = !prev || prev.hash !== alertHash || (now - prev.at > TG_COOLDOWN_MS);
-      if (isNew) {
-        tgLastSent.set(walletAddress.toLowerCase(), { hash: alertHash, at: now });
-        fetch(`${origin}/api/telegram`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "send",
-            address: walletAddress,
-            alerts: actionAlerts,
-          }),
-          signal: AbortSignal.timeout(5000),
-        }).catch(() => {});
-      }
-    }
+    // 7. Push Telegram alerts (fire-and-forget, don't block response)
+    pushTelegramAlerts(walletAddress, alerts).catch(() => {});
 
     return NextResponse.json({
       address: walletAddress,
@@ -393,6 +490,7 @@ export async function GET(request: NextRequest) {
       overallRisk,
       maxRiskScore,
       aiSummary,
+      aiAnalysis,
       tier,
       uniqBalance,
       tokenCount: holdings.length,

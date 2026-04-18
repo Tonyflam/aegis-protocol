@@ -350,7 +350,8 @@ export default function VaultPage() {
           </p>
         </div>
 
-        {/* Testnet Beta Banner */}
+        {/* Testnet Beta Banner — only shown on testnet */}
+        {process.env.NEXT_PUBLIC_CHAIN_ID !== "56" && (
         <div className="mb-6 p-4 rounded-xl text-center" style={{ background: "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(240,185,11,0.06))", border: "1px solid rgba(251,191,36,0.25)" }}>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider mb-2" style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24" }}>
             <AlertTriangle className="w-3 h-3" /> Testnet Beta
@@ -361,6 +362,7 @@ export default function VaultPage() {
             All balances shown are testnet BNB with no real value.
           </p>
         </div>
+        )}
 
         {/* Network Warning */}
         {isConnected && !isBsc && (
