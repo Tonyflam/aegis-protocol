@@ -124,7 +124,7 @@ export default function ScanResultPage({ params }: { params: { address: string }
       topFlags ? `\nFlags: ${topFlags}` : "",
       `\nTax: ${result.buyTax.toFixed(1)}% buy / ${result.sellTax.toFixed(1)}% sell`,
       `\nLiquidity: ${formatUsd(result.liquidityUsd)}`,
-      `\n\nScanned with @aegisguardian_ 🛡️`,
+      `\n\nScanned with @uniq_minds 🛡️`,
     ].filter(Boolean).join("");
     window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(lines)}&url=${encodeURIComponent(shareUrl)}`, "_blank", "noopener,noreferrer");
   };

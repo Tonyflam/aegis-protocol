@@ -68,8 +68,8 @@ export default function Home() {
 
         <p className="text-lg sm:text-xl leading-relaxed mb-10 max-w-2xl animate-fade-in" style={{ color: "var(--text-secondary)" }}>
           Scan any token or your entire wallet for honeypots, rug pulls, and hidden taxes.
-          Activate Guardian Shield for 24/7 monitoring. Deposit into the Protected Vault
-          to earn Venus Protocol yield — with AI protection coming on mainnet.
+          Activate Guardian Shield for 24/7 AI-powered monitoring. Deposit into the Protected Vault
+          to earn Venus Protocol yield with autonomous stop-loss protection.
         </p>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-16 animate-fade-in">
@@ -129,7 +129,7 @@ export default function Home() {
           {[
             { num: "01", icon: Search, title: "Token Scanner", desc: "Paste any BSC token address for a full risk report — or connect your wallet to scan ALL your holdings at once. Honeypot detection, tax analysis, liquidity checks, and contract security.", href: "/scanner", color: "var(--accent)" },
             { num: "02", icon: Shield, title: "Guardian Shield", desc: "Activate always-on monitoring. Guardian Shield auto-refreshes every 60 seconds, watching for rug pull signals, whale dumps, liquidity pulls, and dev wallet movements.", href: "/guardian", color: "var(--purple)" },
-            { num: "03", icon: Lock, title: "Protected Vault", desc: "Deposit BNB into the Aegis Vault. Earn yield from Venus Protocol lending. Stop-loss protection and AI agent monitoring launching on BSC Mainnet after security audit.", href: "/vault", color: "var(--green)" },
+            { num: "03", icon: Lock, title: "Protected Vault", desc: "Deposit BNB into the Aegis Vault. Earn yield from Venus Protocol lending with AI-powered stop-loss protection. Every decision logged on-chain for full transparency.", href: "/vault", color: "var(--green)" },
           ].map((step, i) => (
             <Link key={i} href={step.href}
               className="stagger-child group relative card p-8 hover:border-[var(--border-hover)] transition-all duration-300"
@@ -287,7 +287,7 @@ export default function Home() {
                 <div className="space-y-2 mb-6">
                   {[
                     { label: "Yield Earned", value: "0.0052 BNB", color: "var(--green)" },
-                    { label: "AI Protection", value: "Coming · Mainnet", color: "var(--accent)" },
+                    { label: "AI Protection", value: "Active · 24/7 Monitoring", color: "var(--green)" },
                     { label: "$UNIQ Tier", value: "Gold · 40% fee discount", color: "#ffd700" },
                     { label: "On-Chain Logs", value: "12 decisions recorded", color: "var(--purple)" },
                   ].map((row, i) => (
@@ -314,9 +314,9 @@ export default function Home() {
               Earn Yield. <span style={{ color: "var(--green)" }}>Stay Protected.</span>
             </h2>
             <p className="text-base leading-relaxed mb-8" style={{ color: "var(--text-secondary)" }}>
-              Deposit BNB into the Aegis Vault. Your funds earn yield from Venus Protocol lending.
-              Smart contracts include stop-loss and AI agent authorization — going live on BSC Mainnet
-              after security audit. Every protection decision will be logged on-chain.
+              Deposit BNB into the Aegis Vault. Your funds earn real yield from Venus Protocol lending.
+              Smart contracts include stop-loss protection and AI agent authorization.
+              Every protection decision is immutably logged on-chain.
             </p>
 
             <div className="space-y-4 mb-8">
@@ -453,7 +453,7 @@ export default function Home() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 sm:gap-12">
                 {[
-                  { value: "184", label: "Tests Passing", icon: CheckCircle },
+                  { value: "207", label: "Tests Passing", icon: CheckCircle },
                   { value: "7", label: "Smart Contracts", icon: Code2 },
                   { value: "14,245", label: "Lines of Code", icon: Layers },
                   { value: "#6", label: "of 200 Projects", icon: TrendingUp },
@@ -571,6 +571,7 @@ export default function Home() {
         <div ref={techStagger.ref} className={`stagger-parent ${techStagger.isVisible ? "visible" : ""} flex flex-wrap justify-center gap-4`}>
           {[
             { name: "BNB Chain", icon: Globe, color: "var(--bnb)" },
+            { name: "Venus Protocol", icon: TrendingUp, color: "var(--green)" },
             { name: "PancakeSwap", icon: Activity, color: "var(--accent)" },
             { name: "GoPlusLabs", icon: Shield, color: "var(--purple)" },
             { name: "Honeypot.is", icon: Skull, color: "#ef4444" },
@@ -617,7 +618,7 @@ export default function Home() {
             </div>
 
             <div className="flex items-center justify-center gap-6 mt-10">
-              <a href="https://x.com/aegisguardian_" target="_blank" rel="noopener noreferrer"
+              <a href="https://x.com/uniq_minds" target="_blank" rel="noopener noreferrer"
                 className="text-sm transition-colors hover:text-white" style={{ color: "var(--text-muted)" }}>Twitter</a>
               <a href="https://github.com/Tonyflam/aegis-protocol" target="_blank" rel="noopener noreferrer"
                 className="text-sm transition-colors hover:text-white" style={{ color: "var(--text-muted)" }}>GitHub</a>

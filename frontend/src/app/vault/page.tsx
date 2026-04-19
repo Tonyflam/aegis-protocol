@@ -345,7 +345,7 @@ export default function VaultPage() {
             Deposit. Earn. Stay Protected.
           </h1>
           <p className="text-sm sm:text-base max-w-xl mx-auto" style={{ color: "var(--text-muted)" }}>
-            Deposit BNB to earn yield via Venus &amp; PancakeSwap. AI agents monitor
+            Deposit BNB to earn yield via Venus Protocol. AI agents monitor
             your position 24/7 — auto-protecting against liquidations, exploits, and crashes.
           </p>
         </div>
@@ -446,8 +446,8 @@ export default function VaultPage() {
             <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
               {[
                 { icon: ArrowDown, title: "1. Deposit BNB", desc: "Send BNB to the vault. Min deposit 0.001 BNB. Withdraw anytime." },
-                { icon: TrendingUp, title: "2. Earn Yield", desc: "Vault deploys to Venus lending & PancakeSwap LP. ~4.5% base APY." },
-                { icon: ShieldCheck, title: "3. AI Protects", desc: "AI agents monitor 24/7. Auto-withdraw on threats, stop-loss on crashes." },
+                { icon: TrendingUp, title: "2. Earn Yield", desc: "80% auto-deployed to Venus Protocol lending. ~2-4% APY from real borrower interest." },
+                { icon: ShieldCheck, title: "3. AI Protects", desc: "AI agents monitor 24/7. Stop-loss auto-swaps BNB → USDT via PancakeSwap on crashes." },
               ].map((step) => (
                 <div key={step.title} className="p-5 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
                   <step.icon className="w-5 h-5 mb-3" style={{ color: "var(--accent)" }} />
@@ -596,7 +596,7 @@ export default function VaultPage() {
                   {pos?.isActive && !hasYield && (
                     <div className="text-[10px] flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
                       <Activity className="w-3 h-3" />
-                      Strategy: Venus Lending + PancakeSwap LP &middot; Yield accruing
+                      Strategy: Venus Protocol Lending &middot; Yield accruing
                     </div>
                   )}
                 </div>
@@ -754,8 +754,8 @@ export default function VaultPage() {
                       Deposit
                     </button>
                   </div>
-                  <div className="mt-3 text-[10px]" style={{ color: "var(--text-muted)" }}>
-                    <p>Deposits earn yield via Venus Lending &amp; PancakeSwap LP, distributed on-chain by the protocol.</p>
+                  <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                    <p>Deposits earn yield via Venus Protocol lending, distributed on-chain by the protocol.</p>
                     <p>Performance fee: {gl?.performanceFeeBps ? (gl.performanceFeeBps / 100).toFixed(1) : "15.0"}% of yield earned. $UNIQ holders get reduced fees.</p>
                   </div>
                 </div>
@@ -828,8 +828,8 @@ export default function VaultPage() {
                   </div>
                   <div className="space-y-3">
                     {[
-                      { name: "Venus Protocol", desc: "BNB lending market. Earn supply APY from borrowers.", apy: "2-4%", risk: "Low" },
-                      { name: "PancakeSwap LP", desc: "BNB-USDT liquidity provision with auto-compounding.", apy: "5-8%", risk: "Medium" },
+                      { name: "Venus Protocol", desc: "BNB lending market. Earn supply APY from borrowers. 80% of deposits auto-deployed.", apy: "2-4%", risk: "Low" },
+                      { name: "PancakeSwap", desc: "Used for stop-loss swaps — auto-converts BNB to USDT when risk is detected.", apy: "N/A", risk: "Low" },
                     ].map((s) => (
                       <div key={s.name} className="flex items-center justify-between p-3 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
                         <div>
