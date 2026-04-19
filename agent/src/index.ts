@@ -12,8 +12,15 @@ import { PancakeSwapProvider, BSC_TOKENS } from "./pancakeswap";
 import { VenusMonitor } from "./venus-monitor";
 import { StopLossMonitor } from "./stop-loss";
 import { ethers } from "ethers";
+import * as fs from "fs";
 
 dotenv.config({ path: "../.env" });
+
+// Heartbeat file for Docker health check
+const HEARTBEAT_FILE = "/tmp/aegis-heartbeat";
+function writeHeartbeat() {
+  try { fs.writeFileSync(HEARTBEAT_FILE, Date.now().toString()); } catch { /* ignore in dev */ }
+}
 
 // ─── Configuration ────────────────────────────────────────────
 
@@ -366,6 +373,7 @@ class AegisAgent {
     // ─── Cycle Summary ────────────────────────────────────
     const cycleDuration = Date.now() - cycleStart;
     const uptime = Math.round((Date.now() - this.startTime) / 1000);
+    writeHeartbeat();
     console.log(`\n📊 Cycle #${this.cycleCount} complete in ${cycleDuration}ms | Uptime: ${uptime}s`);
     console.log(`   Total decisions logged: ${this.executor.getExecutionLog().filter(e => e.type === "logDecision").length}`);
     console.log(`   Protections triggered: ${this.executor.getExecutionLog().filter(e => e.type === "protection").length}`);
