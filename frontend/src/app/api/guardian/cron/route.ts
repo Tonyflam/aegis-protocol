@@ -14,12 +14,14 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60; // Allow up to 60s for cron execution
 
 export async function GET(request: NextRequest) {
-  // Protect the cron endpoint — require CRON_SECRET header or query param
+  // Protect the cron endpoint
+  // Allow: Vercel cron (sends x-vercel-cron-signature), CRON_SECRET header/query, or localhost
+  const isVercelCron = request.headers.get("x-vercel-cron-signature") !== null;
   const authHeader = request.headers.get("authorization");
   const querySecret = new URL(request.url).searchParams.get("secret");
   const providedSecret = authHeader?.replace("Bearer ", "") || querySecret || "";
 
-  if (CRON_SECRET && providedSecret !== CRON_SECRET) {
+  if (!isVercelCron && CRON_SECRET && providedSecret !== CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

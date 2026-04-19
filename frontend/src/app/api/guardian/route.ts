@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSub } from "../../../lib/telegram-store";
-import { rateLimit } from "../../../lib/rate-limit";
+import { checkRateLimit, rateLimitResponse } from "../../../lib/rate-limit";
 
 // ─── Guardian Shield API ─────────────────────────────────────
 // Accepts a wallet address, fetches token holdings via /api/wallet,
@@ -410,8 +410,7 @@ function computeTier(holdings: WalletToken[]): { tier: string; uniqBalance: numb
 
 // ─── Main Handler ────────────────────────────────────────────
 export async function GET(request: NextRequest) {
-  const limited = rateLimit(request, { maxRequests: 10, windowMs: 60_000 });
-  if (limited) return limited;
+  if (await checkRateLimit(request, { maxRequests: 10, windowMs: 60_000 })) return rateLimitResponse();
 
   const { searchParams } = new URL(request.url);
   const walletAddress = searchParams.get("address");

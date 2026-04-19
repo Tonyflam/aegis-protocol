@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
 import { trackScan } from "@/lib/scan-tracker";
 import { redisSaveScan, isRedisConfigured } from "@/lib/redis-store";
-import { rateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -121,9 +121,8 @@ const CACHE_TTL = 300_000; // 5 min
 
 // ─── API Route Handler ───────────────────────────────────────
 
-export async function GET(request: NextRequest) {
-  const limited = rateLimit(request, { maxRequests: 20, windowMs: 60_000 });
-  if (limited) return limited;
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  if (await checkRateLimit(request, { maxRequests: 20, windowMs: 60_000 })) return rateLimitResponse();
 
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");

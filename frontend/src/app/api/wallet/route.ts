@@ -76,7 +76,9 @@ const ERC20_IFACE = new ethers.Interface([
   "function name() view returns (string)",
 ]);
 
-const BSC_RPC = "https://bsc-dataseed1.binance.org";
+// Wallet scanning always uses BSC Mainnet (where real tokens live)
+// Override with BSC_RPC env var if needed
+const BSC_RPC = process.env.BSC_RPC || "https://bsc-dataseed1.binance.org";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
 // ─── Discover extra tokens via recent Transfer event logs ────
