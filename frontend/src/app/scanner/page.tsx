@@ -160,7 +160,7 @@ function ScanResultCard({ result, showShare = true }: { result: ScanResult; show
       topFlags ? `\nFlags: ${topFlags}` : "",
       `\nTax: ${result.buyTax.toFixed(1)}% buy / ${result.sellTax.toFixed(1)}% sell`,
       `\nLiquidity: ${formatUsd(result.liquidityUsd)}`,
-      `\n\nScanned with @aegisguardian_ 🛡️`,
+      `\n\nScanned with @uniq_minds 🛡️`,
     ].filter(Boolean).join("");
     const url = `https://x.com/intent/tweet?text=${encodeURIComponent(lines)}&url=${encodeURIComponent(shareUrl)}`;
     window.open(url, "_blank", "noopener,noreferrer");
@@ -533,19 +533,64 @@ export default function ScannerPage() {
 
           {/* Empty State */}
           {!scanResult && recentScans.length === 0 && (
-            <div className="text-center py-16">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                style={{ background: "var(--accent-muted)", border: "1px solid var(--accent-border)" }}>
-                <Search className="w-7 h-7" style={{ color: "var(--accent)" }} />
+            <div className="space-y-6">
+              <div className="text-center py-12">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                  style={{ background: "var(--accent-muted)", border: "1px solid var(--accent-border)" }}>
+                  <Search className="w-7 h-7" style={{ color: "var(--accent)" }} />
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">Scan Before You Buy</h3>
+                <p className="text-sm max-w-md mx-auto mb-4" style={{ color: "var(--text-muted)" }}>
+                  Paste any BSC token contract address above. We&apos;ll check for honeypot traps,
+                  hidden taxes, liquidity issues, and contract vulnerabilities.
+                </p>
+                <button onClick={() => setMode("wallet")} className="text-xs font-medium inline-flex items-center gap-1" style={{ color: "var(--purple)" }}>
+                  Or scan your entire wallet <ArrowRight className="w-3 h-3" />
+                </button>
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">Scan Before You Buy</h3>
-              <p className="text-sm max-w-md mx-auto mb-6" style={{ color: "var(--text-muted)" }}>
-                Paste any BSC token contract address above. We&apos;ll check for honeypot traps,
-                hidden taxes, liquidity issues, and contract vulnerabilities.
-              </p>
-              <button onClick={() => setMode("wallet")} className="text-xs font-medium inline-flex items-center gap-1" style={{ color: "var(--purple)" }}>
-                Or scan your entire wallet <ArrowRight className="w-3 h-3" />
-              </button>
+
+              {/* Try These Tokens */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
+                  Try scanning these tokens
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[
+                    { symbol: "CAKE", name: "PancakeSwap", address: "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", safe: true },
+                    { symbol: "UNIQ", name: "UnIQ Minds", address: "0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777", safe: true },
+                    { symbol: "XVS", name: "Venus", address: "0xcF6BB5389c92Bdda8a3747Ddb454cB7a64626C63", safe: true },
+                    { symbol: "FLOKI", name: "Floki Inu", address: "0xfb5B838b6cfEEdC2873aB27866079AC55363D37E", safe: true },
+                  ].map((token) => (
+                    <button key={token.address} onClick={() => { setTokenInput(token.address); scanToken(token.address); }}
+                      className="card p-3 flex items-center gap-3 text-left transition-colors hover:border-[var(--border-hover)]">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: token.safe ? "rgba(34, 197, 94, 0.08)" : "rgba(239, 68, 68, 0.08)" }}>
+                        <span className="text-xs font-bold" style={{ color: token.safe ? "var(--green)" : "#ef4444" }}>${token.symbol}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white">{token.name}</p>
+                        <p className="text-[10px] font-mono truncate" style={{ color: "var(--text-muted)" }}>{token.address}</p>
+                      </div>
+                      <ArrowRight className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Trust Indicators */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: "8", label: "Risk Vectors", desc: "Checked per scan" },
+                  { value: "< 5s", label: "Scan Speed", desc: "Average time" },
+                  { value: "100%", label: "On-Chain", desc: "Real data only" },
+                ].map((stat) => (
+                  <div key={stat.label} className="card p-4 text-center">
+                    <div className="text-lg font-bold text-white">{stat.value}</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--accent)" }}>{stat.label}</div>
+                    <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>{stat.desc}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
