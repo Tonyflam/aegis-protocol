@@ -68,7 +68,7 @@ export default function Home() {
 
         <p className="text-lg sm:text-xl leading-relaxed mb-10 max-w-2xl animate-fade-in" style={{ color: "var(--text-secondary)" }}>
           Scan any token or your entire wallet for honeypots, rug pulls, and hidden taxes.
-          Activate Guardian Shield for 24/7 AI-powered monitoring. Deposit into the Protected Vault
+          Activate Guardian Shield for AI-powered wallet monitoring with Telegram alerts. Deposit into the Protected Vault
           to earn Venus Protocol yield with autonomous stop-loss protection.
         </p>
 
@@ -287,7 +287,7 @@ export default function Home() {
                 <div className="space-y-2 mb-6">
                   {[
                     { label: "Yield Earned", value: "0.0052 BNB", color: "var(--green)" },
-                    { label: "AI Protection", value: "Active · 24/7 Monitoring", color: "var(--green)" },
+                    { label: "AI Protection", value: "Active · Telegram Alerts", color: "var(--green)" },
                     { label: "$UNIQ Tier", value: "Gold · 40% fee discount", color: "#ffd700" },
                     { label: "On-Chain Logs", value: "12 decisions recorded", color: "var(--purple)" },
                   ].map((row, i) => (
@@ -601,7 +601,7 @@ export default function Home() {
               Scan. Shield. <span className="text-gradient">Vault.</span>
             </h2>
             <p className="text-base max-w-lg mx-auto mb-10" style={{ color: "var(--text-secondary)" }}>
-              Scan tokens and wallets for free. Activate Guardian Shield for 24/7 monitoring.
+              Scan tokens and wallets for free. Activate Guardian Shield for AI monitoring with Telegram alerts.
               Deposit into the Protected Vault to earn Venus Protocol yield.
             </p>
 

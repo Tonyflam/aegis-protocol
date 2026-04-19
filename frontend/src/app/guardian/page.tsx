@@ -296,14 +296,15 @@ export default function GuardianShieldPage() {
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium mb-6"
                 style={{ background: "var(--accent-muted)", border: "1px solid var(--accent-border)", color: "var(--accent)" }}>
                 <Activity className="w-3.5 h-3.5" />
-                Real-time AI Wallet Security
+                AI Wallet Security Scanner
               </div>
               <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white mb-4">
                 Guardian Shield
               </h1>
               <p className="text-base sm:text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                Connect your wallet and Aegis will continuously scan every token you hold
-                for rug pulls, honeypots, whale dumps, and contract risks — refreshing every 60 seconds.
+                Connect your wallet and Aegis will scan every token you hold
+                for rug pulls, honeypots, whale dumps, and contract risks.
+                Enable Telegram alerts to get notified when new risks are detected.
                 Read-only. No signatures required.
               </p>
               <button onClick={connect} disabled={isConnecting}
