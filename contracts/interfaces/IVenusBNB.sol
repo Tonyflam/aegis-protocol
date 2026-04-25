@@ -10,8 +10,8 @@ pragma solidity ^0.8.24;
  */
 interface IVenusBNB {
     /// @notice Supply BNB to Venus and receive vBNB
-    /// @dev Send BNB as msg.value. Returns 0 on success, else error code.
-    function mint() external payable returns (uint256);
+    /// @dev CEther/vBNB mint() is payable and does not return a value.
+    function mint() external payable;
 
     /// @notice Redeem vBNB tokens for underlying BNB
     /// @param redeemTokens Amount of vBNB to redeem

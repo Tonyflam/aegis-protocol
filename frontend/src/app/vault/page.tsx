@@ -137,7 +137,7 @@ type Tab = "overview" | "deposit" | "activity" | "settings";
 // ─── Main Component ──────────────────────────────────────────
 
 export default function VaultPage() {
-  const { address, isConnected, connect, isConnecting, signer, chainId } = useWalletContext();
+  const { address, isConnected, connect, isConnecting, signer, chainId, switchToBsc } = useWalletContext();
   const [data, setData] = useState<VaultData | null>(null);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
@@ -145,6 +145,29 @@ export default function VaultPage() {
   const [withdrawAmt, setWithdrawAmt] = useState("");
   const [txPending, setTxPending] = useState(false);
   const [showDecisions, setShowDecisions] = useState(false);
+
+  const expectedChainId = 56;
+
+  const getTxErrorMessage = (err: unknown, fallback: string) => {
+    const raw = err instanceof Error ? err.message : String(err || "");
+    const msg = raw.toLowerCase();
+    if (msg.includes("belowmindeposit") || msg.includes("below min deposit")) {
+      return `Deposit is below minimum (${gl?.minDepositBnb || "0.01"} BNB)`;
+    }
+    if (msg.includes("depositspaused") || msg.includes("deposits paused")) {
+      return "Vault deposits are temporarily paused";
+    }
+    if (msg.includes("insufficient funds")) {
+      return "Insufficient BNB for deposit + gas";
+    }
+    if (msg.includes("user rejected") || msg.includes("rejected")) {
+      return "Transaction rejected in wallet";
+    }
+    if (msg.includes("estimateGas") || msg.includes("missing revert data")) {
+      return "Transaction simulation failed. Ensure you are on BNB Smart Chain mainnet and amount is valid.";
+    }
+    return fallback;
+  };
 
   // Risk profile form state
   const [riskSlippage, setRiskSlippage] = useState("1.0");
@@ -175,9 +198,19 @@ export default function VaultPage() {
   // ─── Deposit BNB ───
   const handleDeposit = async () => {
     if (!signer || !depositAmt || txPending) return;
+    if (chainId !== expectedChainId) {
+      toast.error("Switch wallet to BNB Smart Chain mainnet (Chain ID 56)");
+      await switchToBsc();
+      return;
+    }
     const amt = parseFloat(depositAmt);
     if (isNaN(amt) || amt <= 0) {
       toast.error("Enter a valid amount");
+      return;
+    }
+    const minDeposit = parseFloat(gl?.minDepositBnb || "0.01");
+    if (amt < minDeposit) {
+      toast.error(`Minimum deposit is ${minDeposit} BNB`);
       return;
     }
     setTxPending(true);
@@ -190,8 +223,7 @@ export default function VaultPage() {
       setDepositAmt("");
       fetchData(address || undefined);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Deposit failed";
-      toast.error(msg.slice(0, 80), { id: "vault-tx" });
+      toast.error(getTxErrorMessage(err, "Deposit failed"), { id: "vault-tx" });
     }
     setTxPending(false);
   };
@@ -199,6 +231,11 @@ export default function VaultPage() {
   // ─── Withdraw BNB ───
   const handleWithdraw = async () => {
     if (!signer || txPending) return;
+    if (chainId !== expectedChainId) {
+      toast.error("Switch wallet to BNB Smart Chain mainnet (Chain ID 56)");
+      await switchToBsc();
+      return;
+    }
     setTxPending(true);
     try {
       const vault = new ethers.Contract(CONTRACTS.VAULT, VAULT_ABI, signer);
@@ -212,8 +249,7 @@ export default function VaultPage() {
       setWithdrawAmt("");
       fetchData(address || undefined);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Withdrawal failed";
-      toast.error(msg.slice(0, 80), { id: "vault-tx" });
+      toast.error(getTxErrorMessage(err, "Withdrawal failed"), { id: "vault-tx" });
     }
     setTxPending(false);
   };
@@ -221,6 +257,11 @@ export default function VaultPage() {
   // ─── Emergency Withdraw ───
   const handleEmergencyWithdraw = async () => {
     if (!signer || txPending) return;
+    if (chainId !== expectedChainId) {
+      toast.error("Switch wallet to BNB Smart Chain mainnet (Chain ID 56)");
+      await switchToBsc();
+      return;
+    }
     if (!confirm("Emergency withdraw ALL funds? This closes your position.")) return;
     setTxPending(true);
     try {
@@ -231,8 +272,7 @@ export default function VaultPage() {
       toast.success("Emergency withdrawal complete", { id: "vault-tx" });
       fetchData(address || undefined);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Emergency withdrawal failed";
-      toast.error(msg.slice(0, 80), { id: "vault-tx" });
+      toast.error(getTxErrorMessage(err, "Emergency withdrawal failed"), { id: "vault-tx" });
     }
     setTxPending(false);
   };
@@ -252,6 +292,11 @@ export default function VaultPage() {
   // ─── Update Risk Profile ───
   const handleUpdateRiskProfile = async () => {
     if (!signer || txPending) return;
+    if (chainId !== expectedChainId) {
+      toast.error("Switch wallet to BNB Smart Chain mainnet (Chain ID 56)");
+      await switchToBsc();
+      return;
+    }
     const slippage = parseFloat(riskSlippage);
     const stopLoss = parseFloat(riskStopLoss);
     const maxAction = parseFloat(riskMaxAction);
@@ -282,8 +327,7 @@ export default function VaultPage() {
       toast.success("Risk profile updated!", { id: "vault-tx" });
       fetchData(address || undefined);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Update failed";
-      toast.error(msg.slice(0, 80), { id: "vault-tx" });
+      toast.error(getTxErrorMessage(err, "Update failed"), { id: "vault-tx" });
     }
     setTxPending(false);
   };
@@ -291,6 +335,11 @@ export default function VaultPage() {
   // ─── Authorize Agent ───
   const handleAuthorizeAgent = async () => {
     if (!signer || txPending) return;
+    if (chainId !== expectedChainId) {
+      toast.error("Switch wallet to BNB Smart Chain mainnet (Chain ID 56)");
+      await switchToBsc();
+      return;
+    }
     setTxPending(true);
     try {
       const vault = new ethers.Contract(CONTRACTS.VAULT, VAULT_ABI, signer);
@@ -300,8 +349,7 @@ export default function VaultPage() {
       toast.success("Aegis Guardian Alpha authorized! AI protection is now active.", { id: "vault-tx" });
       fetchData(address || undefined);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Authorization failed";
-      toast.error(msg.slice(0, 80), { id: "vault-tx" });
+      toast.error(getTxErrorMessage(err, "Authorization failed"), { id: "vault-tx" });
     }
     setTxPending(false);
   };
@@ -309,6 +357,11 @@ export default function VaultPage() {
   // ─── Revoke Agent ───
   const handleRevokeAgent = async () => {
     if (!signer || txPending) return;
+    if (chainId !== expectedChainId) {
+      toast.error("Switch wallet to BNB Smart Chain mainnet (Chain ID 56)");
+      await switchToBsc();
+      return;
+    }
     if (!confirm("Revoke AI agent? Your position will no longer be auto-protected.")) return;
     setTxPending(true);
     try {
@@ -319,8 +372,7 @@ export default function VaultPage() {
       toast.success("Agent revoked", { id: "vault-tx" });
       fetchData(address || undefined);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Revoke failed";
-      toast.error(msg.slice(0, 80), { id: "vault-tx" });
+      toast.error(getTxErrorMessage(err, "Revoke failed"), { id: "vault-tx" });
     }
     setTxPending(false);
   };
@@ -328,7 +380,7 @@ export default function VaultPage() {
   const pos = data?.position;
   const yld = data?.yield;
   const gl = data?.global;
-  const isBsc = chainId === 97 || chainId === 56;
+  const isBsc = chainId === expectedChainId;
   const hasYield = yld && parseFloat(yld.grossYieldEarned) > 0;
 
   // ─── Render ─────────────────────────────────────────────────

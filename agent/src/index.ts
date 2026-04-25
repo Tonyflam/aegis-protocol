@@ -25,11 +25,16 @@ function writeHeartbeat() {
 // ─── Configuration ────────────────────────────────────────────
 
 const CONFIG = {
-  rpcUrl: process.env.BSC_TESTNET_RPC || "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
+  rpcUrl:
+    process.env.BSC_RPC ||
+    process.env.BSC_MAINNET_RPC ||
+    process.env.BSC_TESTNET_RPC ||
+    "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
   privateKey: process.env.PRIVATE_KEY || "",
   vaultAddress: process.env.VAULT_ADDRESS || "",
   registryAddress: process.env.REGISTRY_ADDRESS || "",
   loggerAddress: process.env.LOGGER_ADDRESS || "",
+  tokenGateAddress: process.env.TOKEN_GATE_ADDRESS || "",
   agentId: parseInt(process.env.AGENT_ID || "0"),
   pollInterval: parseInt(process.env.POLL_INTERVAL || "30000"), // 30s default
   dryRun: process.env.DRY_RUN !== "false", // default to dry run
@@ -140,6 +145,7 @@ class AegisAgent {
         vaultAddress: CONFIG.vaultAddress,
         registryAddress: CONFIG.registryAddress,
         loggerAddress: CONFIG.loggerAddress,
+        tokenGateAddress: CONFIG.tokenGateAddress,
         agentId: CONFIG.agentId,
         dryRun: CONFIG.dryRun,
       },
@@ -333,13 +339,14 @@ class AegisAgent {
     console.log("\n🔐 Phase 4: EXECUTE — On-chain actions...");
     
     // Log risk snapshot on-chain
-    const snapshotTx = await this.executor.logRiskSnapshot(riskSnapshot);
+    const targetUser = watchedAddresses[0] || ethers.ZeroAddress;
+
+    const snapshotTx = await this.executor.logRiskSnapshot(targetUser, riskSnapshot);
     if (snapshotTx) {
       console.log(`  Risk snapshot logged: ${snapshotTx}`);
     }
 
-    // Log decision for each watched address
-    const targetUser = watchedAddresses[0] || ethers.ZeroAddress;
+    // Log decision for the primary watched address
     
     // Hash includes both heuristic reasoning AND LLM analysis for on-chain attestation
     const combinedReasoning = `${threat.reasoning} | AI: ${aiAnalysis.reasoning}`;

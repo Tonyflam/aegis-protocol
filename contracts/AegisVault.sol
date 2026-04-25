@@ -1231,8 +1231,8 @@ contract AegisVault is Ownable, ReentrancyGuard {
      * @notice Supply BNB to Venus vBNB market
      */
     function _supplyToVenus(uint256 amount) internal {
-        uint256 result = venusVBNB.mint{value: amount}();
-        if (result != 0) revert VenusSupplyFailed();
+        // vBNB (CEther-style) mint() is non-returning; failures revert.
+        venusVBNB.mint{value: amount}();
         venusDeployedAmount += amount;
         emit VenusSupplied(amount, venusDeployedAmount);
     }

@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { ethers } from "ethers";
-import { RiskLevel, RiskSnapshot, SuggestedAction, ThreatAssessment } from "./analyzer";
+import { RiskSnapshot, SuggestedAction, ThreatAssessment } from "./analyzer";
 
 export interface ExecutorConfig {
   privateKey: string;
@@ -13,29 +13,27 @@ export interface ExecutorConfig {
   loggerAddress: string;
   tokenGateAddress?: string;
   agentId: number;
-  dryRun: boolean;   // if true, only logs but doesn't execute txs
+  dryRun: boolean;
 }
 
 const VAULT_ABI = [
-  "function executeProtection(address user, uint8 actionType, uint256 value, string reason) external",
+  "function executeProtection(address user, uint8 actionType, uint256 value, bytes32 reasonHash) external",
 ];
 
 const REGISTRY_ABI = [
-  "function updateAgentStats(uint256 tokenId, bool success, uint256 valueProtected) external",
+  "function recordAgentAction(uint256 agentId, bool wasSuccessful, uint256 valueProtected) external",
 ];
 
 const LOGGER_ABI = [
-  "function logDecision(uint256 agentId, uint8 decisionType, uint8 riskLevel, uint256 confidence, address targetUser, bytes32 reasoningHash) external returns (uint256)",
-  "function logRiskSnapshot(uint256 agentId, uint256 liquidationRisk, uint256 volatilityRisk, uint256 protocolRisk, uint256 smartContractRisk) external",
+  "function logDecision(uint256 agentId, address targetUser, uint8 decisionType, uint8 riskLevel, uint256 confidence, bytes32 analysisHash, bytes32 dataHash, bool actionTaken, uint256 actionId) external returns (uint256)",
+  "function updateRiskSnapshot(address user, uint8 overallRisk, uint256 liquidationRisk, uint256 volatilityScore, uint256 protocolRisk, uint256 smartContractRisk, bytes32 detailsHash) external",
 ];
 
 const TOKEN_GATE_ABI = [
   "function getHolderTier(address user) view returns (uint8)",
   "function isHolder(address user) view returns (bool)",
-  "function getEffectiveFee(address user, uint256 baseFee) view returns (uint256)",
 ];
 
-// Maps our SuggestedAction to contract's ActionType enum
 const ACTION_TYPE_MAP: Record<string, number> = {
   [SuggestedAction.EMERGENCY_WITHDRAW]: 0,
   [SuggestedAction.REBALANCE]: 1,
@@ -44,14 +42,13 @@ const ACTION_TYPE_MAP: Record<string, number> = {
   [SuggestedAction.TAKE_PROFIT]: 4,
 };
 
-// Maps to contract's DecisionType enum
 const DECISION_TYPE_MAP: Record<string, number> = {
-  "RiskAssessment": 0,
-  "ThreatDetected": 1,
-  "ProtectionTriggered": 2,
-  "AllClear": 3,
-  "MarketAnalysis": 4,
-  "PositionReview": 5,
+  RiskAssessment: 0,
+  ThreatDetected: 1,
+  ProtectionTriggered: 2,
+  AllClear: 3,
+  MarketAnalysis: 4,
+  PositionReview: 5,
 };
 
 export class OnChainExecutor {
@@ -72,7 +69,7 @@ export class OnChainExecutor {
     this.tokenGate = config.tokenGateAddress
       ? new ethers.Contract(config.tokenGateAddress, TOKEN_GATE_ABI, this.wallet)
       : null;
-    
+
     console.log("[Aegis Executor] Initialized");
     console.log(`  Agent ID: ${config.agentId}`);
     console.log(`  Operator: ${this.wallet.address}`);
@@ -80,26 +77,30 @@ export class OnChainExecutor {
     if (this.tokenGate) console.log(`  TokenGate: ${config.tokenGateAddress}`);
   }
 
-  /**
-   * Log a risk assessment decision on-chain
-   */
   async logDecision(
     threat: ThreatAssessment,
     targetUser: string,
-    reasoningHash: string
+    reasoningHash: string,
   ): Promise<string | null> {
+    const actionTaken = threat.threatDetected
+      && threat.suggestedAction !== SuggestedAction.NONE
+      && threat.suggestedAction !== SuggestedAction.MONITOR
+      && threat.suggestedAction !== SuggestedAction.ALERT;
+
     const decisionType = threat.threatDetected
-      ? (threat.suggestedAction !== SuggestedAction.NONE && 
-         threat.suggestedAction !== SuggestedAction.MONITOR &&
-         threat.suggestedAction !== SuggestedAction.ALERT
-          ? DECISION_TYPE_MAP["ProtectionTriggered"]
-          : DECISION_TYPE_MAP["ThreatDetected"])
-      : DECISION_TYPE_MAP["AllClear"];
+      ? (actionTaken ? DECISION_TYPE_MAP.ProtectionTriggered : DECISION_TYPE_MAP.ThreatDetected)
+      : DECISION_TYPE_MAP.AllClear;
 
-    const riskLevel = threat.severity;
-    const confidence = Math.round(threat.confidence * 100); // scale to basis points
+    const confidence = Math.round(threat.confidence * 100);
+    const analysisHash = this.ensureBytes32(reasoningHash);
+    const dataHash = ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify({
+      threatType: threat.threatType,
+      severity: threat.severity,
+      suggestedAction: threat.suggestedAction,
+      estimatedImpact: threat.estimatedImpact,
+    })));
 
-    console.log(`[Aegis Executor] Logging decision: type=${decisionType} risk=${riskLevel} confidence=${threat.confidence}%`);
+    console.log(`[Aegis Executor] Logging decision: type=${decisionType} risk=${threat.severity} confidence=${threat.confidence}%`);
 
     if (this.config.dryRun) {
       console.log("[Aegis Executor] DRY RUN — skipping on-chain log");
@@ -110,11 +111,14 @@ export class OnChainExecutor {
     try {
       const tx = await this.logger.logDecision(
         this.config.agentId,
-        decisionType,
-        riskLevel,
-        confidence,
         targetUser,
-        reasoningHash
+        decisionType,
+        threat.severity,
+        confidence,
+        analysisHash,
+        dataHash,
+        actionTaken,
+        0,
       );
       const receipt = await tx.wait();
       console.log(`[Aegis Executor] Decision logged: ${receipt.hash}`);
@@ -127,10 +131,10 @@ export class OnChainExecutor {
     }
   }
 
-  /**
-   * Log a risk snapshot on-chain
-   */
-  async logRiskSnapshot(snapshot: RiskSnapshot): Promise<string | null> {
+  async logRiskSnapshot(
+    targetUser: string,
+    snapshot: RiskSnapshot,
+  ): Promise<string | null> {
     console.log(`[Aegis Executor] Logging risk snapshot: LIQ=${snapshot.liquidationRisk} VOL=${snapshot.volatilityRisk} PROTO=${snapshot.protocolRisk} SC=${snapshot.smartContractRisk}`);
 
     if (this.config.dryRun) {
@@ -139,30 +143,31 @@ export class OnChainExecutor {
     }
 
     try {
-      const tx = await this.logger.logRiskSnapshot(
-        this.config.agentId,
-        snapshot.liquidationRisk,
-        snapshot.volatilityRisk,
-        snapshot.protocolRisk,
-        snapshot.smartContractRisk
+      const tx = await this.logger.updateRiskSnapshot(
+        targetUser,
+        snapshot.riskLevel,
+        snapshot.liquidationRisk * 100,
+        snapshot.volatilityRisk * 100,
+        snapshot.protocolRisk * 100,
+        snapshot.smartContractRisk * 100,
+        ethers.keccak256(ethers.toUtf8Bytes(snapshot.reasoning)),
       );
       const receipt = await tx.wait();
       console.log(`[Aegis Executor] Risk snapshot logged: ${receipt.hash}`);
+      this.recordExecution("logRiskSnapshot", true, receipt.hash, targetUser);
       return receipt.hash;
     } catch (error: any) {
       console.error("[Aegis Executor] Failed to log risk snapshot:", error.message);
+      this.recordExecution("logRiskSnapshot", false, error.message, targetUser);
       return null;
     }
   }
 
-  /**
-   * Execute a protective action on the vault
-   */
   async executeProtection(
     userAddress: string,
     action: SuggestedAction,
     value: bigint,
-    reason: string
+    reason: string,
   ): Promise<string | null> {
     const actionType = ACTION_TYPE_MAP[action];
     if (actionType === undefined) {
@@ -172,7 +177,6 @@ export class OnChainExecutor {
 
     console.log(`[Aegis Executor] Executing protection: ${action} for ${userAddress} value=${value}`);
 
-    // Check if user is a $UNIQ holder (affects fee discount)
     if (this.tokenGate) {
       try {
         const isHolder = await this.tokenGate.isHolder(userAddress);
@@ -182,7 +186,7 @@ export class OnChainExecutor {
           console.log(`[Aegis Executor] User is $UNIQ holder: ${tierNames[tier] || "Unknown"} tier — discounted fee applied`);
         }
       } catch {
-        // TokenGate read failed — non-critical, continue with protection
+        // Non-critical read.
       }
     }
 
@@ -197,12 +201,11 @@ export class OnChainExecutor {
         userAddress,
         actionType,
         value,
-        reason
+        ethers.keccak256(ethers.toUtf8Bytes(reason)),
       );
       const receipt = await tx.wait();
       console.log(`[Aegis Executor] Protection executed: ${receipt.hash}`);
 
-      // Update agent stats
       await this.updateStats(true, value);
       this.recordExecution("protection", true, receipt.hash, userAddress);
       return receipt.hash;
@@ -213,17 +216,14 @@ export class OnChainExecutor {
     }
   }
 
-  /**
-   * Update agent performance stats on registry
-   */
   private async updateStats(success: boolean, valueProtected: bigint): Promise<void> {
     if (this.config.dryRun) return;
-    
+
     try {
-      const tx = await this.registry.updateAgentStats(
+      const tx = await this.registry.recordAgentAction(
         this.config.agentId,
         success,
-        valueProtected
+        valueProtected,
       );
       await tx.wait();
       console.log("[Aegis Executor] Agent stats updated");
@@ -232,14 +232,13 @@ export class OnChainExecutor {
     }
   }
 
+  private ensureBytes32(value: string): string {
+    if (/^0x[0-9a-fA-F]{64}$/.test(value)) return value;
+    return ethers.keccak256(ethers.toUtf8Bytes(value));
+  }
+
   private recordExecution(type: string, success: boolean, txHash: string, target: string): void {
-    this.executionLog.push({
-      type,
-      success,
-      txHash,
-      target,
-      timestamp: Date.now(),
-    });
+    this.executionLog.push({ type, success, txHash, target, timestamp: Date.now() });
   }
 
   getExecutionLog(): ExecutionRecord[] {

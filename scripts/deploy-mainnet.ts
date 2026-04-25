@@ -8,10 +8,21 @@ async function main() {
   }
 
   const [deployer] = await ethers.getSigners();
+  const operatorAddress = process.env.AGENT_OPERATOR_ADDRESS || deployer.address;
+  const scannerOperatorAddress = process.env.SCANNER_OPERATOR_ADDRESS || operatorAddress;
+  if (!ethers.isAddress(operatorAddress)) {
+    throw new Error(`Invalid AGENT_OPERATOR_ADDRESS: ${operatorAddress}`);
+  }
+  if (!ethers.isAddress(scannerOperatorAddress)) {
+    throw new Error(`Invalid SCANNER_OPERATOR_ADDRESS: ${scannerOperatorAddress}`);
+  }
+
   console.log("═".repeat(60));
   console.log("  AEGIS PROTOCOL — BSC MAINNET DEPLOYMENT");
   console.log("═".repeat(60));
   console.log("  Deployer:", deployer.address);
+  console.log("  Operator:", operatorAddress);
+  console.log("  Scanner Operator:", scannerOperatorAddress);
   console.log("  Balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)), "BNB");
   console.log("  Chain ID:", Number(network.chainId));
   console.log("═".repeat(60));
@@ -76,13 +87,13 @@ async function main() {
   await tx1.wait();
   console.log("   ✓ Vault authorized in Registry");
 
-  const tx2 = await vault.setOperatorAuthorization(deployer.address, true);
+  const tx2 = await vault.setOperatorAuthorization(operatorAddress, true);
   await tx2.wait();
-  console.log("   ✓ Deployer authorized as operator in Vault");
+  console.log("   ✓ Runtime operator authorized in Vault");
 
-  const tx3 = await logger.setLoggerAuthorization(deployer.address, true);
+  const tx3 = await logger.setLoggerAuthorization(operatorAddress, true);
   await tx3.wait();
-  console.log("   ✓ Deployer authorized as logger in DecisionLogger");
+  console.log("   ✓ Runtime operator authorized in DecisionLogger");
 
   const tx4a = await vault.setTokenGate(tokenGateAddress);
   await tx4a.wait();
@@ -92,9 +103,9 @@ async function main() {
   await tx4b.wait();
   console.log("   ✓ TokenGate wired into Registry");
 
-  const tx5 = await scanner.setScannerAuthorization(deployer.address, true);
+  const tx5 = await scanner.setScannerAuthorization(scannerOperatorAddress, true);
   await tx5.wait();
-  console.log("   ✓ Deployer authorized as scanner");
+  console.log("   ✓ Scanner operator authorized");
 
   // ─── Configure Venus Protocol (Real Mainnet) ──────────────
   console.log("\n7. Configuring Venus Protocol (Mainnet)...");
@@ -142,6 +153,8 @@ async function main() {
   console.log(`  Network:          BSC Mainnet`);
   console.log(`  Chain ID:         56`);
   console.log(`  Deployer:         ${deployer.address}`);
+  console.log(`  Operator:         ${operatorAddress}`);
+  console.log(`  Scanner Operator: ${scannerOperatorAddress}`);
   console.log(`  AegisRegistry:    ${registryAddress}`);
   console.log(`  AegisVault:       ${vaultAddress}`);
   console.log(`  DecisionLogger:   ${loggerAddress}`);
@@ -166,6 +179,11 @@ async function main() {
       AegisTokenGate: tokenGateAddress,
       AegisScanner: scannerAddress,
     },
+    operators: {
+      deployer: deployer.address,
+      agentOperator: operatorAddress,
+      scannerOperator: scannerOperatorAddress,
+    },
     externalProtocols: {
       VenusVBNB: VENUS_VBNB,
       USDT: USDT_ADDRESS,
@@ -184,7 +202,7 @@ async function main() {
 
   fs.writeFileSync("deployment-mainnet.json", JSON.stringify(deploymentData, null, 2));
   console.log("\n  Saved to deployment-mainnet.json");
-  console.log("\n  ⚠️  NEXT: Transfer ownership to Gnosis Safe multisig!");
+  console.log("\n  ⚠️  NEXT: Transfer ownership to Gnosis Safe multisig and confirm the operator wallet is funded for gas.");
 }
 
 main()
