@@ -38,7 +38,7 @@ contract MockVenusBNB is IVenusBNB {
     }
 
     /// @notice Supply BNB → receive vBNB
-    function mint() external payable override returns (uint256) {
+    function mint() external payable override {
         require(msg.value > 0, "Zero mint");
 
         uint256 rate = _exchangeRate();
@@ -49,7 +49,6 @@ contract MockVenusBNB is IVenusBNB {
         totalSupplied += msg.value;
 
         emit Mint(msg.sender, msg.value, tokens);
-        return 0; // success
     }
 
     /// @notice Redeem vBNB tokens → receive BNB

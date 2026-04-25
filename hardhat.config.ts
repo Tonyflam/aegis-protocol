@@ -5,7 +5,8 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000001";
-const BSCSCAN_API_KEY = process.env.BSCSCAN_API_KEY || "";
+const ETHERSCAN_API_KEY =
+  process.env.ETHERSCAN_API_KEY || process.env.BSCSCAN_API_KEY || "";
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -49,10 +50,7 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: {
-      bscTestnet: BSCSCAN_API_KEY,
-      bsc: BSCSCAN_API_KEY,
-    },
+    apiKey: ETHERSCAN_API_KEY,
   },
   sourcify: {
     enabled: true,
