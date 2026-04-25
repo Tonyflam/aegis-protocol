@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { ethers } from "ethers";
 import toast from "react-hot-toast";
 import { CHAIN_CONFIG } from "./constants";
@@ -9,6 +9,7 @@ import { CHAIN_CONFIG } from "./constants";
 
 const IS_MAINNET = process.env.NEXT_PUBLIC_CHAIN_ID === "56";
 const TARGET_CHAIN = IS_MAINNET ? CHAIN_CONFIG.bscMainnet : CHAIN_CONFIG.bscTestnet;
+const STORAGE_KEY = "aegis:wallet:connected";
 
 interface WalletState {
   address: string | null;
@@ -30,26 +31,32 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [signer, setSigner] = useState<ethers.Signer | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const listenersAttached = useRef(false);
+
+  const attachListeners = useCallback((ethereum: any, onDisconnect: () => void) => {
+    if (listenersAttached.current) return;
+    listenersAttached.current = true;
+    ethereum.on?.("accountsChanged", (accounts: string[]) => {
+      if (accounts.length === 0) onDisconnect();
+      else setAddress(accounts[0]);
+    });
+    ethereum.on?.("chainChanged", () => window.location.reload());
+  }, []);
 
   const disconnect = useCallback(async () => {
-    // Revoke MetaMask permissions so next connect requires approval
     try {
       const ethereum = (window as any).ethereum;
       if (ethereum) {
-        // Remove event listeners to prevent stale handlers
         ethereum.removeAllListeners?.("accountsChanged");
         ethereum.removeAllListeners?.("chainChanged");
-        // Revoke wallet permissions (MetaMask 11.4+)
         await ethereum.request({
           method: "wallet_revokePermissions",
           params: [{ eth_accounts: {} }],
-        }).catch(() => {
-          // Fallback: not all wallets support revokePermissions
-        });
+        }).catch(() => {});
       }
-    } catch {
-      // Silent — disconnect UI state regardless
-    }
+    } catch {}
+    listenersAttached.current = false;
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
     setAddress(null);
     setProvider(null);
     setSigner(null);
@@ -74,19 +81,47 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setSigner(sig);
       setAddress(addr);
       setChainId(Number(network.chainId));
+      try { localStorage.setItem(STORAGE_KEY, "1"); } catch {}
       toast.success(`Connected: ${addr.slice(0, 6)}...${addr.slice(-4)}`);
-
-      ethereum.on("accountsChanged", (accounts: string[]) => {
-        if (accounts.length === 0) disconnect();
-        else setAddress(accounts[0]);
-      });
-      ethereum.on("chainChanged", () => window.location.reload());
+      attachListeners(ethereum, disconnect);
     } catch (error: any) {
       toast.error(error.message || "Failed to connect wallet");
     } finally {
       setIsConnecting(false);
     }
-  }, [disconnect]);
+  }, [disconnect, attachListeners]);
+
+  // Auto-reconnect on page load if previously connected
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const ethereum = (window as any).ethereum;
+    if (!ethereum) return;
+    let wasConnected = false;
+    try { wasConnected = localStorage.getItem(STORAGE_KEY) === "1"; } catch {}
+    if (!wasConnected) return;
+
+    (async () => {
+      try {
+        // Use eth_accounts (silent) instead of eth_requestAccounts (popup)
+        const accounts: string[] = await ethereum.request({ method: "eth_accounts" });
+        if (!accounts || accounts.length === 0) {
+          try { localStorage.removeItem(STORAGE_KEY); } catch {}
+          return;
+        }
+        const prov = new ethers.BrowserProvider(ethereum);
+        const sig = await prov.getSigner();
+        const addr = await sig.getAddress();
+        const network = await prov.getNetwork();
+        setProvider(prov);
+        setSigner(sig);
+        setAddress(addr);
+        setChainId(Number(network.chainId));
+        attachListeners(ethereum, disconnect);
+      } catch {
+        try { localStorage.removeItem(STORAGE_KEY); } catch {}
+      }
+    })();
+  }, [attachListeners, disconnect]);
 
   const switchToBsc = useCallback(async () => {
     if (!(window as any).ethereum) return;
