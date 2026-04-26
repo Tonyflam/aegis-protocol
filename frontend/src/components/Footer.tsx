@@ -47,9 +47,9 @@ export default function Footer() {
             <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-secondary)" }}>Resources</p>
             <div className="space-y-2">
               {[
+                { href: "/whitepaper", label: "Whitepaper", ext: false },
                 { href: "https://github.com/Tonyflam/aegis-protocol", label: "GitHub", ext: true },
                 { href: `https://bscscan.com/token/${CONTRACTS.UNIQ_TOKEN}`, label: "$UNIQ on BSCScan", ext: true },
-                { href: `https://testnet.bscscan.com/address/${CONTRACTS.VAULT}`, label: "Vault Contract", ext: true },
                 { href: `https://flap.sh/bnb/${CONTRACTS.UNIQ_TOKEN}`, label: "Buy $UNIQ", ext: true },
               ].map((link) => (
                 <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer"
