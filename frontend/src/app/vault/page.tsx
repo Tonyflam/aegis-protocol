@@ -418,11 +418,24 @@ export default function VaultPage() {
 
         {/* Network Warning */}
         {isConnected && !isBsc && (
-          <div className="mb-6 p-3 rounded-xl flex items-center gap-3" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.15)" }}>
-            <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "var(--yellow)" }} />
-            <span className="text-xs" style={{ color: "var(--yellow)" }}>
-              Please switch to BNB Smart Chain to use the vault.
-            </span>
+          <div className="mb-6 p-4 rounded-xl flex items-center justify-between gap-3" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 shrink-0" style={{ color: "var(--yellow)" }} />
+              <div>
+                <div className="text-sm font-semibold" style={{ color: "var(--yellow)" }}>
+                  Wrong network detected
+                </div>
+                <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  You&apos;re on chain ID {chainId}. The vault runs on BNB Smart Chain (56).
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={switchToBsc}
+              className="btn-primary text-xs px-4 py-2 shrink-0"
+            >
+              Switch to BNB Chain
+            </button>
           </div>
         )}
 
