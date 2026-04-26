@@ -476,16 +476,23 @@ export default function VaultPage() {
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="p-3 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
-                <div className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>Deployed to Venus</div>
+                <div className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>Working in Venus ({gl.venus.allocationPct}%)</div>
                 <div className="text-sm font-bold" style={{ color: "var(--bnb)" }}>{formatBnb(gl.venus.deployed)} BNB</div>
               </div>
               <div className="p-3 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
-                <div className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>Current Value</div>
+                <div className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>Current Venus Value</div>
                 <div className="text-sm font-bold" style={{ color: "var(--green)" }}>{formatBnb(gl.venus.currentValue)} BNB</div>
               </div>
               <div className="p-3 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
                 <div className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>Pending Yield</div>
                 <div className="text-sm font-bold" style={{ color: "#a78bfa" }}>{formatBnb(gl.venus.pendingYield)} BNB</div>
+              </div>
+            </div>
+            <div className="mt-3 p-3 rounded-xl flex items-start gap-2" style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}>
+              <div className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                <span className="font-semibold" style={{ color: "#60a5fa" }}>Why is only {gl.venus.allocationPct}% in Venus?</span> The other {100 - gl.venus.allocationPct}% stays in the vault as an instant-withdrawal buffer so you don&apos;t need to unwind from Venus on small withdrawals.
+                Your <span className="font-semibold text-white">total position</span> is shown below — nothing is missing.
+                Yield accrues per block (~3s) and grows continuously; small deposits show ~0 yield at first because Venus APY compounds in tiny increments.
               </div>
             </div>
           </div>
