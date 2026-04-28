@@ -477,8 +477,12 @@ export async function GET(request: NextRequest) {
       ? Math.max(...scanResults.map((s) => s.riskScore))
       : 0;
 
-    // 7. Push Telegram alerts (fire-and-forget, don't block response)
-    pushTelegramAlerts(walletAddress, alerts).catch(() => {});
+    // 7. Push Telegram alerts.
+    // IMPORTANT: must `await` here — on Vercel serverless, fire-and-forget
+    // promises are killed when the response returns, so background cron
+    // invocations were silently dropping Telegram sends. Awaiting adds
+    // ~200-500ms but guarantees delivery.
+    await pushTelegramAlerts(walletAddress, alerts).catch(() => {});
 
     return NextResponse.json({
       address: walletAddress,
