@@ -2,10 +2,14 @@
 
 import { WalletProvider } from "../lib/WalletContext";
 import { Toaster } from "react-hot-toast";
+import { usePathname } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
+  // Phase 4: re-key main on route change so the page-enter animation runs
+  // each navigation, giving the app a real "page transition" feel.
+  const pathname = usePathname();
   return (
     <WalletProvider>
       <Toaster
@@ -20,7 +24,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       />
       <div className="min-h-screen flex flex-col">
         <Navbar />
-        <main className="flex-1">{children}</main>
+        <main key={pathname} className="flex-1 page-enter">{children}</main>
         <Footer />
       </div>
     </WalletProvider>

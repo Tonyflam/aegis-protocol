@@ -277,3 +277,128 @@ html {
   height: 1px;
   background: var(--border-subtle);
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Phase 4 — Design System Tokens
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* Neutrals — 3 grays */
+  --gray-900: #09090b;   /* page bg */
+  --gray-800: #18181b;   /* surface */
+  --gray-700: #27272a;   /* border / divider strong */
+
+  /* Semantic — 4 fixed roles */
+  --sem-success: #34d399;
+  --sem-warning: #fbbf24;
+  --sem-danger:  #f87171;
+  --sem-info:    #60a5fa;
+
+  /* Spacing scale (tailwind-aligned, exposed as tokens) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+
+  /* Elevation (shadow scale) */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.20);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.02);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.03);
+  --shadow-glow: 0 0 32px rgba(0, 212, 245, 0.15);
+}
+
+/* ─── Typography Scale ─── */
+.t-display { font-size: clamp(2.25rem, 4.5vw, 3.75rem); line-height: 1.05; letter-spacing: -0.025em; font-weight: 700; }
+.t-h1      { font-size: clamp(1.75rem, 3vw, 2.25rem);   line-height: 1.15; letter-spacing: -0.02em;  font-weight: 700; }
+.t-h2      { font-size: 1.5rem;   line-height: 1.25; letter-spacing: -0.015em; font-weight: 600; }
+.t-h3      { font-size: 1.125rem; line-height: 1.4;  letter-spacing: -0.01em;  font-weight: 600; }
+.t-body    { font-size: 0.875rem; line-height: 1.55; }
+.t-body-lg { font-size: 1rem;     line-height: 1.6; }
+.t-caption { font-size: 0.75rem;  line-height: 1.45; color: var(--text-muted); }
+.t-mono    { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-feature-settings: "tnum"; }
+
+/* ─── Card primitive variants (extends existing .card) ─── */
+.card-hover-lift {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.18s ease,
+              box-shadow 0.18s ease;
+}
+.card-hover-lift:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-md);
+}
+.card-hover-glow:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-glow), var(--shadow-md);
+}
+
+/* ─── Skeleton shimmer ─── */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* ─── Page enter transition ─── */
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: pageEnter 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── Risk badge variants ─── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+.badge-safe     { background: rgba(52,211,153,0.10); color: var(--sem-success); border-color: rgba(52,211,153,0.20); }
+.badge-info     { background: rgba(96,165,250,0.10); color: var(--sem-info);    border-color: rgba(96,165,250,0.20); }
+.badge-caution  { background: rgba(251,191,36,0.10); color: var(--sem-warning); border-color: rgba(251,191,36,0.20); }
+.badge-danger   { background: rgba(248,113,113,0.10);color: var(--sem-danger);  border-color: rgba(248,113,113,0.22); }
+.badge-neutral  { background: var(--bg-elevated);    color: var(--text-secondary); border-color: var(--border-subtle); }
+
+/* ─── Section header ─── */
+.section-eyebrow {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ─── Mobile refinements ─── */
+@media (max-width: 640px) {
+  .card { border-radius: 10px; }
+  .t-display { letter-spacing: -0.02em; }
+}

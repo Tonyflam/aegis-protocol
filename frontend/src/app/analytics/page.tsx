@@ -230,7 +230,9 @@ export default function AnalyticsPage() {
                 Most Scanned Tokens
               </h3>
               {data.topScannedTokens.length === 0 ? (
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>No data yet</p>
+                <div className="py-8 text-center">
+                  <p className="t-caption">No tokens scanned yet — results appear here as users start scanning.</p>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {data.topScannedTokens.slice(0, 8).map((t, i) => (

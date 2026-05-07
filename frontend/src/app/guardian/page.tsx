@@ -13,6 +13,7 @@ import {
   Target, ShieldAlert, ShieldCheck, Crosshair,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { EmptyState, Skeleton, SkeletonStat } from "../../components/ui";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -382,33 +383,46 @@ export default function GuardianShieldPage() {
           </div>
         )}
 
-        {/* LOADING */}
+        {/* LOADING (Phase 4 — skeleton scaffold) */}
         {isConnected && loading && (
-          <div className="card p-16 text-center">
-            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-5" style={{ color: "var(--accent)" }} />
-            <h2 className="text-xl font-semibold text-white mb-2">Scanning Your Wallet</h2>
-            <p className="text-sm max-w-md mx-auto" style={{ color: "var(--text-muted)" }}>
-              Checking each token for honeypots, hidden taxes, whale risks, and rug pull signals...
-            </p>
-            <div className="mt-6 flex items-center justify-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-              <Activity className="w-3.5 h-3.5 animate-pulse" />
-              This takes 15-30 seconds
+          <div className="space-y-4">
+            <div className="card p-8">
+              <div className="flex items-center gap-3 mb-5">
+                <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--accent)" }} />
+                <div>
+                  <div className="t-h3 text-white">Scanning Your Wallet</div>
+                  <div className="t-caption">Checking each token for honeypots, hidden taxes, whale risks, and rug pulls… (15–30s)</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {Array.from({ length: 4 }).map((_, i) => <SkeletonStat key={i} />)}
+              </div>
+            </div>
+            <div className="card p-5 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton width={32} height={32} rounded="lg" />
+                  <div className="flex-1"><Skeleton height={12} width="40%" className="mb-1.5" /><Skeleton height={10} width="70%" /></div>
+                  <Skeleton height={20} width={56} rounded="full" />
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* ERROR */}
+        {/* ERROR (Phase 4 — EmptyState) */}
         {isConnected && error && !loading && (
-          <div className="card p-12 text-center" style={{ borderColor: "rgba(239, 68, 68, 0.15)" }}>
-            <Skull className="w-12 h-12 mx-auto mb-4" style={{ color: "#ef4444" }} />
-            <h2 className="text-xl font-semibold text-white mb-2">Scan Failed</h2>
-            <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>{error}</p>
-            {address && (
+          <EmptyState
+            icon={Skull}
+            tone="danger"
+            title="Scan failed"
+            description={error}
+            action={address && (
               <button onClick={() => scanWallet(address)} className="btn-primary inline-flex items-center gap-2">
                 <RefreshCw className="w-4 h-4" /> Retry Scan
               </button>
             )}
-          </div>
+          />
         )}
 
         {/* DASHBOARD */}

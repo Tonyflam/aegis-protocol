@@ -60,7 +60,7 @@ export default function Home() {
           #6 of Top 10 — BNB Chain Hackathon · 200 Projects
         </div>
 
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-6 animate-fade-in">
+        <h1 className="t-display mb-6 animate-fade-in">
           <span className="text-white">Your DeFi</span>
           <br />
           <span className="text-shimmer">Guardian.</span>
@@ -119,7 +119,7 @@ export default function Home() {
         <RevealSection>
           <div className="text-center mb-16">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3" style={{ color: "var(--accent)" }}>How It Works</p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+            <h2 className="t-h1 text-white">
               Protect Yourself in <span className="text-gradient">Three Steps</span>
             </h2>
           </div>
@@ -162,7 +162,7 @@ export default function Home() {
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <RevealSection variant="reveal-left">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3" style={{ color: "var(--accent)" }}>Token Scanner</p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-5">
+            <h2 className="t-h1 text-white mb-5">
               Scan Before <span className="text-gradient">You Buy</span>
             </h2>
             <p className="text-base leading-relaxed mb-8" style={{ color: "var(--text-secondary)" }}>
@@ -310,7 +310,7 @@ export default function Home() {
 
           <RevealSection variant="reveal-right">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3" style={{ color: "var(--green)" }}>Protected Vault</p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-5">
+            <h2 className="t-h1 text-white mb-5">
               Earn Yield. <span style={{ color: "var(--green)" }}>Stay Protected.</span>
             </h2>
             <p className="text-base leading-relaxed mb-8" style={{ color: "var(--text-secondary)" }}>
@@ -354,7 +354,7 @@ export default function Home() {
         <RevealSection>
           <div className="text-center mb-16">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3" style={{ color: "var(--accent)" }}>Features</p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+            <h2 className="t-h1 text-white">
               Built with <span className="text-gradient">On-Chain Data</span>
             </h2>
             <p className="text-base mt-4 max-w-xl mx-auto" style={{ color: "var(--text-secondary)" }}>
@@ -395,7 +395,7 @@ export default function Home() {
         <RevealSection>
           <div className="text-center mb-16">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3" style={{ color: "var(--accent)" }}>On-Chain</p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+            <h2 className="t-h1 text-white">
               Verified <span className="text-gradient">Smart Contracts</span>
             </h2>
             <p className="text-base mt-4 max-w-xl mx-auto" style={{ color: "var(--text-secondary)" }}>
@@ -525,7 +525,7 @@ export default function Home() {
 
           <RevealSection variant="reveal-left">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3" style={{ color: "var(--purple)" }}>Utility Token</p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-5">
+            <h2 className="t-h1 text-white mb-5">
               Real Utility. <span style={{ color: "var(--purple)" }}>Not Hype.</span>
             </h2>
             <p className="text-base leading-relaxed mb-8" style={{ color: "var(--text-secondary)" }}>
@@ -597,7 +597,7 @@ export default function Home() {
             <div className="absolute inset-0 -z-10"
               style={{ background: "radial-gradient(ellipse at center, rgba(0, 212, 245, 0.04) 0%, transparent 60%)" }} />
 
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-5">
+            <h2 className="t-h1 text-white mb-5">
               Scan. Shield. <span className="text-gradient">Vault.</span>
             </h2>
             <p className="text-base max-w-lg mx-auto mb-10" style={{ color: "var(--text-secondary)" }}>

@@ -8,10 +8,11 @@ import {
   Search, Shield, AlertTriangle, Skull, CheckCircle,
   ExternalLink, Loader2, Copy, Share2, ArrowRight,
   Lock, Droplets, Eye, X, ChevronDown, ChevronUp,
-  Wallet, Activity, Sparkles, Brain, Quote,
+  Wallet, Sparkles, Brain, Quote,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { saveScan, saveScans } from "../../lib/scan-store";
+import { Skeleton } from "../../components/ui";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -850,17 +851,24 @@ export default function ScannerPage() {
             </div>
           )}
 
-          {/* Loading */}
+          {/* Loading (Phase 4 — skeleton) */}
           {walletScanning && (
-            <div className="card p-12 text-center">
-              <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4" style={{ color: "var(--purple)" }} />
-              <h2 className="text-lg font-semibold text-white mb-2">Scanning Your Wallet</h2>
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                Checking each token for honeypots, hidden taxes, whale risks, and rug pull signals...
-              </p>
-              <div className="mt-4 flex items-center justify-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                <Activity className="w-3.5 h-3.5 animate-pulse" />
-                This takes 15-30 seconds
+            <div className="space-y-3">
+              <div className="card p-6 flex items-center gap-3">
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" style={{ color: "var(--purple)" }} />
+                <div className="flex-1">
+                  <div className="t-h3 text-white">Scanning your wallet…</div>
+                  <div className="t-caption">Honeypot, tax, whale & rug-pull checks (15–30s)</div>
+                </div>
+              </div>
+              <div className="card p-5 space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Skeleton width={28} height={28} rounded="md" />
+                    <div className="flex-1"><Skeleton height={12} width="35%" className="mb-1.5" /><Skeleton height={10} width="60%" /></div>
+                    <Skeleton height={18} width={48} rounded="full" />
+                  </div>
+                ))}
               </div>
             </div>
           )}
