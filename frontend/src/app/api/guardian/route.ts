@@ -46,26 +46,54 @@ async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<voi
 
   const criticals = newAlerts.filter(a => a.severity === "critical");
   const warnings = newAlerts.filter(a => a.severity === "warning");
-  const emoji = criticals.length > 0 ? "\u{1F6A8}" : "\u26A0\uFE0F";
-  const status = criticals.length > 0 ? "NEW CRITICAL ALERTS" : "New Warnings";
+  const headlineEmoji = criticals.length > 0 ? "\u{1F6A8}" : "\u26A0\uFE0F";
+  const headlineColor = criticals.length > 0 ? "CRITICAL" : "WARNING";
 
-  const lines = [
-    `${emoji} <b>Aegis Guardian Shield</b>`,
-    status, "",
-    `Wallet: <code>${address.slice(0, 6)}...${address.slice(-4)}</code>`,
-    `New: ${criticals.length} critical, ${warnings.length} warnings`, "",
+  // Phase 3 — premium alert card with severity badges, $TOKEN symbols,
+  // BSCScan deeplinks, and an inline keyboard.
+  const sevTag = (a: Alert) => a.severity === "critical" ? "\u{1F534} CRITICAL" : "\u{1F7E1} WARNING";
+  const renderAlert = (a: Alert): string => {
+    const tokenLink = a.tokenAddress
+      ? ` · <a href="https://bscscan.com/token/${a.tokenAddress}">BSCScan</a>`
+      : "";
+    const sym = a.token ? `<b>$${escapeHtml(a.token)}</b>` : "";
+    return [
+      `${sevTag(a)} ${sym} — <b>${escapeHtml(a.title)}</b>`,
+      `   <i>${escapeHtml(a.description)}</i>${tokenLink}`,
+    ].join("\n");
+  };
+
+  const headerLines: string[] = [
+    `${headlineEmoji} <b>AEGIS GUARDIAN</b>  ·  <b>${headlineColor}</b>`,
+    `Wallet · <code>${address.slice(0, 6)}…${address.slice(-4)}</code>`,
   ];
-  for (const a of criticals.slice(0, 5)) {
-    lines.push(`\u{1F534} <b>${a.title}</b>`);
-    lines.push(`   ${a.description}`, "");
-  }
-  for (const a of warnings.slice(0, 5)) {
-    lines.push(`\u{1F7E1} <b>${a.title}</b>`);
-    lines.push(`   ${a.description}`, "");
-  }
+  const counts: string[] = [];
+  if (criticals.length > 0) counts.push(`<b>${criticals.length}</b> critical`);
+  if (warnings.length > 0) counts.push(`<b>${warnings.length}</b> warning${warnings.length === 1 ? "" : "s"}`);
+  if (counts.length > 0) headerLines.push(counts.join("  ·  "));
+
+  const SEP = "─".repeat(18);
+  const body: string[] = [];
+  for (const a of criticals.slice(0, 5)) body.push(renderAlert(a));
+  if (criticals.length > 0 && warnings.length > 0) body.push("");
+  for (const a of warnings.slice(0, 5)) body.push(renderAlert(a));
   const overflow = newAlerts.length - Math.min(criticals.length, 5) - Math.min(warnings.length, 5);
-  if (overflow > 0) lines.push(`<i>+ ${overflow} more — see dashboard</i>`, "");
-  lines.push(`<a href="https://aegisguardian.xyz/guardian">View Full Report \u2192</a>`);
+  if (overflow > 0) body.push(`<i>+ ${overflow} more — see full report</i>`);
+
+  const text = [headerLines.join("\n"), SEP, body.join("\n\n")].join("\n\n");
+
+  const reply_markup = {
+    inline_keyboard: [
+      [
+        { text: "\u{1F6E1}\uFE0F Full Report", url: `https://aegisguardian.xyz/guardian?address=${address}` },
+        { text: "\u{1F50D} Wallet on BSCScan", url: `https://bscscan.com/address/${address}` },
+      ],
+      [
+        { text: "\u{1F507} Mute 6h", callback_data: `mute:${address}:21600` },
+        { text: "\u2705 Acknowledge", callback_data: `ack:${address}` },
+      ],
+    ],
+  };
 
   try {
     const res = await fetch(`${TG_API}/sendMessage`, {
@@ -73,9 +101,10 @@ async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<voi
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: sub.chatId,
-        text: lines.join("\n"),
+        text,
         parse_mode: "HTML",
         disable_web_page_preview: true,
+        reply_markup,
       }),
       signal: AbortSignal.timeout(10000),
     });
@@ -84,6 +113,15 @@ async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<voi
       await setTgSent(addr, { sentIds: [...merged], at: now });
     }
   } catch { /* Telegram unavailable — skip silently */ }
+}
+
+// Minimal HTML escape so user-controlled token symbols and titles cannot
+// inject Telegram HTML-mode formatting.
+function escapeHtml(s: string): string {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 interface WalletToken {

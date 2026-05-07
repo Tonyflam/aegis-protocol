@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { ethers } from "ethers";
 import { useWalletContext } from "../../lib/WalletContext";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import {
   Search, Shield, AlertTriangle, Skull, CheckCircle,
   ExternalLink, Loader2, Copy, Share2, ArrowRight,
   Lock, Droplets, Eye, X, ChevronDown, ChevronUp,
-  Wallet, Activity,
+  Wallet, Activity, Sparkles, Brain, Quote,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { saveScan, saveScans } from "../../lib/scan-store";
@@ -320,6 +320,200 @@ function ScanResultCard({ result, showShare = true }: { result: ScanResult; show
   );
 }
 
+// ─── AI Reasoning Panel (Phase 3) ────────────────────────────
+
+type Stage = { id: string; label: string; status: "running" | "done" };
+type Structured = {
+  severity: "SAFE" | "CAUTION" | "AT_RISK" | "DANGEROUS";
+  confidence: number;
+  citations: string[];
+  action: string;
+  source?: string;
+};
+
+const SEVERITY_COLOR: Record<Structured["severity"], string> = {
+  SAFE: "var(--green)",
+  CAUTION: "#facc15",
+  AT_RISK: "#fb923c",
+  DANGEROUS: "#f87171",
+};
+
+function AiReasoningPanel({ scan }: { scan: ScanResult }) {
+  const [stages, setStages] = useState<Stage[]>([]);
+  const [reasoning, setReasoning] = useState("");
+  const [structured, setStructured] = useState<Structured | null>(null);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+  const startedFor = useRef<string>("");
+
+  useEffect(() => {
+    const key = `${scan.address}-${scan.scanTimestamp}`;
+    if (startedFor.current === key) return;
+    startedFor.current = key;
+    setStages([]); setReasoning(""); setStructured(null); setError(""); setDone(false);
+
+    const ac = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch("/api/scan/reasoning", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(scan),
+          signal: ac.signal,
+        });
+        if (!res.ok || !res.body) throw new Error(`Reasoning request failed (${res.status})`);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { value, done: rDone } = await reader.read();
+          if (rDone) break;
+          buffer += decoder.decode(value, { stream: true });
+          // Parse complete SSE events (separated by \n\n).
+          let idx;
+          while ((idx = buffer.indexOf("\n\n")) >= 0) {
+            const raw = buffer.slice(0, idx);
+            buffer = buffer.slice(idx + 2);
+            let event = "message";
+            let data = "";
+            for (const line of raw.split("\n")) {
+              if (line.startsWith("event:")) event = line.slice(6).trim();
+              else if (line.startsWith("data:")) data += line.slice(5).trim();
+            }
+            if (!data) continue;
+            let payload: unknown;
+            try { payload = JSON.parse(data); } catch { continue; }
+            if (event === "stage") {
+              const s = payload as Stage;
+              setStages((prev) => {
+                const existing = prev.findIndex((x) => x.id === s.id);
+                if (existing >= 0) {
+                  const copy = [...prev];
+                  copy[existing] = s;
+                  return copy;
+                }
+                return [...prev, s];
+              });
+            } else if (event === "reasoning") {
+              const d = (payload as { delta?: string }).delta || "";
+              setReasoning((r) => r + d);
+            } else if (event === "structured") {
+              setStructured(payload as Structured);
+            } else if (event === "done") {
+              setDone(true);
+            } else if (event === "error") {
+              const msg = (payload as { message?: string }).message || "Stream error";
+              setError(msg);
+            }
+          }
+        }
+        setDone(true);
+      } catch (err) {
+        if ((err as { name?: string })?.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Reasoning failed");
+        setDone(true);
+      }
+    })();
+
+    return () => { ac.abort(); };
+  }, [scan]);
+
+  const sevColor = structured ? SEVERITY_COLOR[structured.severity] : "var(--accent)";
+
+  return (
+    <div className="card p-6 mt-4 animate-fade-in">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(99, 102, 241, 0.12)" }}>
+          <Brain className="w-4 h-4" style={{ color: "#a5b4fc" }} />
+        </div>
+        <div>
+          <div className="text-sm font-semibold text-white flex items-center gap-1.5">
+            Aegis AI Reasoning
+            {!done && <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#a5b4fc" }} />}
+          </div>
+          <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+            {done ? (structured?.source === "groq" ? "Llama 3.3 70B · streamed" : structured?.source === "rule-based" ? "Deterministic fallback" : "Complete") : "Live stream"}
+          </div>
+        </div>
+        {structured && (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-[10px] font-semibold px-2 py-1 rounded" style={{ background: `${sevColor}20`, color: sevColor }}>
+              {structured.severity}
+            </span>
+            <span className="text-[10px] tabular-nums" style={{ color: "var(--text-muted)" }}>
+              {(structured.confidence * 100).toFixed(0)}% confidence
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Stages */}
+      {stages.length > 0 && (
+        <div className="mb-4 space-y-1.5">
+          {stages.map((s) => (
+            <div key={s.id} className="flex items-center gap-2 text-[11px]">
+              {s.status === "done" ? (
+                <CheckCircle className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--green)" }} />
+              ) : (
+                <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" style={{ color: "var(--accent)" }} />
+              )}
+              <span style={{ color: s.status === "done" ? "var(--text-secondary)" : "white" }}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Reasoning text */}
+      {reasoning && (
+        <div className="p-3 rounded-lg mb-4" style={{ background: "var(--bg-elevated)" }}>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Sparkles className="w-3 h-3" style={{ color: "#a5b4fc" }} />
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Reasoning</span>
+          </div>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--text-primary)" }}>
+            {reasoning}
+            {!done && <span className="inline-block w-1.5 h-3 ml-0.5 align-middle animate-pulse" style={{ background: "#a5b4fc" }} />}
+          </p>
+        </div>
+      )}
+
+      {/* Structured citations + action */}
+      {structured && (
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div className="p-3 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Quote className="w-3 h-3" style={{ color: "var(--text-muted)" }} />
+              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Citations</span>
+            </div>
+            <ul className="space-y-1.5">
+              {structured.citations.length > 0 ? structured.citations.map((c, i) => (
+                <li key={i} className="text-[11px] leading-snug flex gap-1.5" style={{ color: "var(--text-secondary)" }}>
+                  <span style={{ color: sevColor }}>•</span>
+                  <span>{c}</span>
+                </li>
+              )) : (
+                <li className="text-[11px]" style={{ color: "var(--text-muted)" }}>No specific citations — token passes core checks.</li>
+              )}
+            </ul>
+          </div>
+          <div className="p-3 rounded-lg" style={{ background: `${sevColor}10`, border: `1px solid ${sevColor}30` }}>
+            <div className="flex items-center gap-1.5 mb-2">
+              <ArrowRight className="w-3 h-3" style={{ color: sevColor }} />
+              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: sevColor }}>Recommended action</span>
+            </div>
+            <p className="text-xs font-medium leading-snug" style={{ color: "white" }}>{structured.action}</p>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="text-[11px] mt-3" style={{ color: "#f87171" }}>{error}</div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Scanner Page ───────────────────────────────────────
 
 export default function ScannerPage() {
@@ -483,6 +677,7 @@ export default function ScannerPage() {
           {scanResult && (
             <>
               <ScanResultCard result={scanResult} />
+              <AiReasoningPanel scan={scanResult} />
 
               {/* Journey CTA: Wallet Scan */}
               <button onClick={() => setMode("wallet")}
