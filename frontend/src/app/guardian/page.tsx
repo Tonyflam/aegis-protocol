@@ -172,7 +172,17 @@ export default function GuardianShieldPage() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/guardian?address=" + encodeURIComponent(addr));
+      // Silent polls hit the cached snapshot written by the server-side
+      // cron — this is what makes alerts visible the moment the page
+      // reopens, even after being closed for hours. A 404 means no
+      // snapshot exists yet, so we transparently fall back to a live scan.
+      const url = silent
+        ? "/api/guardian?address=" + encodeURIComponent(addr) + "&cached=1"
+        : "/api/guardian?address=" + encodeURIComponent(addr);
+      let res = await fetch(url);
+      if (silent && res.status === 404) {
+        res = await fetch("/api/guardian?address=" + encodeURIComponent(addr));
+      }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Scan failed (" + res.status + ")");

@@ -117,8 +117,11 @@ export async function redisGetScanCount(): Promise<number> {
 
 // ─── Analytics (computed from all scans) ─────────────────────
 
-export async function redisGetAnalytics() {
-  const scans = await redisGetAllScans();
+export async function redisGetAnalytics(opts: { includeGuardian?: boolean } = {}) {
+  const all = await redisGetAllScans();
+  // Background Guardian polls flood the dashboard if included raw.
+  // Default behavior excludes them; pass {includeGuardian: true} to keep them.
+  const scans = opts.includeGuardian ? all : all.filter((s) => s.source !== "guardian");
 
   const breakdown = { safe: 0, caution: 0, avoid: 0, scam: 0 };
   let honeypots = 0;

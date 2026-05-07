@@ -130,6 +130,33 @@ function formatBnb(v: string | number) {
   return n.toPrecision(4);
 }
 
+// High-precision BNB formatter for tiny yield values (early-day APY accrual).
+// Below 0.0001 BNB we show 8 decimals so users can see daily yield grow
+// from zero instead of an unchanging "0.0000".
+function formatBnbPrecise(v: string | number) {
+  const n = typeof v === "string" ? parseFloat(v) : v;
+  if (isNaN(n)) return "0";
+  if (n === 0) return "0.00000000";
+  if (n >= 1) return n.toFixed(4);
+  if (n >= 0.0001) return n.toFixed(6);
+  return n.toFixed(8);
+}
+
+// Assumed Venus supply APY for projection display. Sourced from the
+// /vault Strategies tab which advertises 2-4% — we use the lower bound
+// for honest projection.
+const ASSUMED_VENUS_APY = 0.02;
+
+function projectYield(bnbBalance: string | number, allocationPct: number) {
+  const principal = typeof bnbBalance === "string" ? parseFloat(bnbBalance) : bnbBalance;
+  if (!isFinite(principal) || principal <= 0) {
+    return { daily: 0, monthly: 0, yearly: 0 };
+  }
+  const working = principal * (allocationPct / 100);
+  const yearly = working * ASSUMED_VENUS_APY;
+  return { daily: yearly / 365, monthly: yearly / 12, yearly };
+}
+
 // ─── Tabs ────────────────────────────────────────────────────
 
 type Tab = "overview" | "deposit" | "activity" | "settings";
@@ -485,7 +512,7 @@ export default function VaultPage() {
               </div>
               <div className="p-3 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
                 <div className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>Pending Yield</div>
-                <div className="text-sm font-bold" style={{ color: "#a78bfa" }}>{formatBnb(gl.venus.pendingYield)} BNB</div>
+                <div className="text-sm font-bold" style={{ color: "#a78bfa" }}>{formatBnbPrecise(gl.venus.pendingYield)} BNB</div>
               </div>
             </div>
             <div className="mt-3 p-3 rounded-xl flex items-start gap-2" style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}>
@@ -585,8 +612,8 @@ export default function VaultPage() {
                   {hasYield && yld && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
                       {[
-                        { label: "Yield Earned (gross)", value: `${formatBnb(yld.grossYieldEarned)} BNB`, color: "var(--bnb)" },
-                        { label: "Net Yield (after fee)", value: `${formatBnb(yld.netYieldEarned)} BNB`, color: "var(--green)" },
+                        { label: "Yield Earned (gross)", value: `${formatBnbPrecise(yld.grossYieldEarned)} BNB`, color: "var(--bnb)" },
+                        { label: "Net Yield (after fee)", value: `${formatBnbPrecise(yld.netYieldEarned)} BNB`, color: "var(--green)" },
                         { label: "Performance Fee", value: `${yld.performanceFeePct}%`, color: "var(--text-secondary)" },
                       ].map((s) => (
                         <div key={s.label} className="p-3 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
@@ -672,6 +699,56 @@ export default function VaultPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Projection + Hours Protected */}
+                {pos?.isActive && (() => {
+                  const allocPct = gl?.venus?.allocationPct ?? 80;
+                  const proj = projectYield(pos.bnbBalance, allocPct);
+                  const hoursProtected = pos.depositTimestamp > 0
+                    ? Math.max(0, Math.floor((Date.now() - pos.depositTimestamp * 1000) / 3600_000))
+                    : 0;
+                  return (
+                    <div className="card p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <TrendingUp className="w-4 h-4" style={{ color: "var(--green)" }} />
+                        <span className="text-sm font-medium text-white">Yield Projection</span>
+                        <span className="ml-auto text-[10px]" style={{ color: "var(--text-muted)" }}>
+                          @ {(ASSUMED_VENUS_APY * 100).toFixed(0)}% APY &middot; {allocPct}% allocated
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 mb-4">
+                        {[
+                          { label: "Daily", value: proj.daily },
+                          { label: "Monthly", value: proj.monthly },
+                          { label: "Yearly", value: proj.yearly },
+                        ].map((s) => (
+                          <div key={s.label} className="p-3 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
+                            <div className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>{s.label}</div>
+                            <div className="text-sm font-bold" style={{ color: "var(--green)" }}>
+                              +{formatBnbPrecise(s.value)} BNB
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
+                          <div className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>Hours Protected</div>
+                          <div className="text-sm font-bold text-white">{hoursProtected.toLocaleString()}h</div>
+                        </div>
+                        <div className="p-3 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
+                          <div className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>Defended Capital</div>
+                          <div className="text-sm font-bold" style={{ color: "var(--accent)" }}>
+                            {formatBnb(pos.bnbBalance)} BNB
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 text-[10px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                        Projection assumes a constant {(ASSUMED_VENUS_APY * 100).toFixed(0)}% Venus supply APY on the
+                        {" "}{allocPct}% deployed portion. Actual yield varies with market demand and compounds per block.
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* AI Protection Status */}
                 <div className="card p-6">

@@ -126,6 +126,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
+  // Tag the source of this scan so analytics can filter out
+  // background Guardian polls from the "Recent Scans" feed.
+  const sourceParam = searchParams.get("source");
+  const source: "api" | "guardian" | "bot" = sourceParam === "guardian" || sourceParam === "bot" ? sourceParam : "api";
 
   if (!address || !ethers.isAddress(address)) {
     return NextResponse.json({ error: "Invalid token address" }, { status: 400 });
@@ -141,7 +145,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const lastSave = recentRedisSaves.get(addr) || 0;
       if (Date.now() - lastSave > REDIS_DEDUP_WINDOW) {
         recentRedisSaves.set(addr, Date.now());
-        redisSaveScan(cached.report as unknown as Record<string, unknown>, "api").catch(() => {});
+        redisSaveScan(cached.report as unknown as Record<string, unknown>, source).catch(() => {});
       }
     }
     return NextResponse.json(cached.report);
@@ -150,10 +154,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const report = await scanToken(addr);
     cache.set(addr, { report, expires: Date.now() + CACHE_TTL });
-    trackScan(report as unknown as Record<string, unknown>, "api");
+    trackScan(report as unknown as Record<string, unknown>, source);
     if (isRedisConfigured()) {
       recentRedisSaves.set(addr, Date.now());
-      redisSaveScan(report as unknown as Record<string, unknown>, "api").catch(() => {});
+      redisSaveScan(report as unknown as Record<string, unknown>, source).catch(() => {});
     }
     return NextResponse.json(report);
   } catch (err) {

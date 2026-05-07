@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSub } from "../../../lib/telegram-store";
 import { checkRateLimit, rateLimitResponse } from "../../../lib/rate-limit";
+import { saveSnapshot, getSnapshot, getTgSent, setTgSent } from "../../../lib/guardian-snapshot";
 
 // ─── Guardian Shield API ─────────────────────────────────────
 // Accepts a wallet address, fetches token holdings via /api/wallet,
@@ -10,11 +11,14 @@ const GROQ_KEY = process.env.GROQ_API_KEY || "";
 const TG_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TG_API = `https://api.telegram.org/bot${TG_BOT_TOKEN}`;
 
-// Telegram alert throttle: only send once per wallet per hour (or when alerts change)
-const tgLastSent = new Map<string, { hash: string; at: number }>();
-const TG_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+// How long an alert ID stays in the "already sent" set before it can re-alert.
+const TG_ALERT_REMIND_MS = 6 * 60 * 60 * 1000; // 6h
+// Min spacing between two consecutive Telegram messages per wallet.
+const TG_MIN_GAP_MS = 5 * 60 * 1000; // 5min
 
 // ─── Push alerts to Telegram if subscribed ───────────────────
+// Strategy: only ship NEW alert IDs not already delivered in the last 6h.
+// All new alerts go in ONE consolidated message; if nothing is new, stay silent.
 async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<void> {
   const addr = address.toLowerCase();
   const sub = await getSub(addr);
@@ -23,22 +27,33 @@ async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<voi
   const actionable = alerts.filter(a => a.severity === "critical" || a.severity === "warning");
   if (actionable.length === 0) return;
 
-  const alertHash = actionable.map(a => a.title).sort().join("|");
-  const prev = tgLastSent.get(addr);
   const now = Date.now();
-  if (prev && prev.hash === alertHash && now - prev.at < TG_COOLDOWN_MS) return;
-  tgLastSent.set(addr, { hash: alertHash, at: now });
+  const prev = await getTgSent(addr);
+  const stillRemembered = prev && now - prev.at < TG_ALERT_REMIND_MS
+    ? new Set(prev.sentIds)
+    : new Set<string>();
 
-  const criticals = actionable.filter(a => a.severity === "critical");
-  const warnings = actionable.filter(a => a.severity === "warning");
+  const newAlerts = actionable.filter(a => !stillRemembered.has(a.id));
+  if (newAlerts.length === 0) return;
+
+  // Min-gap throttle: if we just messaged this wallet, defer but remember the IDs
+  // so the next eligible push has full state and won't re-alert.
+  if (prev && now - prev.at < TG_MIN_GAP_MS) {
+    const merged = new Set([...stillRemembered, ...actionable.map(a => a.id)]);
+    await setTgSent(addr, { sentIds: [...merged], at: prev.at });
+    return;
+  }
+
+  const criticals = newAlerts.filter(a => a.severity === "critical");
+  const warnings = newAlerts.filter(a => a.severity === "warning");
   const emoji = criticals.length > 0 ? "\u{1F6A8}" : "\u26A0\uFE0F";
-  const status = criticals.length > 0 ? "CRITICAL ALERTS DETECTED" : "Warnings Found";
+  const status = criticals.length > 0 ? "NEW CRITICAL ALERTS" : "New Warnings";
 
   const lines = [
     `${emoji} <b>Aegis Guardian Shield</b>`,
     status, "",
     `Wallet: <code>${address.slice(0, 6)}...${address.slice(-4)}</code>`,
-    `Alerts: ${criticals.length} critical, ${warnings.length} warnings`, "",
+    `New: ${criticals.length} critical, ${warnings.length} warnings`, "",
   ];
   for (const a of criticals.slice(0, 5)) {
     lines.push(`\u{1F534} <b>${a.title}</b>`);
@@ -48,10 +63,12 @@ async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<voi
     lines.push(`\u{1F7E1} <b>${a.title}</b>`);
     lines.push(`   ${a.description}`, "");
   }
+  const overflow = newAlerts.length - Math.min(criticals.length, 5) - Math.min(warnings.length, 5);
+  if (overflow > 0) lines.push(`<i>+ ${overflow} more — see dashboard</i>`, "");
   lines.push(`<a href="https://aegisguardian.xyz/guardian">View Full Report \u2192</a>`);
 
   try {
-    await fetch(`${TG_API}/sendMessage`, {
+    const res = await fetch(`${TG_API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -62,7 +79,11 @@ async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<voi
       }),
       signal: AbortSignal.timeout(10000),
     });
-  } catch { /* Telegram unavailable */ }
+    if (res.ok) {
+      const merged = new Set([...stillRemembered, ...actionable.map(a => a.id)]);
+      await setTgSent(addr, { sentIds: [...merged], at: now });
+    }
+  } catch { /* Telegram unavailable — skip silently */ }
 }
 
 interface WalletToken {
@@ -414,9 +435,22 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const walletAddress = searchParams.get("address");
+  const cachedOnly = searchParams.get("cached") === "1";
 
   if (!walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
     return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
+  }
+
+  // ── Cached read path ─────────────────────────────────────
+  // Used by the UI's poll loop so the page surfaces cron-found alerts
+  // immediately on reopen. Falls through to live scan if no snapshot.
+  if (cachedOnly) {
+    const snap = await getSnapshot(walletAddress);
+    if (snap) {
+      const data = snap.data as Record<string, unknown>;
+      return NextResponse.json({ ...data, fromCache: true, cachedAt: snap.at });
+    }
+    return NextResponse.json({ error: "No cached snapshot yet" }, { status: 404 });
   }
 
   const origin = new URL(request.url).origin;
@@ -437,12 +471,14 @@ export async function GET(request: NextRequest) {
     // 2. Compute holder tier from UNIQ balance
     const { tier, uniqBalance } = computeTier(holdings);
 
-    // 3. Scan each token for risk (max 10 to stay fast)
+    // 3. Scan each token for risk (max 10 to stay fast).
+    //    Pass source=guardian so analytics can filter these out of the
+    //    "Recent Scans" feed (P1.3).
     const tokensToScan = holdings.slice(0, 10);
     const scanPromises = tokensToScan.map(async (token) => {
       try {
         const scanRes = await fetch(
-          `${origin}/api/scan?address=${encodeURIComponent(token.address)}`,
+          `${origin}/api/scan?address=${encodeURIComponent(token.address)}&source=guardian`,
           { signal: AbortSignal.timeout(20000) }
         );
         if (scanRes.ok) {
@@ -477,14 +513,7 @@ export async function GET(request: NextRequest) {
       ? Math.max(...scanResults.map((s) => s.riskScore))
       : 0;
 
-    // 7. Push Telegram alerts.
-    // IMPORTANT: must `await` here — on Vercel serverless, fire-and-forget
-    // promises are killed when the response returns, so background cron
-    // invocations were silently dropping Telegram sends. Awaiting adds
-    // ~200-500ms but guarantees delivery.
-    await pushTelegramAlerts(walletAddress, alerts).catch(() => {});
-
-    return NextResponse.json({
+    const responsePayload = {
       address: walletAddress,
       bnbBalance,
       holdings,
@@ -499,7 +528,20 @@ export async function GET(request: NextRequest) {
       tokenCount: holdings.length,
       alertCount: alerts.length,
       scannedAt: Date.now(),
-    });
+    };
+
+    // 7. Persist snapshot so the UI can show this scan instantly on reopen
+    //    even when the page wasn't open (cron-driven scans).
+    await saveSnapshot(walletAddress, responsePayload).catch(() => {});
+
+    // 8. Push Telegram alerts.
+    // IMPORTANT: must `await` here — on Vercel serverless, fire-and-forget
+    // promises are killed when the response returns, so background cron
+    // invocations were silently dropping Telegram sends. Awaiting adds
+    // ~200-500ms but guarantees delivery.
+    await pushTelegramAlerts(walletAddress, alerts).catch(() => {});
+
+    return NextResponse.json(responsePayload);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Guardian scan failed";
     return NextResponse.json({ error: message }, { status: 500 });

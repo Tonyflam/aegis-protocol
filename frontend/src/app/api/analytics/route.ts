@@ -14,11 +14,15 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const view = searchParams.get("view") || "dashboard";
+  // By default, Guardian background polls are filtered out so the
+  // analytics dashboard reflects user-initiated scan activity only.
+  // Pass ?includeGuardian=1 to opt back in.
+  const includeGuardian = searchParams.get("includeGuardian") === "1";
 
   switch (view) {
     case "dashboard": {
       if (isRedisConfigured()) {
-        const analytics = await redisGetAnalytics();
+        const analytics = await redisGetAnalytics({ includeGuardian });
         return NextResponse.json(analytics);
       }
       const analytics = getAnalytics();
@@ -27,7 +31,8 @@ export async function GET(request: NextRequest) {
 
     case "tokens": {
       if (isRedisConfigured()) {
-        const allScans = await redisGetAllScans();
+        const rawAll = await redisGetAllScans();
+        const allScans = includeGuardian ? rawAll : rawAll.filter((s) => s.source !== "guardian");
         const tokenMap = new Map<string, { count: number; latest: typeof allScans[0] }>();
         for (const s of allScans) {
           const a = s.address.toLowerCase();
@@ -48,11 +53,15 @@ export async function GET(request: NextRequest) {
     case "recent": {
       const limit = Math.min(Number(searchParams.get("limit") || 50), 200);
       if (isRedisConfigured()) {
-        const scans = await redisGetRecentScans(limit);
+        // Pull a wider window so post-filter we still have `limit` rows.
+        const raw = await redisGetRecentScans(includeGuardian ? limit : limit * 4);
+        const filtered = includeGuardian ? raw : raw.filter((s) => s.source !== "guardian");
+        const scans = filtered.slice(0, limit);
         return NextResponse.json({ scans, total: scans.length });
       }
       const all = getAllScans();
-      return NextResponse.json({ scans: all.slice(0, limit), total: all.length });
+      const filtered = includeGuardian ? all : all.filter((s) => s.scanSource !== "guardian");
+      return NextResponse.json({ scans: filtered.slice(0, limit), total: filtered.length });
     }
 
     case "token": {
