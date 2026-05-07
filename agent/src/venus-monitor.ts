@@ -108,10 +108,13 @@ export class VenusMonitor {
       return null;
     }
 
-    // Only harvest if yield is meaningful (> 0.001 BNB)
-    const minHarvestWei = ethers.parseEther("0.001");
+    // Only harvest if yield is meaningful. Configurable via VENUS_MIN_HARVEST_BNB
+    // (default 0.001 BNB on testnet, override to e.g. "0.0000001" for early-mainnet demo
+    // when total vault deposits are small).
+    const minHarvestEth = process.env.VENUS_MIN_HARVEST_BNB || "0.001";
+    const minHarvestWei = ethers.parseEther(minHarvestEth);
     if (status.pendingYield < minHarvestWei) {
-      console.log(`[Venus Monitor] Yield too small to harvest: ${ethers.formatEther(status.pendingYield)} BNB`);
+      console.log(`[Venus Monitor] Yield too small to harvest: ${ethers.formatEther(status.pendingYield)} BNB (threshold ${minHarvestEth} BNB)`);
       return null;
     }
 
