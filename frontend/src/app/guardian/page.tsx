@@ -156,7 +156,14 @@ export default function GuardianShieldPage() {
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL);
   const [expandedToken, setExpandedToken] = useState<string | null>(null);
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Wall-clock timestamp of the next scheduled rescan. Anchoring on a
+  // timestamp (rather than decrementing a counter) means the countdown
+  // survives tab backgrounding — browsers throttle setInterval to as
+  // little as 1/min when a tab is hidden, so a decrement would lie about
+  // how recently the wallet was checked. We always compute remaining
+  // seconds from `nextScanAtRef.current - Date.now()` instead.
+  const nextScanAtRef = useRef<number>(Date.now() + REFRESH_INTERVAL * 1000);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [tgChatId, setTgChatId] = useState("");
   const [tgConnected, setTgConnected] = useState(false);
@@ -183,6 +190,7 @@ export default function GuardianShieldPage() {
       }
       const data: GuardianResult = await res.json();
       setResult(data);
+      nextScanAtRef.current = Date.now() + REFRESH_INTERVAL * 1000;
       setCountdown(REFRESH_INTERVAL);
       if (!silent) toast.success("Scan complete — " + data.alertCount + " issues found");
     } catch (err) {
@@ -203,19 +211,35 @@ export default function GuardianShieldPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, address]);
 
+  // Tick the displayed countdown from a wall-clock anchor. When the tab
+  // is hidden the browser throttles this interval, but because we read
+  // Date.now() each tick the displayed value is always truthful — and
+  // if the deadline passed while the tab was hidden, we fire a silent
+  // rescan immediately on the next tick (or on visibilitychange below).
   useEffect(() => {
     if (!result || !address) return;
-    countdownRef.current = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          scanWallet(address, true);
-          return REFRESH_INTERVAL;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const tick = () => {
+      const remaining = Math.ceil((nextScanAtRef.current - Date.now()) / 1000);
+      if (remaining <= 0) {
+        // Avoid spamming the API if multiple ticks catch up at once.
+        nextScanAtRef.current = Date.now() + REFRESH_INTERVAL * 1000;
+        setCountdown(REFRESH_INTERVAL);
+        scanWallet(address, true);
+      } else {
+        setCountdown(remaining);
+      }
+    };
+    tick();
+    tickRef.current = setInterval(tick, 1000);
+    // Re-sync the moment the tab becomes visible — a hidden tab's
+    // setInterval can be throttled to ~1/min, so we force a tick.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (tickRef.current) clearInterval(tickRef.current);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [result, address, scanWallet]);
 
