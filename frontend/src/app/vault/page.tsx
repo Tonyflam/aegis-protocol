@@ -14,6 +14,7 @@ import {
   Cpu, Zap, Radar,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { StrategyEngine } from "@/components/vault/StrategyEngine";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -593,11 +594,11 @@ export default function VaultPage() {
           </h1>
           <p className="text-sm sm:text-base max-w-xl mx-auto" style={{ color: "var(--text-muted)" }}>
             Deposit BNB to earn yield via Venus Protocol. AI agents monitor
-            your position 24/7 — auto-protecting against liquidations, exploits, and crashes.
+            your position 24/7, auto-protecting against liquidations, exploits, and crashes.
           </p>
         </div>
 
-        {/* Testnet Beta Banner — only shown on testnet */}
+        {/* Testnet Beta Banner, only shown on testnet */}
         {process.env.NEXT_PUBLIC_CHAIN_ID !== "56" && (
         <div className="mb-6 p-4 rounded-xl text-center" style={{ background: "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(240,185,11,0.06))", border: "1px solid rgba(251,191,36,0.25)" }}>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider mb-2" style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24" }}>
@@ -669,7 +670,7 @@ export default function VaultPage() {
                 <TrendingUp className="w-4 h-4" style={{ color: "var(--green)" }} />
               </div>
               <div>
-                <div className="text-sm font-semibold text-white">Venus Protocol — Live Yield</div>
+                <div className="text-sm font-semibold text-white">Venus Protocol, Live Yield</div>
                 <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
                   {gl.venus.allocationPct}% of vault auto-deployed to Venus lending
                 </div>
@@ -695,7 +696,7 @@ export default function VaultPage() {
             <div className="mt-3 p-3 rounded-xl flex items-start gap-2" style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}>
               <div className="text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
                 <span className="font-semibold" style={{ color: "#60a5fa" }}>Why is only {gl.venus.allocationPct}% in Venus?</span> The other {100 - gl.venus.allocationPct}% stays in the vault as an instant-withdrawal buffer so you don&apos;t need to unwind from Venus on small withdrawals.
-                Your <span className="font-semibold text-white">total position</span> is shown below — nothing is missing.
+                Your <span className="font-semibold text-white">total position</span> is shown below, nothing is missing.
                 Yield accrues per block (~3s) and grows continuously; small deposits show ~0 yield at first because Venus APY compounds in tiny increments.
               </div>
             </div>
@@ -918,6 +919,11 @@ export default function VaultPage() {
 
                 {/* Live AI Activity Ticker (Phase 2) */}
                 <LiveActivityTicker decisions={data.decisions} />
+
+                {/* Phase 5: AI Strategy Engine (advisory mode) */}
+                <div className="pt-2">
+                  <StrategyEngine />
+                </div>
 
                 {/* AI Protection Status */}
                 <div className="card p-6">
@@ -1147,7 +1153,7 @@ export default function VaultPage() {
                   <div className="space-y-3">
                     {[
                       { name: "Venus Protocol", desc: "BNB lending market. Earn supply APY from borrowers. 80% of deposits auto-deployed.", apy: "2-4%", risk: "Low" },
-                      { name: "PancakeSwap", desc: "Used for stop-loss swaps — auto-converts BNB to USDT when risk is detected.", apy: "N/A", risk: "Low" },
+                      { name: "PancakeSwap", desc: "Used for stop-loss swaps, auto-converts BNB to USDT when risk is detected.", apy: "N/A", risk: "Low" },
                     ].map((s) => (
                       <div key={s.name} className="flex items-center justify-between p-3 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
                         <div>
