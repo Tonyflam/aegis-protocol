@@ -14,7 +14,6 @@ import {
   Cpu, Zap, Radar,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { StrategyEngine } from "@/components/vault/StrategyEngine";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -919,11 +918,6 @@ export default function VaultPage() {
 
                 {/* Live AI Activity Ticker (Phase 2) */}
                 <LiveActivityTicker decisions={data.decisions} />
-
-                {/* Phase 5: AI Strategy Engine (advisory mode) */}
-                <div className="pt-2">
-                  <StrategyEngine />
-                </div>
 
                 {/* AI Protection Status */}
                 <div className="card p-6">
