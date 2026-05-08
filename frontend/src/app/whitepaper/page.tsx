@@ -3,10 +3,10 @@
 export const metadata = {
   title: "Aegis Protocol Whitepaper | AI-Native DeFi Security on BNB Chain",
   description:
-    "The technical and economic design of Aegis Protocol — Scanner, Guardian, Vault, $UNIQ token, and the autonomous AI agent securing DeFi on BNB Chain.",
+    "The technical and economic design of Aegis Protocol, Scanner, Guardian, Vault, $UNIQ token, and the autonomous AI agent securing DeFi on BNB Chain.",
   openGraph: {
     title: "Aegis Protocol Whitepaper",
-    description: "AI-Native DeFi Security on BNB Chain — full technical paper.",
+    description: "AI-Native DeFi Security on BNB Chain, full technical paper.",
     url: "https://aegisguardian.xyz/whitepaper",
     siteName: "Aegis Protocol",
     type: "article",
@@ -54,7 +54,7 @@ export default function WhitepaperPage() {
           non-expert users. Rug pulls, honeypots, malicious contract upgrades, and protocol exploits drained
           an estimated $2B+ across BSC in 2024–2025 alone. Aegis Protocol introduces the first AI-native,
           fully on-chain security layer for BNB Chain DeFi: an autonomous agent that detects threats,
-          monitors wallets continuously, and protects user capital — with all decisions cryptographically
+          monitors wallets continuously, and protects user capital, with all decisions cryptographically
           anchored on-chain.
         </p>
         <p className={p}>
@@ -74,12 +74,12 @@ export default function WhitepaperPage() {
           attract users also attract bad actors. Common threats include:
         </p>
         <ul className={list}>
-          <li><strong className="text-white">Honeypots</strong> — tokens that allow buying but block selling</li>
-          <li><strong className="text-white">Mint backdoors</strong> — owner can dilute holders at will</li>
-          <li><strong className="text-white">Liquidity pulls</strong> — LP unlocked, deployer drains pool</li>
-          <li><strong className="text-white">Tax manipulation</strong> — sell tax silently raised post-launch</li>
-          <li><strong className="text-white">Proxy upgrades</strong> — logic swapped to malicious implementation</li>
-          <li><strong className="text-white">Protocol exploits</strong> — lending platforms compromised</li>
+          <li><strong className="text-white">Honeypots</strong>, tokens that allow buying but block selling</li>
+          <li><strong className="text-white">Mint backdoors</strong>, owner can dilute holders at will</li>
+          <li><strong className="text-white">Liquidity pulls</strong>, LP unlocked, deployer drains pool</li>
+          <li><strong className="text-white">Tax manipulation</strong>, sell tax silently raised post-launch</li>
+          <li><strong className="text-white">Proxy upgrades</strong>, logic swapped to malicious implementation</li>
+          <li><strong className="text-white">Protocol exploits</strong>, lending platforms compromised</li>
         </ul>
         <h3 className={h3}>1.2 Why Existing Solutions Fall Short</h3>
         <ul className={list}>
@@ -155,7 +155,7 @@ export default function WhitepaperPage() {
       <section>
         <h2 className={h2}>3. Product Pillars</h2>
 
-        <h3 className={h3}>3.1 Scanner — Pre-Trade Risk Detection</h3>
+        <h3 className={h3}>3.1 Scanner, Pre-Trade Risk Detection</h3>
         <p className={p}>
           Public, free, no wallet required. Users paste any BSC token address and receive a 0–100 risk
           score within five seconds. Scanner combines:
@@ -170,10 +170,10 @@ export default function WhitepaperPage() {
         </ul>
         <p className={p}>Results are cached on-chain in <code style={codeStyle}>AegisScanner</code> to amortize cost across users.</p>
 
-        <h3 className={h3}>3.2 Guardian — Continuous Wallet Monitoring</h3>
+        <h3 className={h3}>3.2 Guardian, Continuous Wallet Monitoring</h3>
         <p className={p}>
           Users connect a wallet; their address is registered to <code style={codeStyle}>AegisRegistry</code>.
-          From that moment forward — even with the website closed — the off-chain agent watches their
+          From that moment forward, even with the website closed, the off-chain agent watches their
           holdings every 30 seconds. Detected events:
         </p>
         <ul className={list}>
@@ -190,7 +190,7 @@ export default function WhitepaperPage() {
           on-chain audit trail.
         </p>
 
-        <h3 className={h3}>3.3 Vault — AI-Guarded Yield</h3>
+        <h3 className={h3}>3.3 Vault, AI-Guarded Yield</h3>
         <p className={p}>
           Users deposit BNB to <code style={codeStyle}>AegisVault</code>. Eighty percent is auto-supplied
           to <strong className="text-white">Venus Protocol</strong> via <code style={codeStyle}>mintNative()</code> for
@@ -240,16 +240,16 @@ export default function WhitepaperPage() {
         <h3 className={h3}>4.2 Value Capture</h3>
         <p className={p}>$UNIQ accrues value through three mechanisms:</p>
         <ol className={olist}>
-          <li><strong className="text-white">Demand-side gating</strong> — premium users must hold (not spend) $UNIQ, removing supply from float</li>
-          <li><strong className="text-white">Fee buyback</strong> — a portion of vault revenue programmatically purchases $UNIQ on PancakeSwap</li>
-          <li><strong className="text-white">Future staking</strong> (planned) — staked $UNIQ earns a share of vault fees</li>
+          <li><strong className="text-white">Demand-side gating</strong>, premium users must hold (not spend) $UNIQ, removing supply from float</li>
+          <li><strong className="text-white">Fee buyback</strong>, a portion of vault revenue programmatically purchases $UNIQ on PancakeSwap</li>
+          <li><strong className="text-white">Future staking</strong> (planned), staked $UNIQ earns a share of vault fees</li>
         </ol>
 
         <h3 className={h3}>4.3 Distribution</h3>
         <ul className={list}>
           <li>Total supply: fixed at deployment, fully circulating</li>
           <li>Initial liquidity: locked on PancakeSwap V2</li>
-          <li>No team allocation, no presale, no vesting cliffs — fair launch</li>
+          <li>No team allocation, no presale, no vesting cliffs, fair launch</li>
           <li>LP renounced / locked (verifiable on-chain)</li>
         </ul>
       </section>
@@ -273,10 +273,10 @@ export default function WhitepaperPage() {
 
         <h3 className={h3}>5.3 Failure Modes</h3>
         <ul className={list}>
-          <li><strong className="text-white">Agent offline</strong> — alerts pause; users can still withdraw and use Scanner</li>
-          <li><strong className="text-white">Groq LLM offline</strong> — fall back to rule-based analysis (deterministic)</li>
-          <li><strong className="text-white">Venus exploited</strong> — agent calls emergency withdraw; protocol-level losses still possible if exploit is faster than detection</li>
-          <li><strong className="text-white">Telegram outage</strong> — alerts persist on-chain; users see them on next dashboard load</li>
+          <li><strong className="text-white">Agent offline</strong>, alerts pause; users can still withdraw and use Scanner</li>
+          <li><strong className="text-white">Groq LLM offline</strong>, fall back to rule-based analysis (deterministic)</li>
+          <li><strong className="text-white">Venus exploited</strong>, agent calls emergency withdraw; protocol-level losses still possible if exploit is faster than detection</li>
+          <li><strong className="text-white">Telegram outage</strong>, alerts persist on-chain; users see them on next dashboard load</li>
         </ul>
 
         <h3 className={h3}>5.4 Audit Status</h3>
@@ -316,7 +316,7 @@ export default function WhitepaperPage() {
           Aegis is built by <strong className="text-white">UnIQ Minds Labs</strong>, currently a
           solo-founder operation led by <strong className="text-white">David Praise</strong> (Ghana). The
           project was bootstrapped from a hackathon win and has chosen a slow, code-first growth path over
-          paid marketing. The team welcomes contributors — see the GitHub repository.
+          paid marketing. The team welcomes contributors, see the GitHub repository.
         </p>
       </section>
 

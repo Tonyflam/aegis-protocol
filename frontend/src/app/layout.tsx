@@ -11,23 +11,23 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://aegisguardian.xyz"),
-  title: "Aegis Protocol — AI-Powered DeFi Guardian on BNB Chain",
+  title: "Aegis Protocol · AI-Powered DeFi Guardian on BNB Chain",
   description:
     "Autonomous AI agent that monitors your DeFi positions on BNB Chain 24/7, detects risks in real-time using LLM reasoning + PancakeSwap DEX verification, and executes protective on-chain transactions.",
   keywords: ["DeFi", "AI Agent", "BNB Chain", "PancakeSwap", "DeFi Guardian", "Autonomous Agent", "Smart Contract", "Risk Management"],
   authors: [{ name: "Uniq Minds" }],
   openGraph: {
-    title: "Aegis Protocol by Uniq Minds — AI-Powered DeFi Guardian",
+    title: "Aegis Protocol by Uniq Minds · AI-Powered DeFi Guardian",
     description: "Autonomous AI agent protecting your DeFi positions on BNB Chain 24/7. LLM reasoning + PancakeSwap DEX verification + on-chain execution.",
     url: "https://aegisguardian.xyz",
     siteName: "Aegis Protocol",
     type: "website",
     locale: "en_US",
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Aegis Protocol — AI-Powered DeFi Guardian" }],
+    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Aegis Protocol · AI-Powered DeFi Guardian" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Aegis Protocol by Uniq Minds — AI-Powered DeFi Guardian",
+    title: "Aegis Protocol by Uniq Minds · AI-Powered DeFi Guardian",
     description: "Autonomous AI agent protecting your DeFi positions on BNB Chain 24/7. $UNIQ token utility. LLM reasoning + PancakeSwap DEX verification.",
     images: ["/og-image.svg"],
   },

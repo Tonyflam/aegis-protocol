@@ -58,7 +58,7 @@ async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<voi
       : "";
     const sym = a.token ? `<b>$${escapeHtml(a.token)}</b>` : "";
     return [
-      `${sevTag(a)} ${sym} — <b>${escapeHtml(a.title)}</b>`,
+      `${sevTag(a)} ${sym}, <b>${escapeHtml(a.title)}</b>`,
       `   <i>${escapeHtml(a.description)}</i>${tokenLink}`,
     ].join("\n");
   };
@@ -78,7 +78,7 @@ async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<voi
   if (criticals.length > 0 && warnings.length > 0) body.push("");
   for (const a of warnings.slice(0, 5)) body.push(renderAlert(a));
   const overflow = newAlerts.length - Math.min(criticals.length, 5) - Math.min(warnings.length, 5);
-  if (overflow > 0) body.push(`<i>+ ${overflow} more — see full report</i>`);
+  if (overflow > 0) body.push(`<i>+ ${overflow} more, see full report</i>`);
 
   const text = [headerLines.join("\n"), SEP, body.join("\n\n")].join("\n\n");
 
@@ -112,7 +112,7 @@ async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<voi
       const merged = new Set([...stillRemembered, ...actionable.map(a => a.id)]);
       await setTgSent(addr, { sentIds: [...merged], at: now });
     }
-  } catch { /* Telegram unavailable — skip silently */ }
+  } catch { /* Telegram unavailable, skip silently */ }
 }
 
 // Minimal HTML escape so user-controlled token symbols and titles cannot
@@ -195,24 +195,24 @@ function buildRuleBasedAnalysis(
   const actions: string[] = [];
   const honeypots = scans.filter((s) => s.isHoneypot);
   if (honeypots.length > 0)
-    actions.push(`Sell ${honeypots.map((s) => s.symbol).join(", ")} immediately — honeypot detected`);
+    actions.push(`Sell ${honeypots.map((s) => s.symbol).join(", ")} immediately, honeypot detected`);
   const highRisk = scans.filter((s) => s.riskScore >= 70 && !s.isHoneypot);
   if (highRisk.length > 0)
-    actions.push(`Consider exiting ${highRisk.map((s) => s.symbol).join(", ")} — critical risk score`);
+    actions.push(`Consider exiting ${highRisk.map((s) => s.symbol).join(", ")}, critical risk score`);
   const mintable = scans.filter((s) => s.ownerCanMint && !s.isHoneypot);
   if (mintable.length > 0)
-    actions.push(`Monitor ${mintable.map((s) => s.symbol).join(", ")} — owner can mint unlimited tokens`);
+    actions.push(`Monitor ${mintable.map((s) => s.symbol).join(", ")}, owner can mint unlimited tokens`);
   const lowLiq = scans.filter((s) => s.liquidityUsd < 10000 && s.liquidityUsd > 0 && !s.isHoneypot);
   if (lowLiq.length > 0)
-    actions.push(`Be cautious with ${lowLiq.map((s) => s.symbol).join(", ")} — low liquidity`);
+    actions.push(`Be cautious with ${lowLiq.map((s) => s.symbol).join(", ")}, low liquidity`);
   if (parseFloat(bnbBalance) < 0.01)
-    actions.push("Top up BNB — you may not have enough for gas fees");
+    actions.push("Top up BNB, you may not have enough for gas fees");
   if (actions.length === 0)
-    actions.push("No immediate action required — continue monitoring");
+    actions.push("No immediate action required, continue monitoring");
 
   const holdingBreakdown = scans.map((s) => {
     let verdict: string;
-    if (s.isHoneypot) verdict = "HONEYPOT — Cannot sell. Exit if possible.";
+    if (s.isHoneypot) verdict = "HONEYPOT, Cannot sell. Exit if possible.";
     else if (s.riskScore >= 70) verdict = `High risk (${s.riskScore}/100). ${s.flags.slice(0, 2).join(", ")}. Consider selling.`;
     else if (s.riskScore >= 40) verdict = `Moderate risk (${s.riskScore}/100). ${s.flags.slice(0, 2).join(", ")}. Monitor closely.`;
     else if (s.riskScore >= 20) verdict = `Low risk (${s.riskScore}/100). Minor flags detected.`;
@@ -249,7 +249,7 @@ function buildAlerts(scans: TokenScan[], holdings: WalletToken[]): Alert[] {
       alerts.push({
         id: `alert-${++alertId}`, severity: "critical", category: "threat", minTier: "Free",
         title: `${scan.symbol} is a Honeypot`,
-        description: `You hold ${bal} ${scan.symbol}. This token blocks sells — you cannot exit this position.`,
+        description: `You hold ${bal} ${scan.symbol}. This token blocks sells, you cannot exit this position.`,
         token: scan.symbol, tokenAddress: scan.address, timestamp: now,
       });
     }
@@ -448,7 +448,7 @@ Return ONLY this JSON (no markdown, no backticks):
         };
       }
     }
-  } catch { /* Groq unavailable — fall back to rule-based */ }
+  } catch { /* Groq unavailable, fall back to rule-based */ }
   return baseline;
 }
 

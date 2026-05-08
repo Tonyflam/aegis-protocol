@@ -57,7 +57,7 @@ export default function Home() {
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium mb-8 backdrop-blur-sm animate-fade-in"
           style={{ background: "rgba(0, 212, 245, 0.06)", border: "1px solid rgba(0, 212, 245, 0.15)", color: "var(--accent)" }}>
           <Zap className="w-3.5 h-3.5" />
-          #6 of Top 10 — BNB Chain Hackathon · 200 Projects
+          #6 of Top 10, BNB Chain Hackathon · 200 Projects
         </div>
 
         <h1 className="t-display mb-6 animate-fade-in">
@@ -127,7 +127,7 @@ export default function Home() {
 
         <div ref={stepsStagger.ref} className={`stagger-parent ${stepsStagger.isVisible ? "visible" : ""} grid md:grid-cols-3 gap-6`}>
           {[
-            { num: "01", icon: Search, title: "Token Scanner", desc: "Paste any BSC token address for a full risk report — or connect your wallet to scan ALL your holdings at once. Honeypot detection, tax analysis, liquidity checks, and contract security.", href: "/scanner", color: "var(--accent)" },
+            { num: "01", icon: Search, title: "Token Scanner", desc: "Paste any BSC token address for a full risk report, or connect your wallet to scan ALL your holdings at once. Honeypot detection, tax analysis, liquidity checks, and contract security.", href: "/scanner", color: "var(--accent)" },
             { num: "02", icon: Shield, title: "Guardian Shield", desc: "Activate always-on monitoring. Guardian Shield auto-refreshes every 60 seconds, watching for rug pull signals, whale dumps, liquidity pulls, and dev wallet movements.", href: "/guardian", color: "var(--purple)" },
             { num: "03", icon: Lock, title: "Protected Vault", desc: "Deposit BNB into the Aegis Vault. Earn yield from Venus Protocol lending with AI-powered stop-loss protection. Every decision logged on-chain for full transparency.", href: "/vault", color: "var(--green)" },
           ].map((step, i) => (
@@ -166,7 +166,7 @@ export default function Home() {
               Scan Before <span className="text-gradient">You Buy</span>
             </h2>
             <p className="text-base leading-relaxed mb-8" style={{ color: "var(--text-secondary)" }}>
-              Paste a single token address for a detailed risk report — or connect
+              Paste a single token address for a detailed risk report, or connect
               your wallet to scan every token you hold at once. We check honeypot traps,
               buy/sell taxes, liquidity depth, LP lock status, whale concentration, and
               contract security from on-chain data.
@@ -529,7 +529,7 @@ export default function Home() {
               Real Utility. <span style={{ color: "var(--purple)" }}>Not Hype.</span>
             </h2>
             <p className="text-base leading-relaxed mb-8" style={{ color: "var(--text-secondary)" }}>
-              $UNIQ isn&apos;t a memecoin — it&apos;s a protocol access key. Hold it, pay less.
+              $UNIQ isn&apos;t a memecoin, it&apos;s a protocol access key. Hold it, pay less.
               Fee discounts are hardcoded in the smart contracts. Ownership renounced, LP locked.
             </p>
 

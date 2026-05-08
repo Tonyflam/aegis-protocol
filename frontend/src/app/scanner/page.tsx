@@ -157,7 +157,7 @@ function ScanResultCard({ result, showShare = true }: { result: ScanResult; show
     const emoji = result.riskScore >= 70 ? "🚨" : result.riskScore >= 40 ? "⚠️" : result.riskScore >= 20 ? "🟡" : "✅";
     const topFlags = result.flags.slice(0, 3).map((f) => flagLabel(f)).join(" · ");
     const lines = [
-      `${emoji} $${result.symbol} — Risk Score: ${result.riskScore}/100 (${result.recommendation})`,
+      `${emoji} $${result.symbol}, Risk Score: ${result.riskScore}/100 (${result.recommendation})`,
       topFlags ? `\nFlags: ${topFlags}` : "",
       `\nTax: ${result.buyTax.toFixed(1)}% buy / ${result.sellTax.toFixed(1)}% sell`,
       `\nLiquidity: ${formatUsd(result.liquidityUsd)}`,
@@ -494,7 +494,7 @@ function AiReasoningPanel({ scan }: { scan: ScanResult }) {
                   <span>{c}</span>
                 </li>
               )) : (
-                <li className="text-[11px]" style={{ color: "var(--text-muted)" }}>No specific citations — token passes core checks.</li>
+                <li className="text-[11px]" style={{ color: "var(--text-muted)" }}>No specific citations, token passes core checks.</li>
               )}
             </ul>
           </div>
@@ -579,7 +579,7 @@ export default function ScannerPage() {
       const data: WalletScanResult = await res.json();
       setWalletResult(data);
       if (data.scans) saveScans(data.scans as unknown as Record<string, unknown>[]);
-      toast.success(`Wallet scanned — ${data.alertCount} issues found`);
+      toast.success(`Wallet scanned, ${data.alertCount} issues found`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Wallet scan failed";
       setWalletError(msg);
@@ -603,7 +603,7 @@ export default function ScannerPage() {
           Token Scanner
         </h1>
         <p className="text-base" style={{ color: "var(--text-secondary)" }}>
-          Scan any token before you buy — or scan your entire wallet to find dangerous holdings.
+          Scan any token before you buy, or scan your entire wallet to find dangerous holdings.
         </p>
       </div>
 
@@ -690,7 +690,7 @@ export default function ScannerPage() {
                 <div className="flex-1">
                   <div className="text-sm font-medium text-white">Scan your entire wallet</div>
                   <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    Connect your wallet and scan ALL your tokens at once — find every dangerous holding
+                    Connect your wallet and scan ALL your tokens at once, find every dangerous holding
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 shrink-0 transition-transform group-hover:translate-x-1" style={{ color: "var(--purple)" }} />
@@ -809,7 +809,7 @@ export default function ScannerPage() {
                 Scan Your Entire Wallet
               </h2>
               <p className="text-sm mb-6 max-w-md mx-auto" style={{ color: "var(--text-muted)" }}>
-                Connect your wallet — we&apos;ll scan every token you hold and flag the dangerous ones.
+                Connect your wallet, we&apos;ll scan every token you hold and flag the dangerous ones.
                 Read-only, no transaction access.
               </p>
               <button onClick={connect} disabled={isConnecting}
@@ -833,7 +833,7 @@ export default function ScannerPage() {
             </div>
           )}
 
-          {/* Connected — Ready / Scanning / Results */}
+          {/* Connected, Ready / Scanning / Results */}
           {isConnected && !walletResult && !walletScanning && !walletError && (
             <div className="card p-8 text-center">
               <Wallet className="w-10 h-10 mx-auto mb-4" style={{ color: "var(--purple)" }} />
@@ -851,7 +851,7 @@ export default function ScannerPage() {
             </div>
           )}
 
-          {/* Loading (Phase 4 — skeleton) */}
+          {/* Loading (Phase 4, skeleton) */}
           {walletScanning && (
             <div className="space-y-3">
               <div className="card p-6 flex items-center gap-3">
@@ -923,7 +923,7 @@ export default function ScannerPage() {
                         </div>
                         {critCount > 0 && (
                           <div className="text-xs mt-1" style={{ color: "#ef4444" }}>
-                            {critCount} critical issue{critCount > 1 ? "s" : ""} — {warnCount > 0 ? `${warnCount} warnings · ` : ""}review below
+                            {critCount} critical issue{critCount > 1 ? "s" : ""}, {warnCount > 0 ? `${warnCount} warnings · ` : ""}review below
                           </div>
                         )}
                       </div>
@@ -1114,7 +1114,7 @@ export default function ScannerPage() {
                     <div>
                       <div className="text-sm font-semibold text-white mb-1">Earn Yield, Stay Protected</div>
                       <div className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                        Deposit BNB into the Aegis Vault — earn yield via Venus Protocol while AI auto-protects your position.
+                        Deposit BNB into the Aegis Vault, earn yield via Venus Protocol while AI auto-protects your position.
                       </div>
                     </div>
                     <ArrowRight className="w-4 h-4 shrink-0 mt-1 transition-transform group-hover:translate-x-1" style={{ color: "var(--green)" }} />

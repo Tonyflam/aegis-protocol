@@ -231,7 +231,7 @@ export default function AnalyticsPage() {
               </h3>
               {data.topScannedTokens.length === 0 ? (
                 <div className="py-8 text-center">
-                  <p className="t-caption">No tokens scanned yet — results appear here as users start scanning.</p>
+                  <p className="t-caption">No tokens scanned yet, results appear here as users start scanning.</p>
                 </div>
               ) : (
                 <div className="space-y-2">

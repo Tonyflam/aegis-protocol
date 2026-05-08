@@ -5,12 +5,12 @@ import { useWalletContext } from "../../lib/WalletContext";
 import { CONTRACTS, HOLDER_TIER_BENEFITS } from "../../lib/constants";
 import Link from "next/link";
 import {
-  AlertTriangle, Skull, CheckCircle, Loader2,
+  Skull, Loader2,
   Wallet, Eye, RefreshCw, ArrowRight,
-  ExternalLink, Activity, Bot, Shield,
-  Crown, Clock, TrendingUp, Lock,
-  Zap, ChevronDown, ChevronUp, Send,
-  Target, ShieldAlert, ShieldCheck, Crosshair,
+  ExternalLink, Activity, Shield,
+  Crown, Lock,
+  Zap, ChevronDown, ChevronUp,
+  ShieldCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { EmptyState, Skeleton, SkeletonStat } from "../../components/ui";
@@ -85,44 +85,6 @@ interface GuardianResult {
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-const TIER_COLORS: Record<string, string> = {
-  Free: "#6b7280",
-  Bronze: "#cd7f32",
-  Silver: "#c0c0c0",
-  Gold: "#ffd700",
-};
-
-function riskColor(score: number) {
-  if (score >= 70) return "#ef4444";
-  if (score >= 40) return "#f97316";
-  if (score >= 20) return "#eab308";
-  return "#22c55e";
-}
-
-function overallBadge(risk: string) {
-  switch (risk) {
-    case "DANGEROUS":
-      return { color: "#ef4444", bg: "rgba(239, 68, 68, 0.06)", label: "Dangerous", icon: Skull };
-    case "AT_RISK":
-      return { color: "#f97316", bg: "rgba(249, 115, 22, 0.06)", label: "At Risk", icon: AlertTriangle };
-    default:
-      return { color: "#22c55e", bg: "rgba(34, 197, 94, 0.06)", label: "Secure", icon: ShieldCheck };
-  }
-}
-
-function aiRatingStyle(rating: string) {
-  switch (rating) {
-    case "DANGEROUS":
-      return { color: "#ef4444", bg: "rgba(239, 68, 68, 0.06)", border: "rgba(239, 68, 68, 0.15)" };
-    case "AT_RISK":
-      return { color: "#f97316", bg: "rgba(249, 115, 22, 0.06)", border: "rgba(249, 115, 22, 0.15)" };
-    case "CAUTION":
-      return { color: "#eab308", bg: "rgba(234, 179, 8, 0.06)", border: "rgba(234, 179, 8, 0.15)" };
-    default:
-      return { color: "#22c55e", bg: "rgba(34, 197, 94, 0.06)", border: "rgba(34, 197, 94, 0.15)" };
-  }
-}
-
 function formatBalance(bal: string) {
   const n = parseFloat(bal);
   if (isNaN(n)) return "0";
@@ -191,7 +153,7 @@ export default function GuardianShieldPage() {
       const data: GuardianResult = await res.json();
       setResult(data);
       setCountdown(REFRESH_INTERVAL);
-      if (!silent) toast.success("Scan complete — " + data.alertCount + " issues found");
+      if (!silent) toast.success("Scan complete, " + data.alertCount + " issues found");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Scan failed";
       if (!silent) {
@@ -289,11 +251,7 @@ export default function GuardianShieldPage() {
   const warnAlerts = result?.alerts.filter((a) => a.severity === "warning") || [];
   const infoAlerts = result?.alerts.filter((a) => a.severity === "info") || [];
   const sortedScans = result?.scans ? [...result.scans].sort((a, b) => b.riskScore - a.riskScore) : [];
-  const tierColor = result ? (TIER_COLORS[result.tier] || TIER_COLORS.Free) : TIER_COLORS.Free;
-  const badge = overallBadge(result?.overallRisk ?? "SAFE");
-  const BadgeIcon = badge.icon;
   const ai = result?.aiAnalysis;
-  const aiStyle = aiRatingStyle(ai?.riskRating || "SAFE");
   const isGold = result?.tier === "Gold";
 
   return (
@@ -309,7 +267,7 @@ export default function GuardianShieldPage() {
                 <Activity className="w-3.5 h-3.5" />
                 AI Wallet Security Scanner
               </div>
-              <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white mb-4">
+              <h1 className="t-h1 text-white mb-4">
                 Guardian Shield
               </h1>
               <p className="text-base sm:text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: "var(--text-secondary)" }}>
@@ -332,7 +290,7 @@ export default function GuardianShieldPage() {
                 { icon: Zap, label: "Honeypot Scanner", desc: "Simulated sells to detect trapped tokens", color: "#f97316" },
                 { icon: Eye, label: "Contract Analysis", desc: "Pause, blacklist, proxy, upgrade detection", color: "var(--purple)" },
               ].map((f) => (
-                <div key={f.label} className="card p-5">
+                <div key={f.label} className="card card-hover-lift p-5">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
                     style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                     <f.icon className="w-5 h-5" style={{ color: f.color }} />
@@ -383,7 +341,7 @@ export default function GuardianShieldPage() {
           </div>
         )}
 
-        {/* LOADING (Phase 4 — skeleton scaffold) */}
+        {/* LOADING (Phase 4, skeleton scaffold) */}
         {isConnected && loading && (
           <div className="space-y-4">
             <div className="card p-8">
@@ -410,7 +368,7 @@ export default function GuardianShieldPage() {
           </div>
         )}
 
-        {/* ERROR (Phase 4 — EmptyState) */}
+        {/* ERROR (Phase 4, EmptyState) */}
         {isConnected && error && !loading && (
           <EmptyState
             icon={Skull}
@@ -426,184 +384,183 @@ export default function GuardianShieldPage() {
         )}
 
         {/* DASHBOARD */}
-        {isConnected && result && !loading && (
-          <div className="animate-fade-in space-y-6">
+        {isConnected && result && !loading && (() => {
+          // ─── Redesigned dashboard — monochrome neutral, single accent ──
+          // Severity tone helper: returns muted/grayscale by default,
+          // a single restrained sem-danger only for genuine critical.
+          const sevTone = (sev: "critical" | "warning" | "info") =>
+            sev === "critical"
+              ? { label: "Critical", color: "var(--sem-danger)", dot: "var(--sem-danger)" }
+              : sev === "warning"
+              ? { label: "Warning",  color: "var(--text-primary)",  dot: "var(--sem-warning)" }
+              : { label: "Info",     color: "var(--text-secondary)", dot: "var(--text-muted)" };
 
-            {/* Header Bar */}
-            <div className="sticky top-16 z-40 -mx-4 px-4 py-3 backdrop-blur-xl"
-              style={{ background: "rgba(9,9,11,0.92)", borderBottom: "1px solid var(--border-subtle)" }}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">Guardian Shield</h1>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
-                    style={{ background: tierColor + "18", color: tierColor, border: "1px solid " + tierColor + "35" }}>
+          const totalIssues = critAlerts.length + warnAlerts.length;
+          const issuesTone = critAlerts.length > 0
+            ? "var(--sem-danger)"
+            : warnAlerts.length > 0
+            ? "var(--text-primary)"
+            : "var(--text-muted)";
+
+          return (
+          <div className="page-enter space-y-8">
+
+            {/* ── HEADER ── single line, monochrome, no rainbow chips ── */}
+            <div className="sticky top-16 z-40 -mx-4 px-4 py-4 backdrop-blur-xl"
+              style={{ background: "rgba(9,9,11,0.85)", borderBottom: "1px solid var(--border-subtle)" }}>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Shield className="w-4 h-4 shrink-0" style={{ color: "var(--text-secondary)" }} />
+                  <h1 className="text-base font-semibold tracking-tight text-white truncate">Guardian Shield</h1>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
+                    <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--accent)" }} />
+                    Live · refresh in {countdown}s
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] font-mono hidden md:inline" style={{ color: "var(--text-muted)" }}>
+                    {address?.slice(0, 6)}…{address?.slice(-4)}
+                  </span>
+                  <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded"
+                    style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border-subtle)" }}>
                     {result.tier}
                   </span>
-                  <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium"
-                    style={{ background: "rgba(52,211,153,0.08)", color: "var(--green)", border: "1px solid rgba(52,211,153,0.15)" }}>
-                    <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--green)" }} />
-                    Live
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-mono hidden sm:inline" style={{ color: "var(--text-muted)" }}>
-                    {address?.slice(0, 6)}...{address?.slice(-4)}
-                  </span>
-                  <span className="text-[11px] flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
-                    <Clock className="w-3 h-3" />{countdown}s
-                  </span>
                   <button onClick={() => address && scanWallet(address)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:brightness-125"
-                    style={{ background: "var(--accent-muted)", color: "var(--accent)", border: "1px solid var(--accent-border)" }}>
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors hover:bg-white/[0.04]"
+                    style={{ color: "var(--text-secondary)", border: "1px solid var(--border-subtle)" }}>
                     <RefreshCw className="w-3 h-3" /> Rescan
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Status + Stats */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="card p-5 flex items-center gap-4" style={{ borderColor: badge.color + "15" }}>
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0"
-                  style={{ background: badge.bg, border: "2px solid " + badge.color + "20" }}>
-                  <BadgeIcon className="w-8 h-8" style={{ color: badge.color }} />
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase tracking-widest font-medium mb-0.5" style={{ color: "var(--text-muted)" }}>
-                    Security Status
-                  </div>
-                  <div className="text-2xl font-bold tracking-tight" style={{ color: badge.color }}>
-                    {badge.label}
-                  </div>
-                </div>
-              </div>
-              <div className="lg:col-span-2 grid grid-cols-4 gap-3">
-                {[
-                  { label: "Tokens", value: String(result.tokenCount), color: "var(--accent)", icon: Activity },
-                  { label: "Critical", value: String(critAlerts.length), color: critAlerts.length > 0 ? "#ef4444" : "var(--green)", icon: Skull },
-                  { label: "Warnings", value: String(warnAlerts.length), color: warnAlerts.length > 0 ? "#f97316" : "var(--green)", icon: AlertTriangle },
-                  { label: "BNB", value: parseFloat(result.bnbBalance).toFixed(4), color: "#f0b90b", icon: Wallet },
-                ].map((s) => (
-                  <div key={s.label} className="card p-4 flex flex-col items-center justify-center text-center">
-                    <s.icon className="w-4 h-4 mb-1.5" style={{ color: s.color }} />
-                    <div className="text-xl font-bold leading-none" style={{ color: s.color }}>{s.value}</div>
-                    <div className="text-[10px] uppercase tracking-wider mt-1" style={{ color: "var(--text-muted)" }}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
+            {/* ── HERO STATUS LINE ── one large statement, no boxes ── */}
+            <div className="px-1">
+              <div className="section-eyebrow mb-3">Wallet status</div>
+              <h2 className="t-display mb-3" style={{ color: "var(--text-primary)" }}>
+                {result.overallRisk === "DANGEROUS"
+                  ? <>Critical risks <span style={{ color: "var(--sem-danger)" }}>detected</span>.</>
+                  : result.overallRisk === "AT_RISK"
+                  ? <>Some tokens need <span style={{ color: "var(--text-secondary)" }}>review</span>.</>
+                  : <>Your wallet looks <span style={{ color: "var(--text-secondary)" }}>clean</span>.</>}
+              </h2>
+              <p className="t-body max-w-2xl" style={{ color: "var(--text-secondary)" }}>
+                {totalIssues === 0
+                  ? "No active threats across your holdings. Guardian re-checks every 60 seconds."
+                  : "Aegis is monitoring " + result.tokenCount + " token" + (result.tokenCount === 1 ? "" : "s") + ". " + totalIssues + " issue" + (totalIssues === 1 ? "" : "s") + " require attention below."}
+              </p>
             </div>
 
-            {/* 2-Column Layout */}
+            {/* ── STAT STRIP ── flat, monochrome, no icon colours ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden"
+              style={{ background: "var(--border-subtle)", border: "1px solid var(--border-subtle)" }}>
+              {[
+                { label: "Tokens scanned", value: String(result.tokenCount) },
+                { label: "Critical",       value: String(critAlerts.length), tone: critAlerts.length > 0 ? "var(--sem-danger)" : "var(--text-primary)" },
+                { label: "Warnings",       value: String(warnAlerts.length), tone: warnAlerts.length > 0 ? "var(--text-primary)" : "var(--text-primary)" },
+                { label: "BNB balance",    value: parseFloat(result.bnbBalance).toFixed(4) },
+              ].map((s) => (
+                <div key={s.label} className="px-5 py-5" style={{ background: "var(--bg-base)" }}>
+                  <div className="section-eyebrow mb-2">{s.label}</div>
+                  <div className="text-3xl sm:text-4xl font-semibold tracking-tight tabular-nums" style={{ color: s.tone || "var(--text-primary)" }}>
+                    {s.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── TWO COLUMN BODY ── */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
-              {/* LEFT: AI Analysis + Alerts */}
+              {/* LEFT */}
               <div className="lg:col-span-3 space-y-6">
+
+                {/* AI ANALYSIS, flat, no coloured header band */}
                 {ai && (
-                  <div className="card overflow-hidden" style={{ borderColor: aiStyle.border }}>
-                    <div className="px-6 py-4 flex items-center justify-between"
-                      style={{ background: aiStyle.bg, borderBottom: "1px solid " + aiStyle.border }}>
-                      <div className="flex items-center gap-3">
-                        <Bot className="w-5 h-5" style={{ color: aiStyle.color }} />
-                        <div>
-                          <h2 className="text-sm font-semibold text-white">
-                            {isGold ? "AI Security Analysis" : "Security Analysis"}
-                          </h2>
-                          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                            {isGold ? "Enhanced with LLM reasoning" : "Rule-based analysis"}
-                          </span>
-                        </div>
+                  <div className="card p-6 space-y-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="section-eyebrow mb-2">{isGold ? "AI security analysis" : "Security analysis"}</div>
+                        <h3 className="t-h3 text-white">
+                          {ai.riskRating === "DANGEROUS" ? "Action required."
+                            : ai.riskRating === "AT_RISK" ? "Review recommended."
+                            : ai.riskRating === "CAUTION" ? "Monitor closely."
+                            : "All checks passing."}
+                        </h3>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider"
-                          style={{ background: aiStyle.bg, color: aiStyle.color, border: "1px solid " + aiStyle.border }}>
-                          {ai.riskRating.replace("_", " ")}
+                      {isGold && (
+                        <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-1 rounded shrink-0"
+                          style={{ background: "var(--accent-muted)", color: "var(--accent)", border: "1px solid var(--accent-border)" }}>
+                          AI · Llama 3.3
                         </span>
-                        {isGold && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                            style={{ background: "rgba(255,215,0,0.1)", color: "#ffd700", border: "1px solid rgba(255,215,0,0.2)" }}>
-                            AI
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-6 space-y-5">
-                      <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                        {ai.summary}
-                      </p>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {ai.topThreats.length > 0 && (
-                          <div className="p-4 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
-                            <h3 className="text-xs font-semibold text-white mb-3 flex items-center gap-2">
-                              <Target className="w-3.5 h-3.5" style={{ color: "#ef4444" }} />
-                              Top Threats
-                            </h3>
-                            <div className="space-y-2">
-                              {ai.topThreats.map((threat, i) => (
-                                <div key={i} className="flex items-start gap-2">
-                                  <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5"
-                                    style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>{i + 1}</span>
-                                  <span className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{threat}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {ai.actions.length > 0 && (
-                          <div className="p-4 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
-                            <h3 className="text-xs font-semibold text-white mb-3 flex items-center gap-2">
-                              <Crosshair className="w-3.5 h-3.5" style={{ color: "var(--accent)" }} />
-                              Recommended Actions
-                            </h3>
-                            <div className="space-y-2">
-                              {ai.actions.map((action, i) => (
-                                <div key={i} className="flex items-start gap-2">
-                                  <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--accent)" }} />
-                                  <span className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{action}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {ai.holdingBreakdown.length > 0 && (
-                        <div>
-                          <h3 className="text-xs font-semibold text-white mb-3 flex items-center gap-2">
-                            <Wallet className="w-3.5 h-3.5" style={{ color: "var(--purple)" }} />
-                            Token-by-Token Verdict
-                          </h3>
-                          <div className="space-y-2">
-                            {ai.holdingBreakdown.map((h, i) => {
-                              const vl = h.verdict.toLowerCase();
-                              const vColor = vl.includes("honeypot") || vl.includes("exit") || vl.includes("dangerous") ? "#ef4444"
-                                : vl.includes("high risk") || vl.includes("consider selling") ? "#f97316"
-                                : vl.includes("moderate") || vl.includes("monitor") ? "#eab308" : "#22c55e";
-                              return (
-                                <div key={i} className="flex items-start gap-3 p-3 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
-                                  <span className="text-xs font-bold text-white min-w-[48px] shrink-0 pt-0.5">{h.symbol}</span>
-                                  <span className="text-[11px] leading-relaxed" style={{ color: vColor }}>{h.verdict}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
                       )}
                     </div>
 
-                    {!isGold && (
-                      <div className="px-6 py-3 flex items-center justify-between"
-                        style={{ background: "rgba(255,215,0,0.03)", borderTop: "1px solid rgba(255,215,0,0.08)" }}>
-                        <div className="flex items-center gap-2">
-                          <Crown className="w-3.5 h-3.5" style={{ color: "#ffd700" }} />
-                          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                            Upgrade to <span style={{ color: "#ffd700" }} className="font-semibold">Gold</span> for AI-powered analysis
-                          </span>
+                    <p className="t-body" style={{ color: "var(--text-secondary)" }}>
+                      {ai.summary}
+                    </p>
+
+                    {(ai.topThreats.length > 0 || ai.actions.length > 0) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-px rounded-xl overflow-hidden"
+                        style={{ background: "var(--border-subtle)", border: "1px solid var(--border-subtle)" }}>
+                        {ai.topThreats.length > 0 && (
+                          <div className="p-4" style={{ background: "var(--bg-base)" }}>
+                            <div className="section-eyebrow mb-3">Top threats</div>
+                            <ol className="space-y-2.5">
+                              {ai.topThreats.map((threat, i) => (
+                                <li key={i} className="flex items-start gap-2.5">
+                                  <span className="text-xs font-mono shrink-0 w-4" style={{ color: "var(--text-muted)" }}>{String(i + 1).padStart(2, "0")}</span>
+                                  <span className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{threat}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+                        {ai.actions.length > 0 && (
+                          <div className="p-4" style={{ background: "var(--bg-base)" }}>
+                            <div className="section-eyebrow mb-3">Recommended actions</div>
+                            <ol className="space-y-2.5">
+                              {ai.actions.map((action, i) => (
+                                <li key={i} className="flex items-start gap-2.5">
+                                  <span className="text-xs font-mono shrink-0 w-4" style={{ color: "var(--text-muted)" }}>{String(i + 1).padStart(2, "0")}</span>
+                                  <span className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{action}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {ai.holdingBreakdown.length > 0 && (
+                      <div>
+                        <div className="section-eyebrow mb-3">Token verdicts</div>
+                        <div style={{ borderTop: "1px solid var(--border-subtle)" }}>
+                          {ai.holdingBreakdown.map((h, i) => {
+                            const vl = h.verdict.toLowerCase();
+                            const isDanger  = vl.includes("honeypot") || vl.includes("exit") || vl.includes("dangerous");
+                            const isWarn    = vl.includes("high risk") || vl.includes("consider selling") || vl.includes("moderate") || vl.includes("monitor");
+                            const dot = isDanger ? "var(--sem-danger)" : isWarn ? "var(--sem-warning)" : "var(--text-muted)";
+                            return (
+                              <div key={i} className="flex items-center gap-4 py-3"
+                                style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dot }} />
+                                <span className="text-sm font-semibold text-white min-w-[64px] shrink-0">{h.symbol}</span>
+                                <span className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{h.verdict}</span>
+                              </div>
+                            );
+                          })}
                         </div>
+                      </div>
+                    )}
+
+                    {!isGold && (
+                      <div className="flex items-center justify-between pt-4" style={{ borderTop: "1px solid var(--border-subtle)" }}>
+                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                          Upgrade to Gold for LLM-powered reasoning.
+                        </span>
                         <a href={"https://flap.sh/bnb/" + CONTRACTS.UNIQ_TOKEN} target="_blank" rel="noopener noreferrer"
-                          className="text-[10px] font-medium px-2.5 py-1 rounded-md flex items-center gap-1"
-                          style={{ background: "rgba(255,215,0,0.08)", color: "#ffd700", border: "1px solid rgba(255,215,0,0.12)" }}>
+                          className="inline-flex items-center gap-1 text-xs font-medium hover:underline" style={{ color: "var(--accent)" }}>
                           Get $UNIQ <ExternalLink className="w-3 h-3" />
                         </a>
                       </div>
@@ -611,164 +568,126 @@ export default function GuardianShieldPage() {
                   </div>
                 )}
 
-                {/* Security Alerts */}
+                {/* SECURITY ALERTS, flat list, single column, sev shown via tiny dot + label */}
                 <div className="card overflow-hidden">
-                  <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                    <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                      <ShieldAlert className="w-4 h-4" style={{ color: critAlerts.length > 0 ? "#ef4444" : "#f97316" }} />
-                      Security Alerts
-                    </h2>
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                      style={{ background: critAlerts.length > 0 ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.04)", color: critAlerts.length > 0 ? "#ef4444" : "var(--text-muted)" }}>
-                      {critAlerts.length + warnAlerts.length} issue{critAlerts.length + warnAlerts.length !== 1 ? "s" : ""}
-                    </span>
+                  <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    <div>
+                      <div className="section-eyebrow mb-1">Security alerts</div>
+                      <h3 className="t-h3 text-white">{totalIssues === 0 ? "No active issues" : totalIssues + " issue" + (totalIssues === 1 ? "" : "s")}</h3>
+                    </div>
+                    {totalIssues > 0 && (
+                      <span className="text-xs font-mono tabular-nums" style={{ color: issuesTone }}>
+                        {critAlerts.length} crit · {warnAlerts.length} warn
+                      </span>
+                    )}
                   </div>
 
-                  {critAlerts.map((alert) => (
-                    <div key={alert.id} className="border-l-[3px] hover:bg-white/[0.015] transition-colors"
-                      style={{ borderLeftColor: "#ef4444", borderBottom: "1px solid var(--border-subtle)" }}>
-                      <button onClick={() => setExpandedAlert(expandedAlert === alert.id ? null : alert.id)}
-                        className="w-full px-5 py-3.5 flex items-start gap-3 text-left">
-                        <Skull className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#ef4444" }} />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold" style={{ color: "#ef4444" }}>{alert.title}</div>
-                          <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{alert.token}</div>
-                        </div>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
-                          style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>CRITICAL</span>
-                        {expandedAlert === alert.id
-                          ? <ChevronUp className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
-                          : <ChevronDown className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />}
-                      </button>
-                      {expandedAlert === alert.id && (
-                        <div className="pl-12 pr-5 pb-4 animate-fade-in">
-                          <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{alert.description}</p>
-                          <a href={"https://bscscan.com/token/" + alert.tokenAddress} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[10px] font-medium mt-2 hover:underline" style={{ color: "var(--accent)" }}>
-                            View on BscScan <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {warnAlerts.map((alert) => (
-                    <div key={alert.id} className="border-l-[3px] hover:bg-white/[0.015] transition-colors"
-                      style={{ borderLeftColor: "#f97316", borderBottom: "1px solid var(--border-subtle)" }}>
-                      <button onClick={() => setExpandedAlert(expandedAlert === alert.id ? null : alert.id)}
-                        className="w-full px-5 py-3.5 flex items-start gap-3 text-left">
-                        <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#f97316" }} />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold" style={{ color: "#f97316" }}>{alert.title}</div>
-                          <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{alert.token}</div>
-                        </div>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
-                          style={{ background: "rgba(249,115,22,0.1)", color: "#f97316" }}>WARN</span>
-                        {expandedAlert === alert.id
-                          ? <ChevronUp className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
-                          : <ChevronDown className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />}
-                      </button>
-                      {expandedAlert === alert.id && (
-                        <div className="pl-12 pr-5 pb-4 animate-fade-in">
-                          <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{alert.description}</p>
-                          <a href={"https://bscscan.com/token/" + alert.tokenAddress} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[10px] font-medium mt-2 hover:underline" style={{ color: "var(--accent)" }}>
-                            View on BscScan <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {infoAlerts.filter(a => userRank >= (tierRank[a.minTier] ?? 0)).map((alert) => (
-                    <div key={alert.id} className="border-l-[3px] hover:bg-white/[0.015] transition-colors"
-                      style={{ borderLeftColor: "var(--accent)", borderBottom: "1px solid var(--border-subtle)" }}>
-                      <button onClick={() => setExpandedAlert(expandedAlert === alert.id ? null : alert.id)}
-                        className="w-full px-5 py-3 flex items-start gap-3 text-left">
-                        <Eye className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--accent)" }} />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{alert.title}</div>
-                          <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{alert.token}</div>
-                        </div>
-                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded shrink-0"
-                          style={{ background: "var(--accent-muted)", color: "var(--accent)" }}>INFO</span>
-                      </button>
-                      {expandedAlert === alert.id && (
-                        <div className="pl-12 pr-5 pb-3 animate-fade-in">
-                          <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>{alert.description}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  {[...critAlerts, ...warnAlerts, ...infoAlerts.filter(a => userRank >= (tierRank[a.minTier] ?? 0))].map((alert) => {
+                    const tone = sevTone(alert.severity);
+                    const expanded = expandedAlert === alert.id;
+                    return (
+                      <div key={alert.id} className="transition-colors hover:bg-white/[0.015]"
+                        style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                        <button onClick={() => setExpandedAlert(expanded ? null : alert.id)}
+                          className="w-full px-6 py-4 flex items-center gap-4 text-left">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: tone.dot }} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: tone.color }}>
+                                {tone.label}
+                              </span>
+                              <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>·</span>
+                              <span className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>{alert.token}</span>
+                            </div>
+                            <div className="text-sm font-medium text-white truncate">{alert.title}</div>
+                          </div>
+                          {expanded
+                            ? <ChevronUp className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} />
+                            : <ChevronDown className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} />}
+                        </button>
+                        {expanded && (
+                          <div className="pl-12 pr-6 pb-5 animate-fade-in">
+                            <p className="text-sm leading-relaxed mb-3" style={{ color: "var(--text-secondary)" }}>{alert.description}</p>
+                            <a href={"https://bscscan.com/token/" + alert.tokenAddress} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs font-medium hover:underline" style={{ color: "var(--accent)" }}>
+                              View on BscScan <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
 
                   {(() => {
                     const locked = infoAlerts.filter(a => userRank < (tierRank[a.minTier] ?? 0));
                     if (locked.length === 0) return null;
                     return (
-                      <div className="px-5 py-2.5 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.01)" }}>
+                      <div className="px-6 py-3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Lock className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
-                          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>+{locked.length} more with higher tier</span>
+                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                            {locked.length} more alert{locked.length === 1 ? "" : "s"} require a higher tier
+                          </span>
                         </div>
                         <a href={"https://flap.sh/bnb/" + CONTRACTS.UNIQ_TOKEN} target="_blank" rel="noopener noreferrer"
-                          className="text-[10px] font-medium flex items-center gap-1" style={{ color: "var(--purple)" }}>
-                          <Zap className="w-3 h-3" /> Upgrade
+                          className="text-xs font-medium hover:underline" style={{ color: "var(--accent)" }}>
+                          Upgrade
                         </a>
                       </div>
                     );
                   })()}
 
                   {result.alerts.length === 0 && (
-                    <div className="px-5 py-12 text-center">
-                      <CheckCircle className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--green)" }} />
-                      <h3 className="text-sm font-semibold text-white mb-1">All Clear</h3>
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>No threats detected.</p>
+                    <div className="px-6 py-16 text-center">
+                      <ShieldCheck className="w-8 h-8 mx-auto mb-4" style={{ color: "var(--text-muted)" }} />
+                      <p className="text-sm font-medium text-white mb-1">All clear</p>
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>No threats detected across your holdings.</p>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* RIGHT: Holdings + Sidebar */}
+              {/* RIGHT */}
               <div className="lg:col-span-2 space-y-6">
+
+                {/* HOLDINGS, minimal table-style list, score chip is monochrome */}
                 <div className="card overflow-hidden">
-                  <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                    <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                      <Wallet className="w-4 h-4" style={{ color: "var(--accent)" }} />
-                      Holdings
-                    </h2>
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                      style={{ background: "rgba(255,255,255,0.04)", color: "var(--text-muted)" }}>
-                      {sortedScans.length} token{sortedScans.length !== 1 ? "s" : ""}
-                    </span>
+                  <div className="px-5 py-5" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="section-eyebrow mb-1">Holdings</div>
+                        <h3 className="t-h3 text-white">{sortedScans.length} token{sortedScans.length === 1 ? "" : "s"}</h3>
+                      </div>
+                    </div>
                   </div>
 
                   {sortedScans.length > 0 ? sortedScans.map((scan) => {
                     const holding = result.holdings.find((h) => h.address.toLowerCase() === scan.address.toLowerCase());
                     const isExpanded = expandedToken === scan.address;
-                    const color = riskColor(scan.riskScore);
+                    const dot = scan.riskScore >= 70 ? "var(--sem-danger)"
+                      : scan.riskScore >= 40 ? "var(--sem-warning)"
+                      : scan.riskScore >= 20 ? "var(--text-secondary)"
+                      : "var(--text-muted)";
                     return (
                       <div key={scan.address} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                         <button onClick={() => setExpandedToken(isExpanded ? null : scan.address)}
-                          className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/[0.02] transition-colors">
-                          <span className="w-9 h-7 rounded-lg text-xs font-bold flex items-center justify-center shrink-0"
-                            style={{ background: color + "10", color: color, border: "1px solid " + color + "15" }}>
-                            {scan.riskScore}
-                          </span>
+                          className="w-full px-5 py-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dot }} />
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-semibold text-white">{scan.symbol}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-white">{scan.symbol}</span>
+                              <span className="text-[11px] tabular-nums font-mono" style={{ color: "var(--text-muted)" }}>
+                                · risk {scan.riskScore}
+                              </span>
+                            </div>
                             {scan.flags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-0.5">
-                                {scan.flags.slice(0, 2).map((f) => (
-                                  <span key={f} className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
-                                    style={{ background: color + "10", color: color }}>{formatFlag(f)}</span>
-                                ))}
-                                {scan.flags.length > 2 && (
-                                  <span className="text-[9px] px-1 py-0.5" style={{ color: "var(--text-muted)" }}>+{scan.flags.length - 2}</span>
-                                )}
+                              <div className="text-[11px] mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>
+                                {scan.flags.slice(0, 3).map(formatFlag).join(" · ")}
+                                {scan.flags.length > 3 ? " · +" + (scan.flags.length - 3) : ""}
                               </div>
                             )}
                           </div>
-                          <span className="text-xs font-mono shrink-0" style={{ color: "var(--text-secondary)" }}>
+                          <span className="text-xs font-mono tabular-nums shrink-0" style={{ color: "var(--text-secondary)" }}>
                             {holding ? formatBalance(holding.balance) : "\u2014"}
                           </span>
                           {isExpanded
@@ -776,30 +695,33 @@ export default function GuardianShieldPage() {
                             : <ChevronDown className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />}
                         </button>
                         {isExpanded && (
-                          <div className="px-4 pb-4 pt-1 animate-fade-in" style={{ background: "var(--bg-elevated)" }}>
-                            <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div className="px-5 pb-5 pt-2 animate-fade-in">
+                            <div className="grid grid-cols-2 gap-px rounded-lg overflow-hidden mb-3"
+                              style={{ background: "var(--border-subtle)", border: "1px solid var(--border-subtle)" }}>
                               {[
-                                { label: "Buy Tax", val: scan.buyTax.toFixed(1) + "%", warn: scan.buyTax > 10 },
-                                { label: "Sell Tax", val: scan.sellTax.toFixed(1) + "%", warn: scan.sellTax > 10 },
-                                { label: "Liquidity", val: "$" + (scan.liquidityUsd >= 1000 ? (scan.liquidityUsd / 1000).toFixed(1) + "K" : scan.liquidityUsd.toFixed(0)), warn: scan.liquidityUsd < 1000 },
-                                { label: "Top Holder", val: scan.topHolderPercent + "%", warn: scan.topHolderPercent > 30 },
+                                { label: "Buy tax",    val: scan.buyTax.toFixed(1) + "%" },
+                                { label: "Sell tax",   val: scan.sellTax.toFixed(1) + "%" },
+                                { label: "Liquidity",  val: "$" + (scan.liquidityUsd >= 1000 ? (scan.liquidityUsd / 1000).toFixed(1) + "K" : scan.liquidityUsd.toFixed(0)) },
+                                { label: "Top holder", val: scan.topHolderPercent + "%" },
                               ].map((m) => (
-                                <div key={m.label} className="p-2 rounded-lg text-center" style={{ background: "var(--bg-raised)" }}>
-                                  <div className="text-[9px] uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{m.label}</div>
-                                  <div className="text-sm font-bold mt-0.5" style={{ color: m.warn ? "#f97316" : "var(--text-primary)" }}>{m.val}</div>
+                                <div key={m.label} className="px-3 py-2.5" style={{ background: "var(--bg-base)" }}>
+                                  <div className="section-eyebrow mb-1">{m.label}</div>
+                                  <div className="text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{m.val}</div>
                                 </div>
                               ))}
                             </div>
-                            <div className="flex flex-wrap gap-1 mb-3">
-                              {scan.flags.map((f) => (
-                                <span key={f} className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ background: color + "10", color: color }}>{formatFlag(f)}</span>
-                              ))}
-                              {scan.isHoneypot && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444" }}>HONEYPOT</span>}
-                              {scan.isLiquidityLocked && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(34,197,94,0.1)", color: "var(--green)" }}>LP Locked</span>}
-                              {scan.isRenounced && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(34,197,94,0.1)", color: "var(--green)" }}>Renounced</span>}
-                            </div>
+                            {scan.flags.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mb-3">
+                                {scan.flags.map((f) => (
+                                  <span key={f} className="text-[10px] font-medium px-2 py-0.5 rounded"
+                                    style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border-subtle)" }}>
+                                    {formatFlag(f)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                             <a href={"https://bscscan.com/token/" + scan.address} target="_blank" rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[11px] font-medium hover:underline" style={{ color: "var(--accent)" }}>
+                              className="inline-flex items-center gap-1 text-xs font-medium hover:underline" style={{ color: "var(--accent)" }}>
                               View on BscScan <ExternalLink className="w-3 h-3" />
                             </a>
                           </div>
@@ -807,116 +729,126 @@ export default function GuardianShieldPage() {
                       </div>
                     );
                   }) : (
-                    <div className="px-5 py-10 text-center">
-                      <CheckCircle className="w-8 h-8 mx-auto mb-2" style={{ color: "var(--green)" }} />
+                    <div className="px-5 py-12 text-center">
                       <p className="text-sm font-medium text-white mb-1">
-                        {result.tokenCount > 0 ? "Only Safe Tokens" : "No Tokens Found"}
+                        {result.tokenCount > 0 ? "Only safe tokens" : "No tokens found"}
                       </p>
                       <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                        {result.tokenCount > 0 ? "Recognized safe tokens only." : "No token holdings."}
+                        {result.tokenCount > 0 ? "All recognised holdings cleared." : "This wallet holds no ERC-20s."}
                       </p>
                     </div>
                   )}
                 </div>
 
-                {/* Telegram */}
+                {/* TELEGRAM, neutral card, single accent on CTA */}
                 <div className="card p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Send className="w-4 h-4" style={{ color: "#229ED9" }} />
-                    <span className="text-sm font-semibold text-white">Telegram Alerts</span>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <div className="section-eyebrow mb-1">Push alerts</div>
+                      <h3 className="t-h3 text-white">Telegram</h3>
+                    </div>
                     {tgConnected && (
-                      <span className="ml-auto flex items-center gap-1 text-[9px] font-medium" style={{ color: "var(--green)" }}>
-                        <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--green)" }} /> Active
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                        <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--accent)" }} />
+                        Active
                       </span>
                     )}
                   </div>
                   {userRank >= 2 ? (
                     tgConnected ? (
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Push alerts active</span>
+                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                          You&apos;ll receive critical alerts in Telegram.
+                        </span>
                         <button onClick={disconnectTelegram} disabled={tgLoading}
-                          className="text-[10px] font-medium px-2 py-0.5 rounded hover:bg-white/5"
-                          style={{ color: "#ef4444" }}>
-                          {tgLoading ? "..." : "Disconnect"}
+                          className="text-xs font-medium hover:underline disabled:opacity-40"
+                          style={{ color: "var(--text-secondary)" }}>
+                          {tgLoading ? "…" : "Disconnect"}
                         </button>
                       </div>
                     ) : (
                       <>
-                        <div className="flex gap-1.5">
+                        <div className="flex gap-2">
                           <input type="text" value={tgChatId} onChange={(e) => setTgChatId(e.target.value)}
-                            placeholder="Your Chat ID"
-                            className="flex-1 text-[11px] px-2.5 py-2 rounded-lg outline-none min-w-0"
+                            placeholder="Telegram chat ID"
+                            className="flex-1 text-xs px-3 py-2.5 rounded-lg outline-none min-w-0 focus:border-white/20 transition-colors"
                             style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)" }} />
                           <button onClick={connectTelegram} disabled={tgLoading || !tgChatId.trim()}
-                            className="px-3 py-2 rounded-lg text-[11px] font-medium disabled:opacity-40 shrink-0"
-                            style={{ background: "#229ED9", color: "#fff" }}>
-                            {tgLoading ? "..." : "Connect"}
+                            className="px-3.5 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-40 shrink-0 transition-opacity"
+                            style={{ background: "var(--accent)", color: "var(--bg-base)" }}>
+                            {tgLoading ? "…" : "Connect"}
                           </button>
                         </div>
                         <a href="https://t.me/aegis_protocol_bot" target="_blank" rel="noopener noreferrer"
-                          className="text-[10px] mt-2 inline-flex items-center gap-1 hover:underline" style={{ color: "#229ED9" }}>
-                          Get ID from @aegis_protocol_bot <ExternalLink className="w-3 h-3" />
+                          className="text-[11px] mt-3 inline-flex items-center gap-1 hover:underline" style={{ color: "var(--text-muted)" }}>
+                          Get your chat ID → @aegis_protocol_bot <ExternalLink className="w-3 h-3" />
                         </a>
                       </>
                     )
                   ) : (
-                    <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: "var(--bg-elevated)" }}>
-                      <Lock className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
-                      <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                        Requires <span className="font-semibold" style={{ color: "#c0c0c0" }}>Silver</span> tier (100K $UNIQ)
+                    <div className="flex items-start gap-3 p-3 rounded-lg" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}>
+                      <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
+                      <span className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                        Telegram alerts unlock at <span className="text-white font-medium">Silver tier</span> (100K $UNIQ).
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* Quick Links */}
+                {/* QUICK LINKS, flat, monochrome, hover changes border only */}
                 <div className="grid grid-cols-2 gap-3">
-                  <Link href="/vault" className="card card-action p-4 group">
-                    <TrendingUp className="w-4 h-4 mb-2" style={{ color: "var(--green)" }} />
-                    <span className="text-xs font-semibold text-white block">Protected Vault</span>
-                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Earn yield with AI guard</span>
+                  <Link href="/vault" className="card card-hover-lift p-4 group">
+                    <div className="section-eyebrow mb-1">Yield</div>
+                    <div className="text-sm font-semibold text-white mb-1">Protected Vault</div>
+                    <div className="inline-flex items-center gap-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                      Open <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                    </div>
                   </Link>
-                  <Link href="/scanner" className="card card-action p-4 group">
-                    <Shield className="w-4 h-4 mb-2" style={{ color: "var(--accent)" }} />
-                    <span className="text-xs font-semibold text-white block">Token Scanner</span>
-                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Scan any BSC token</span>
+                  <Link href="/scanner" className="card card-hover-lift p-4 group">
+                    <div className="section-eyebrow mb-1">Scan</div>
+                    <div className="text-sm font-semibold text-white mb-1">Token Scanner</div>
+                    <div className="inline-flex items-center gap-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                      Open <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                    </div>
                   </Link>
                 </div>
 
-                {/* Tier Badge */}
+                {/* TIER PANEL, neutral, no gold/purple glow */}
                 {result.tier === "Gold" ? (
-                  <div className="card p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Crown className="w-4 h-4" style={{ color: "#ffd700" }} />
-                      <span className="text-sm font-semibold" style={{ color: "#ffd700" }}>Gold Tier</span>
+                  <div className="card p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <div className="section-eyebrow mb-1">Membership</div>
+                        <h3 className="t-h3 text-white">Gold tier</h3>
+                      </div>
+                      <span className="text-xs font-mono tabular-nums" style={{ color: "var(--text-muted)" }}>
+                        {result.uniqBalance >= 1_000_000 ? (result.uniqBalance / 1_000_000).toFixed(2) + "M" : (result.uniqBalance / 1_000).toFixed(0) + "K"} $UNIQ
+                      </span>
                     </div>
-                    <p className="text-[11px] mb-2" style={{ color: "var(--text-muted)" }}>
-                      All features unlocked. {result.uniqBalance >= 1_000_000 ? (result.uniqBalance / 1_000_000).toFixed(1) + "M" : (result.uniqBalance / 1_000).toFixed(0) + "K"} $UNIQ
+                    <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                      All features unlocked: AI analysis, Telegram alerts, priority queue, 40% fee discount.
                     </p>
-                    <div className="flex flex-wrap gap-1">
-                      {["AI Analysis", "Telegram", "Priority Alerts", "40% Fee Discount"].map(f => (
-                        <span key={f} className="text-[9px] font-medium px-1.5 py-0.5 rounded"
-                          style={{ background: "rgba(255,215,0,0.08)", color: "#ffd700" }}>{f}</span>
-                      ))}
-                    </div>
                   </div>
                 ) : (
                   <a href={"https://flap.sh/bnb/" + CONTRACTS.UNIQ_TOKEN} target="_blank" rel="noopener noreferrer"
-                    className="card card-action p-4 block">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Zap className="w-4 h-4" style={{ color: "var(--purple)" }} />
-                      <span className="text-xs font-semibold text-white">Upgrade Tier</span>
-                      <ExternalLink className="w-3 h-3 ml-auto" style={{ color: "var(--text-muted)" }} />
+                    className="card card-hover-lift p-5 block group">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <div className="section-eyebrow mb-1">Upgrade</div>
+                        <h3 className="t-h3 text-white">Unlock more</h3>
+                      </div>
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0 transition-transform group-hover:-translate-y-0.5" style={{ color: "var(--text-muted)" }} />
                     </div>
-                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                      Hold $UNIQ for AI analysis, alerts, and fee discounts.
+                    <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                      Hold $UNIQ for AI analysis, Telegram alerts, and fee discounts up to 40%.
                     </p>
                   </a>
                 )}
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
