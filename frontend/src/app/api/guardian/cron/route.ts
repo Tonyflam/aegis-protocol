@@ -36,12 +36,13 @@ export async function GET(request: NextRequest) {
   const wallets = Array.from(subs.keys());
   const results: { address: string; alerts: number; status: string }[] = [];
 
-  // Check each subscribed wallet by calling the guardian API
-  // (which will auto-push Telegram alerts via pushTelegramAlerts)
+  // Check each subscribed wallet by calling the guardian API.
+  // The `source=cron` flag tells the guardian handler this is the legitimate
+  // background scan that's allowed to push Telegram alerts.
   for (const addr of wallets) {
     try {
       const res = await fetch(
-        `${origin}/api/guardian?address=${encodeURIComponent(addr)}`,
+        `${origin}/api/guardian?address=${encodeURIComponent(addr)}&source=cron`,
         { signal: AbortSignal.timeout(30000) }
       );
       if (res.ok) {
