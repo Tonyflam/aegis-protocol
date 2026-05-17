@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { getSub } from "../../../lib/telegram-store";
 import { checkRateLimit, rateLimitResponse } from "../../../lib/rate-limit";
-import { saveSnapshot, getSnapshot, getTgSent, setTgSent } from "../../../lib/guardian-snapshot";
+import {
+  saveSnapshot,
+  getSnapshot,
+  getTgSent,
+  setTgSent,
+  getAlertHistory,
+  setAlertHistory,
+  type AlertHistory,
+} from "../../../lib/guardian-snapshot";
 
 // ─── Guardian Shield API ─────────────────────────────────────
 // Accepts a wallet address, fetches token holdings via /api/wallet,
@@ -16,71 +25,183 @@ const TG_ALERT_REMIND_MS = 6 * 60 * 60 * 1000; // 6h
 // Min spacing between two consecutive Telegram messages per wallet.
 const TG_MIN_GAP_MS = 5 * 60 * 1000; // 5min
 
+// Content-stable alert id so dedup works across scans.
+// Same rule on same token => same id forever.
+function stableAlertId(severity: string, title: string, tokenAddress: string): string {
+  return createHash("sha1")
+    .update(`${severity}|${title}|${tokenAddress.toLowerCase()}`)
+    .digest("hex")
+    .slice(0, 16);
+}
+
+function formatRelative(ms: number): string {
+  const s = Math.max(1, Math.floor(ms / 1000));
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
 // ─── Push alerts to Telegram if subscribed ───────────────────
-// Strategy: only ship NEW alert IDs not already delivered in the last 6h.
-// All new alerts go in ONE consolidated message; if nothing is new, stay silent.
-async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<void> {
+// Strategy: classify alerts vs the last cron scan recorded in AlertHistory.
+// We deliver a single contextual message only when state has actually changed:
+//   • new critical/warning alerts that weren't present last scan
+//   • alerts whose severity was raised since last scan
+//   • alerts that have been cleared (you sold, contract changed, etc.)
+// If none of those changed, we stay silent — silence is the most important
+// signal that monitoring is real and not theatre.
+async function pushTelegramAlerts(
+  address: string,
+  alerts: Alert[],
+  history: AlertHistory,
+  nextHistory: AlertHistory,
+): Promise<void> {
   const addr = address.toLowerCase();
   const sub = await getSub(addr);
   if (!sub || !TG_BOT_TOKEN) return;
 
-  const actionable = alerts.filter(a => a.severity === "critical" || a.severity === "warning");
-  if (actionable.length === 0) return;
-
   const now = Date.now();
-  const prev = await getTgSent(addr);
-  const stillRemembered = prev && now - prev.at < TG_ALERT_REMIND_MS
-    ? new Set(prev.sentIds)
+  const actionable = alerts.filter(a => a.severity === "critical" || a.severity === "warning");
+  const byId = new Map(alerts.map(a => [a.id, a] as const));
+
+  const prevIds = new Set(history.lastIds);
+  const prevSeverity = history.lastSeverity || {};
+  const sevRank = (s: string) => (s === "critical" ? 2 : s === "warning" ? 1 : 0);
+
+  const newAlerts = actionable.filter(a => !prevIds.has(a.id));
+  const escalated = actionable.filter(a => {
+    const prev = prevSeverity[a.id];
+    return prev && sevRank(a.severity) > sevRank(prev);
+  });
+  // Cleared = something we previously flagged as actionable that no longer
+  // appears in the current scan. Sorted oldest-firstSeen first.
+  const resolvedIds = history.lastIds
+    .filter(id => !byId.has(id) && sevRank(prevSeverity[id] || "info") > 0)
+    .sort((a, b) => (history.firstSeen[a] ?? 0) - (history.firstSeen[b] ?? 0));
+
+  // Min-gap throttle — never crowd the chat.
+  const tgSent = await getTgSent(addr);
+  if (tgSent && now - tgSent.at < TG_MIN_GAP_MS) return;
+
+  // Safety-net dedup (kicks in if Redis history was lost).
+  const stillRemembered = tgSent && now - tgSent.at < TG_ALERT_REMIND_MS
+    ? new Set(tgSent.sentIds)
     : new Set<string>();
+  const trulyNew = newAlerts.filter(a => !stillRemembered.has(a.id));
 
-  const newAlerts = actionable.filter(a => !stillRemembered.has(a.id));
-  if (newAlerts.length === 0) return;
+  const hasNew = trulyNew.length > 0;
+  const hasEscalated = escalated.length > 0;
+  const hasResolved = resolvedIds.length > 0;
+  if (!hasNew && !hasEscalated && !hasResolved) return;
 
-  // Min-gap throttle: if we just messaged this wallet, defer but remember the IDs
-  // so the next eligible push has full state and won't re-alert.
-  if (prev && now - prev.at < TG_MIN_GAP_MS) {
-    const merged = new Set([...stillRemembered, ...actionable.map(a => a.id)]);
-    await setTgSent(addr, { sentIds: [...merged], at: prev.at });
-    return;
-  }
-
-  const criticals = newAlerts.filter(a => a.severity === "critical");
-  const warnings = newAlerts.filter(a => a.severity === "warning");
-  const headlineEmoji = criticals.length > 0 ? "\u{1F6A8}" : "\u26A0\uFE0F";
-  const headlineColor = criticals.length > 0 ? "CRITICAL" : "WARNING";
-
-  // Phase 3 — premium alert card with severity badges, $TOKEN symbols,
-  // BSCScan deeplinks, and an inline keyboard.
+  // ── Premium card composition ─────────────────────────────
   const sevTag = (a: Alert) => a.severity === "critical" ? "\u{1F534} CRITICAL" : "\u{1F7E1} WARNING";
   const renderAlert = (a: Alert): string => {
     const tokenLink = a.tokenAddress
       ? ` · <a href="https://bscscan.com/token/${a.tokenAddress}">BSCScan</a>`
       : "";
     const sym = a.token ? `<b>$${escapeHtml(a.token)}</b>` : "";
+    const seenAt = history.firstSeen[a.id];
+    const ageBadge = seenAt && now - seenAt > 60_000 ? ` <i>· still active ${formatRelative(now - seenAt)}</i>` : "";
     return [
-      `${sevTag(a)} ${sym}, <b>${escapeHtml(a.title)}</b>`,
+      `${sevTag(a)} ${sym}, <b>${escapeHtml(a.title)}</b>${ageBadge}`,
       `   <i>${escapeHtml(a.description)}</i>${tokenLink}`,
     ].join("\n");
   };
 
+  // Headline reflects the dominant state change so every message reads fresh.
+  let headlineEmoji: string;
+  let headlineLabel: string;
+  if (hasNew) {
+    const critNew = trulyNew.filter(a => a.severity === "critical").length;
+    if (critNew > 0) {
+      headlineEmoji = "\u{1F6A8}";
+      headlineLabel = "NEW CRITICAL RISK";
+    } else {
+      headlineEmoji = "\u26A0\uFE0F";
+      headlineLabel = "NEW WARNING";
+    }
+  } else if (hasEscalated) {
+    headlineEmoji = "\u26A1";
+    headlineLabel = "RISK ESCALATED";
+  } else {
+    headlineEmoji = "\u2705";
+    headlineLabel = "RISK CLEARED";
+  }
+
+  const scanLabel = `Scan #${nextHistory.scanCount}`;
+  const timeLabel = new Date(now).toUTCString().replace(" GMT", " UTC");
+
   const headerLines: string[] = [
-    `${headlineEmoji} <b>AEGIS GUARDIAN</b>  ·  <b>${headlineColor}</b>`,
-    `Wallet · <code>${address.slice(0, 6)}…${address.slice(-4)}</code>`,
+    `${headlineEmoji} <b>AEGIS GUARDIAN</b>  ·  <b>${headlineLabel}</b>`,
+    `Wallet · <code>${address.slice(0, 6)}\u2026${address.slice(-4)}</code>`,
+    `<i>${scanLabel} · ${timeLabel}</i>`,
   ];
+
   const counts: string[] = [];
-  if (criticals.length > 0) counts.push(`<b>${criticals.length}</b> critical`);
-  if (warnings.length > 0) counts.push(`<b>${warnings.length}</b> warning${warnings.length === 1 ? "" : "s"}`);
+  if (hasNew) {
+    const c = trulyNew.filter(a => a.severity === "critical").length;
+    const w = trulyNew.filter(a => a.severity === "warning").length;
+    if (c > 0) counts.push(`<b>${c}</b> new critical`);
+    if (w > 0) counts.push(`<b>${w}</b> new warning${w === 1 ? "" : "s"}`);
+  }
+  if (hasEscalated) counts.push(`<b>${escalated.length}</b> escalated`);
+  if (hasResolved) counts.push(`<b>${resolvedIds.length}</b> cleared`);
   if (counts.length > 0) headerLines.push(counts.join("  ·  "));
 
-  const SEP = "─".repeat(18);
-  const body: string[] = [];
-  for (const a of criticals.slice(0, 5)) body.push(renderAlert(a));
-  if (criticals.length > 0 && warnings.length > 0) body.push("");
-  for (const a of warnings.slice(0, 5)) body.push(renderAlert(a));
-  const overflow = newAlerts.length - Math.min(criticals.length, 5) - Math.min(warnings.length, 5);
-  if (overflow > 0) body.push(`<i>+ ${overflow} more, see full report</i>`);
+  const SEP = "\u2500".repeat(18);
+  const bodyChunks: string[] = [];
 
-  const text = [headerLines.join("\n"), SEP, body.join("\n\n")].join("\n\n");
+  if (hasNew) {
+    const criticals = trulyNew.filter(a => a.severity === "critical").slice(0, 4);
+    const warnings = trulyNew.filter(a => a.severity === "warning").slice(0, 4);
+    const newCards: string[] = [];
+    for (const a of criticals) newCards.push(renderAlert(a));
+    if (criticals.length > 0 && warnings.length > 0) newCards.push("");
+    for (const a of warnings) newCards.push(renderAlert(a));
+    const overflow = trulyNew.length - criticals.length - warnings.length;
+    if (overflow > 0) newCards.push(`<i>+ ${overflow} more new, see full report</i>`);
+    if (newCards.length > 0) bodyChunks.push(newCards.join("\n\n"));
+  }
+
+  if (hasEscalated) {
+    const lines = [`<b>\u2B06\uFE0F Severity raised</b>`];
+    for (const a of escalated.slice(0, 3)) {
+      const prev = prevSeverity[a.id];
+      lines.push(`• ${escapeHtml(a.title)} <i>(${prev} \u2192 ${a.severity})</i>`);
+    }
+    if (escalated.length > 3) lines.push(`<i>+ ${escalated.length - 3} more</i>`);
+    bodyChunks.push(lines.join("\n"));
+  }
+
+  if (hasResolved) {
+    const lines = [`<b>\u2705 Cleared since last scan</b>`];
+    for (const id of resolvedIds.slice(0, 3)) {
+      const firstSeenAt = history.firstSeen[id];
+      const dur = firstSeenAt ? ` <i>(was active ${formatRelative(now - firstSeenAt)})</i>` : "";
+      const sev = prevSeverity[id] || "alert";
+      lines.push(`• ${sev} <code>${id.slice(0, 8)}</code>${dur}`);
+    }
+    if (resolvedIds.length > 3) lines.push(`<i>+ ${resolvedIds.length - 3} more cleared</i>`);
+    bodyChunks.push(lines.join("\n"));
+  }
+
+  // Footer context: how many ongoing risks remain, oldest one
+  const stillActive = actionable.filter(a => prevIds.has(a.id));
+  if (stillActive.length > 0 && (hasNew || hasEscalated)) {
+    const oldest = stillActive
+      .map(a => history.firstSeen[a.id])
+      .filter((t): t is number => typeof t === "number")
+      .sort((x, y) => x - y)[0];
+    if (oldest) {
+      bodyChunks.push(`<i>${stillActive.length} ongoing risk${stillActive.length === 1 ? "" : "s"} still active · oldest first seen ${formatRelative(now - oldest)}</i>`);
+    }
+  }
+
+  const text = [headerLines.join("\n"), SEP, bodyChunks.join("\n\n")].join("\n\n");
 
   const reply_markup = {
     inline_keyboard: [
@@ -109,6 +230,8 @@ async function pushTelegramAlerts(address: string, alerts: Alert[]): Promise<voi
       signal: AbortSignal.timeout(10000),
     });
     if (res.ok) {
+      // Record EVERY actionable id (including ones that didn't change) so
+      // we don't re-send if history is later lost.
       const merged = new Set([...stillRemembered, ...actionable.map(a => a.id)]);
       await setTgSent(addr, { sentIds: [...merged], at: now });
     }
@@ -377,6 +500,12 @@ function buildAlerts(scans: TokenScan[], holdings: WalletToken[]): Alert[] {
   const order: Record<string, number> = { critical: 0, warning: 1, info: 2 };
   alerts.sort((a, b) => order[a.severity] - order[b.severity]);
 
+  // Replace counter-based IDs with content-stable IDs so dedup actually works.
+  // Same rule on same token => identical id across every scan, forever.
+  for (const a of alerts) {
+    a.id = stableAlertId(a.severity, a.title, a.tokenAddress);
+  }
+
   return alerts;
 }
 
@@ -474,6 +603,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const walletAddress = searchParams.get("address");
   const cachedOnly = searchParams.get("cached") === "1";
+  const source = searchParams.get("source") || "user";
+  const isCron = source === "cron";
 
   if (!walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
     return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
@@ -572,12 +703,47 @@ export async function GET(request: NextRequest) {
     //    even when the page wasn't open (cron-driven scans).
     await saveSnapshot(walletAddress, responsePayload).catch(() => {});
 
-    // 8. Push Telegram alerts.
-    // IMPORTANT: must `await` here — on Vercel serverless, fire-and-forget
-    // promises are killed when the response returns, so background cron
-    // invocations were silently dropping Telegram sends. Awaiting adds
-    // ~200-500ms but guarantees delivery.
-    await pushTelegramAlerts(walletAddress, alerts).catch(() => {});
+    // 8. Update alert history & push Telegram — ONLY from the cron path.
+    // User-initiated page opens never push. The cron is the single delivery
+    // channel; the dashboard merely reflects the latest snapshot. This is
+    // what stops "opening the page sent a Telegram message" behaviour.
+    if (isCron) {
+      const now = Date.now();
+      const prevHistory: AlertHistory = (await getAlertHistory(walletAddress)) || {
+        firstSeen: {},
+        lastSeverity: {},
+        lastIds: [],
+        scanCount: 0,
+        lastScanAt: 0,
+      };
+
+      const currentIds = new Set(alerts.map(a => a.id));
+      const nextFirstSeen: Record<string, number> = {};
+      const nextSeverity: Record<string, "critical" | "warning" | "info"> = {};
+      for (const a of alerts) {
+        nextFirstSeen[a.id] = prevHistory.firstSeen[a.id] ?? now;
+        nextSeverity[a.id] = a.severity;
+      }
+      // Keep firstSeen for ids absent now but present last scan — needed so
+      // pushTelegramAlerts can render "was active 3h" on resolved items.
+      for (const id of prevHistory.lastIds) {
+        if (!currentIds.has(id) && prevHistory.firstSeen[id]) {
+          nextFirstSeen[id] = prevHistory.firstSeen[id];
+          nextSeverity[id] = prevHistory.lastSeverity[id];
+        }
+      }
+
+      const nextHistory: AlertHistory = {
+        firstSeen: nextFirstSeen,
+        lastSeverity: nextSeverity,
+        lastIds: alerts.map(a => a.id),
+        scanCount: prevHistory.scanCount + 1,
+        lastScanAt: now,
+      };
+
+      await pushTelegramAlerts(walletAddress, alerts, prevHistory, nextHistory).catch(() => {});
+      await setAlertHistory(walletAddress, nextHistory).catch(() => {});
+    }
 
     return NextResponse.json(responsePayload);
   } catch (err) {
