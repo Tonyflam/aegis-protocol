@@ -9,7 +9,7 @@ import {
   Wallet, Eye, RefreshCw, ArrowRight,
   ExternalLink, Activity, Bot, Shield,
   Crown, TrendingUp, Lock,
-  Zap, ChevronDown, ChevronUp, Send,
+  Zap, ChevronDown, ChevronUp, ChevronRight, Send,
   Target, ShieldAlert, ShieldCheck, Crosshair,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -454,8 +454,9 @@ export default function GuardianShieldPage() {
                   {result.tier} tier
                 </span>
                 <span className="hidden md:inline-flex items-center gap-1.5 t-caption">
-                  <span className="w-1.5 h-1.5 rounded-full pulse-live" style={{ background: "var(--sem-success)" }} />
-                  Live · refresh in {countdown}s
+                  <span className="w-1.5 h-1.5 rounded-full pulse-live"
+                    style={{ background: tgConnected ? "var(--sem-success)" : "var(--sem-warning)" }} />
+                  {tgConnected ? `Always-on · refresh in ${countdown}s` : `In-tab only · refresh in ${countdown}s`}
                 </span>
               </div>
               <div className="flex items-center gap-3 shrink-0">
@@ -472,6 +473,29 @@ export default function GuardianShieldPage() {
           </div>
 
           <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+
+            {/* OFF-PAGE ALERT BANNER — honest about monitoring scope */}
+            {!tgConnected && (
+              <div className="card p-4 sm:p-5 flex items-start sm:items-center gap-3 sm:gap-4 flex-col sm:flex-row"
+                style={{ borderColor: "var(--sem-warning)", borderWidth: 1, background: "rgba(250, 204, 21, 0.04)" }}>
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--sem-warning)" }} />
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-semibold text-white mb-0.5">Off-page alerts are inactive</div>
+                    <p className="t-caption" style={{ color: "var(--text-secondary)" }}>
+                      This dashboard refreshes every {countdown}s while open. To get alerts when this tab is closed
+                      {userRank >= 2 ? ", connect Telegram below." : ", you need Silver tier (100K $UNIQ) to enable Telegram push alerts."}
+                    </p>
+                  </div>
+                </div>
+                {userRank < 2 && (
+                  <Link href="/buy" className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all hover:bg-white/[0.04]"
+                    style={{ background: "var(--bg-elevated)", color: "var(--text-primary)", border: "1px solid var(--border-subtle)" }}>
+                    Get $UNIQ <ChevronRight className="w-3 h-3" />
+                  </Link>
+                )}
+              </div>
+            )}
 
             {/* HERO STATUS — single calm card */}
             <div className="card p-6 sm:p-8">

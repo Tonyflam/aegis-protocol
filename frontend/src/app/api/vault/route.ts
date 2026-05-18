@@ -244,6 +244,24 @@ export async function GET(request: NextRequest) {
       }
     } catch { /* logger may be empty */ }
 
+    // 4. Agent heartbeat — derived from most recent on-chain decision
+    // If the off-chain agent stops calling the chain, this timestamp goes stale
+    // and the UI can warn users that AI protection may be degraded.
+    let agentHealth: {
+      lastDecisionAt: number | null;
+      ageSeconds: number | null;
+      status: "healthy" | "degraded" | "offline" | "never";
+    } = { lastDecisionAt: null, ageSeconds: null, status: "never" };
+    if (recentDecisions.length > 0) {
+      const latest = recentDecisions[0] as { timestamp: number };
+      const ageSec = Math.floor(Date.now() / 1000) - latest.timestamp;
+      agentHealth = {
+        lastDecisionAt: latest.timestamp,
+        ageSeconds: ageSec,
+        status: ageSec < 3600 ? "healthy" : ageSec < 86400 ? "degraded" : "offline",
+      };
+    }
+
     return NextResponse.json({
       global: globalStats,
       position: userPosition,
@@ -252,6 +270,7 @@ export async function GET(request: NextRequest) {
       risk: userRisk,
       tier: userTier,
       decisions: recentDecisions,
+      agentHealth,
       effectiveFee,
       timestamp: Date.now(),
     });

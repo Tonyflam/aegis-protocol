@@ -98,6 +98,11 @@ interface VaultData {
     timestamp: number;
     actionTaken: boolean;
   }[];
+  agentHealth?: {
+    lastDecisionAt: number | null;
+    ageSeconds: number | null;
+    status: "healthy" | "degraded" | "offline" | "never";
+  };
   timestamp?: number;
 }
 
@@ -592,8 +597,9 @@ export default function VaultPage() {
             Deposit. Earn. Stay Protected.
           </h1>
           <p className="text-sm sm:text-base max-w-xl mx-auto" style={{ color: "var(--text-muted)" }}>
-            Deposit BNB to earn yield via Venus Protocol. AI agents monitor
-            your position 24/7, auto-protecting against liquidations, exploits, and crashes.
+            Deposit BNB to earn yield via Venus Protocol. Authorize an AI agent to
+            automate stop-loss, liquidation guard, and exploit shield on your behalf.
+            Withdraw anytime.
           </p>
         </div>
 
@@ -723,7 +729,7 @@ export default function VaultPage() {
               {[
                 { icon: ArrowDown, title: "1. Deposit BNB", desc: "Send BNB to the vault. Min deposit 0.001 BNB. Withdraw anytime." },
                 { icon: TrendingUp, title: "2. Earn Yield", desc: "80% auto-deployed to Venus Protocol lending. ~2-4% APY from real borrower interest." },
-                { icon: ShieldCheck, title: "3. AI Protects", desc: "AI agents monitor 24/7. Stop-loss auto-swaps BNB → USDT via PancakeSwap on crashes." },
+                { icon: ShieldCheck, title: "3. AI Protects", desc: "Authorized agents react to threats by swapping BNB → USDT or withdrawing on your behalf. Decisions are logged on-chain." },
               ].map((step) => (
                 <div key={step.title} className="p-5 rounded-xl" style={{ background: "var(--bg-elevated)" }}>
                   <step.icon className="w-5 h-5 mb-3" style={{ color: "var(--accent)" }} />
@@ -924,7 +930,57 @@ export default function VaultPage() {
                   <div className="flex items-center gap-2 mb-4">
                     <Bot className="w-4 h-4" style={{ color: "var(--accent)" }} />
                     <span className="text-sm font-medium text-white">AI Protection</span>
+                    {data.agentHealth && data.agentHealth.status !== "never" && (
+                      <span className="ml-auto inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-md"
+                        style={{
+                          background: data.agentHealth.status === "healthy"
+                            ? "rgba(34, 197, 94, 0.1)"
+                            : data.agentHealth.status === "degraded"
+                              ? "rgba(250, 204, 21, 0.1)"
+                              : "rgba(239, 68, 68, 0.1)",
+                          color: data.agentHealth.status === "healthy"
+                            ? "var(--green)"
+                            : data.agentHealth.status === "degraded"
+                              ? "var(--yellow)"
+                              : "var(--red)",
+                        }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{
+                          background: data.agentHealth.status === "healthy"
+                            ? "var(--green)"
+                            : data.agentHealth.status === "degraded"
+                              ? "var(--yellow)"
+                              : "var(--red)",
+                        }} />
+                        {data.agentHealth.status === "healthy"
+                          ? `AI alive · ${timeAgo(data.agentHealth.lastDecisionAt!)}`
+                          : data.agentHealth.status === "degraded"
+                            ? `AI degraded · last seen ${timeAgo(data.agentHealth.lastDecisionAt!)}`
+                            : `AI offline · last seen ${timeAgo(data.agentHealth.lastDecisionAt!)}`}
+                      </span>
+                    )}
                   </div>
+
+                  {/* Agent-offline warning banner */}
+                  {pos?.agentAuthorized && data.agentHealth && (data.agentHealth.status === "degraded" || data.agentHealth.status === "offline") && (
+                    <div className="mb-3 p-3 rounded-xl text-[11px] leading-relaxed"
+                      style={{
+                        background: data.agentHealth.status === "offline" ? "rgba(239, 68, 68, 0.06)" : "rgba(250, 204, 21, 0.06)",
+                        border: `1px solid ${data.agentHealth.status === "offline" ? "rgba(239, 68, 68, 0.2)" : "rgba(250, 204, 21, 0.2)"}`,
+                        color: "var(--text-secondary)",
+                      }}>
+                      <div className="flex items-start gap-2">
+                        <ShieldAlert className="w-3.5 h-3.5 shrink-0 mt-0.5"
+                          style={{ color: data.agentHealth.status === "offline" ? "var(--red)" : "var(--yellow)" }} />
+                        <div>
+                          <div className="text-white font-medium mb-0.5">
+                            {data.agentHealth.status === "offline" ? "AI agent is offline" : "AI agent activity stale"}
+                          </div>
+                          Your deposit is still earning Venus yield on-chain. Automated stop-loss may not trigger until the agent resumes.
+                          You can withdraw at any time from the panel above.
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {pos?.agentAuthorized ? (
                     <div className="space-y-3">
@@ -936,12 +992,12 @@ export default function VaultPage() {
                               {pos.agentName || `Agent #${pos.authorizedAgentId}`}
                             </div>
                             <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                              {pos.agentTier || "Guardian"} tier{pos.agentSuccessRate && pos.agentSuccessRate !== "N/A" ? ` · ${pos.agentSuccessRate}% success rate` : " · Monitoring 24/7"}
+                              {pos.agentTier || "Guardian"} tier{pos.agentSuccessRate && pos.agentSuccessRate !== "N/A" ? ` · ${pos.agentSuccessRate}% success rate` : ""}
                             </div>
                           </div>
                         </div>
                         <div className="text-xs px-2 py-1 rounded-md" style={{ background: "rgba(34, 197, 94, 0.1)", color: "var(--green)" }}>
-                          Active
+                          Authorized
                         </div>
                       </div>
                       {pos.lastActionTimestamp > 0 && (
@@ -957,7 +1013,7 @@ export default function VaultPage() {
                         Your position is unprotected
                       </p>
                       <p className="text-[10px] mb-4" style={{ color: "var(--text-muted)" }}>
-                        Enable 24/7 AI monitoring, auto-exit on threats, and stop-loss protection.
+                        Authorize the Aegis Guardian to enable automated threat detection and stop-loss execution on your behalf.
                       </p>
                       <button
                         onClick={handleAuthorizeAgent}
@@ -968,7 +1024,7 @@ export default function VaultPage() {
                         Activate AI Protection
                       </button>
                       <p className="text-[10px] mt-2" style={{ color: "var(--text-muted)" }}>
-                        Aegis Guardian Alpha · Archon tier · 24/7 monitoring
+                        Aegis Guardian Alpha · Archon tier
                       </p>
                     </div>
                   ) : (
@@ -1371,7 +1427,7 @@ export default function VaultPage() {
                               {pos.agentName || `Agent #${pos.authorizedAgentId}`}
                             </div>
                             <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                              {pos.agentTier} tier &middot; Monitoring 24/7
+                              {pos.agentTier} tier &middot; Active
                             </div>
                           </div>
                           <CheckCircle className="w-5 h-5" style={{ color: "var(--green)" }} />
@@ -1395,8 +1451,8 @@ export default function VaultPage() {
                       <ShieldAlert className="w-8 h-8 mx-auto mb-3" style={{ color: "var(--yellow)" }} />
                       <p className="text-xs mb-1 font-medium text-white">No Agent Authorized</p>
                       <p className="text-[10px] mb-4" style={{ color: "var(--text-muted)" }}>
-                        Authorize an AI agent to enable 24/7 auto-protection: threat detection,
-                        stop-loss, exploit monitoring, and whale alerts.
+                        Authorize an AI agent for automated stop-loss, liquidation guard, exploit shield, and whale alerts on your behalf.
+                        You retain full control and can withdraw at any time.
                       </p>
                       <button
                         onClick={handleAuthorizeAgent}

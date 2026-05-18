@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useLiveMarketData } from "../lib/useLiveMarket";
 import { CONTRACTS } from "../lib/constants";
 import { useScrollReveal, useStaggerReveal } from "../lib/useScrollReveal";
@@ -10,8 +11,12 @@ import {
   Lock, Search, Skull, Droplets,
   Eye, ChevronRight, Share2,
   TrendingUp, Code2, CheckCircle,
-  Sparkles, Globe, Layers, Activity,
+  Sparkles, Globe, Activity,
 } from "lucide-react";
+
+const IS_MAINNET = process.env.NEXT_PUBLIC_CHAIN_ID === "56";
+const BSCSCAN_BASE = IS_MAINNET ? "https://bscscan.com" : "https://testnet.bscscan.com";
+const NETWORK_LABEL = IS_MAINNET ? "BSC Mainnet" : "BSC Testnet";
 
 /* ═══════════════════════════════════════════════════════════════
    Scroll Section Wrapper
@@ -40,6 +45,21 @@ function RevealSection({
 
 export default function Home() {
   const liveMarket = useLiveMarketData(30000);
+  const [stats, setStats] = useState<{
+    totalScans: number;
+    monitoredWallets: number;
+    uniqHolders: number;
+    contractsDeployed: number;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d && !d.error) setStats(d); })
+      .catch(() => { /* keep fallback */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const stepsStagger = useStaggerReveal(3, 120);
   const featuresStagger = useStaggerReveal(6, 100);
@@ -399,7 +419,7 @@ export default function Home() {
               Verified <span className="text-gradient">Smart Contracts</span>
             </h2>
             <p className="text-base mt-4 max-w-xl mx-auto" style={{ color: "var(--text-secondary)" }}>
-              5 contracts deployed on BSC Testnet. Source-verified via Sourcify. Every decision logged on-chain.
+              5 contracts deployed on {NETWORK_LABEL}. Source-verified via Sourcify. Every decision logged on-chain.
             </p>
           </div>
         </RevealSection>
@@ -423,7 +443,7 @@ export default function Home() {
                 {c.address}
               </p>
               <div className="flex items-center gap-2">
-                <a href={`https://testnet.bscscan.com/address/${c.address}`} target="_blank" rel="noopener noreferrer"
+                <a href={`${BSCSCAN_BASE}/address/${c.address}`} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-1 text-[10px] font-medium px-2.5 py-1.5 rounded transition-colors"
                   style={{ color: "var(--accent)", background: "var(--accent-muted)" }}>
                   <ExternalLink className="w-2.5 h-2.5" /> BSCScan
@@ -453,10 +473,10 @@ export default function Home() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 sm:gap-12">
                 {[
-                  { value: "207", label: "Tests Passing", icon: CheckCircle },
-                  { value: "7", label: "Smart Contracts", icon: Code2 },
-                  { value: "14,245", label: "Lines of Code", icon: Layers },
-                  { value: "#6", label: "of 200 Projects", icon: TrendingUp },
+                  { value: stats ? stats.totalScans.toLocaleString() : "—", label: "Token Scans", icon: Search },
+                  { value: stats ? String(stats.monitoredWallets) : "—", label: "Wallets Monitored", icon: Shield },
+                  { value: stats ? `${stats.uniqHolders}+` : "—", label: "$UNIQ Holders", icon: Sparkles },
+                  { value: stats ? String(stats.contractsDeployed) : "5", label: "Verified Contracts", icon: Code2 },
                 ].map((stat, i) => (
                   <div key={i} className="flex flex-col items-center">
                     <stat.icon className="w-5 h-5 mb-3" style={{ color: "var(--accent)" }} />
