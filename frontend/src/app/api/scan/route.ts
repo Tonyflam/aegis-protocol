@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
 import { trackScan } from "@/lib/scan-tracker";
 import { redisSaveScan, isRedisConfigured } from "@/lib/redis-store";
+import { trackCampaignScan } from "@/lib/campaign-store";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 // ─── Types ───────────────────────────────────────────────────
@@ -130,6 +131,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // background Guardian polls from the "Recent Scans" feed.
   const sourceParam = searchParams.get("source");
   const source: "api" | "guardian" | "bot" = sourceParam === "guardian" || sourceParam === "bot" ? sourceParam : "api";
+  // Optional: campaign attribution. When the scanner UI passes the
+  // user's connected wallet, count this scan toward their Protector
+  // Hunt entries (deduped per token, capped at 5).
+  const byParam = searchParams.get("by");
+  const byWallet = byParam && ethers.isAddress(byParam) ? byParam.toLowerCase() : null;
 
   if (!address || !ethers.isAddress(address)) {
     return NextResponse.json({ error: "Invalid token address" }, { status: 400 });
@@ -148,6 +154,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         redisSaveScan(cached.report as unknown as Record<string, unknown>, source).catch(() => {});
       }
     }
+    if (byWallet && source === "api") {
+      trackCampaignScan(byWallet, addr).catch(() => {});
+    }
     return NextResponse.json(cached.report);
   }
 
@@ -158,6 +167,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (isRedisConfigured()) {
       recentRedisSaves.set(addr, Date.now());
       redisSaveScan(report as unknown as Record<string, unknown>, source).catch(() => {});
+    }
+    if (byWallet && source === "api") {
+      trackCampaignScan(byWallet, addr).catch(() => {});
     }
     return NextResponse.json(report);
   } catch (err) {

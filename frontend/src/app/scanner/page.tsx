@@ -547,7 +547,8 @@ export default function ScannerPage() {
     setScanResult(null);
 
     try {
-      const res = await fetch(`/api/scan?address=${encodeURIComponent(target)}`);
+      const byParam = address ? `&by=${encodeURIComponent(address)}` : "";
+      const res = await fetch(`/api/scan?address=${encodeURIComponent(target)}${byParam}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Scan failed" }));
         throw new Error(err.error || "Scan failed");

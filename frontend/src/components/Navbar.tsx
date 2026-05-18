@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useWalletContext } from "../lib/WalletContext";
 import { usePublicContractData } from "../lib/useContracts";
 import {
-  Wallet, Search, Menu, X, Eye, Lock, BarChart3,
+  Wallet, Search, Menu, X, Eye, Lock, BarChart3, Gift,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { href: "/guardian", label: "Guardian Shield", icon: Eye },
   { href: "/vault", label: "Vault", icon: Lock },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/campaign", label: "Protector Hunt", icon: Gift },
 ];
 
 export default function Navbar() {
