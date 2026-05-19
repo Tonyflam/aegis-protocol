@@ -442,19 +442,19 @@ function CampaignPageInner() {
 
             {/* ─── Right column: TOTD + Leaderboard ─── */}
             <div className="space-y-6">
-              {/* Threat of the Day */}
+              {/* Open Bounty (formerly daily Threat of the Day) */}
               <div className="p-5 rounded-xl"
                 style={{ background: "var(--bg-raised)", border: "1px solid var(--border-subtle)" }}>
                 <div className="flex items-baseline justify-between mb-2">
-                  <h3 className="text-lg font-bold">Threat of the Day</h3>
-                  <div className="text-xs" style={{ color: "var(--text-muted)" }}>{totd?.date || "—"}</div>
+                  <h3 className="text-lg font-bold">Open Bounty</h3>
+                  <div className="text-xs uppercase tracking-wider" style={{ color: "var(--accent)" }}>10k $UNIQ · cap 10</div>
                 </div>
                 {totd?.token ? (
                   <>
-                    <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Today&apos;s flagged token</div>
+                    <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>We just flagged a live one</div>
                     <div className="font-mono text-xs break-all mb-3" style={{ color: "var(--accent)" }}>{totd.token}</div>
                     <div className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>
-                      First 10 protectors to quote-tweet the threat with <span style={{ color: "var(--accent)" }}>#AegisCaught</span> earn +10 bonus entries.
+                      Scan this token, then quote-tweet your result with <span style={{ color: "var(--accent)" }}>#AegisCaught</span>. First 10 verified catches earn 10,000 $UNIQ each.
                       <br /><strong>{totd.claimsRemaining}/10 spots left.</strong>
                     </div>
                     <Link href={`/scanner?address=${totd.token}`} className="inline-block text-xs px-3 py-1.5 rounded mb-3"
@@ -475,8 +475,16 @@ function CampaignPageInner() {
                     )}
                   </>
                 ) : (
-                  <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    No threat posted today yet. Check back daily at 14:00 UTC.
+                  <div className="text-xs space-y-2" style={{ color: "var(--text-secondary)" }}>
+                    <p>
+                      No daily ritual &mdash; real scams don&apos;t ship on a schedule.
+                    </p>
+                    <p>
+                      <strong>If you find a malicious BSC token in the wild</strong> (rugpull, honeypot, drainer, hidden-mint), scan it on Aegis and quote-tweet your scan link with <span style={{ color: "var(--accent)" }}>#AegisCaught</span>.
+                    </p>
+                    <p style={{ color: "var(--text-muted)" }}>
+                      Hand-judged. Each confirmed catch = 10,000 $UNIQ. Cap: 10 winners across the campaign.
+                    </p>
                   </div>
                 )}
               </div>

@@ -17,7 +17,7 @@
 | **Total $UNIQ pool** | 6,000,000 (~0.6% of supply) |
 | **Anti-dump** | Winners claim by depositing into Aegis Vault, 50% unlock day 1 / 50% day 14 |
 | **Channels (owned only)** | X (@aegis_protocol), Telegram bot + group, in-product banner, DappBay listing, GitHub README, whitepaper |
-| **Total winners** | 271 (1 grand + 5 top + 25 silver-rung + 100 random + 140 Threat-of-the-Day) |
+| **Total winners** | up to 281 (1 grand + 5 top + 25 silver-rung + 140 random + up to 10 Open Bounty) |
 
 ### Success bar (what "insane traction" means)
 
@@ -47,13 +47,20 @@
 | 7 | Hold ≥ 100,000 $UNIQ (Silver tier) | **25** | TokenGate contract |
 | ★ | Referral: a wallet you referred completes any 2 paid tiers (cap 10 referrals) | **+5 each** | Redis `aegis:campaign:ref` keyed map |
 
-### Daily side-game — "Threat of the Day"
+### Open Bounty — "Find a real one"
 
-Every day at **14:00 UTC** we publish one real suspicious BSC token. **First 10 wallets** to:
-1. Scan it on aegis-protocol.xyz, AND
-2. Quote-tweet their scan result page with the hashtag `#AegisCaught`
+We **dropped the daily 14:00 ritual.** Real malicious BSC tokens don't ship on a schedule, and we won't manufacture fake ones for engagement.
 
-…each earn a **guaranteed 10,000 $UNIQ** payable on draw day. Over 10 days = 100 instant winners, plus 40 reserve spots for the final weekend.
+Instead, an **Open Bounty** runs the entire campaign window:
+
+> If you find a verifiably malicious BSC token (rugpull, honeypot, drainer, hidden-mint) that our scanner correctly flags as high-risk, scan it on aegis-protocol.xyz, then quote-tweet your scan-result page with `#AegisCaught` and a one-line breakdown of why it's bad.
+>
+> Each confirmed catch earns the wallet **10,000 $UNIQ**. **Hard cap: 10 winners across the campaign.** Hand-judged by the team; decision is final.
+
+- No daily quota, no FOMO timer, no fake threats.
+- One wallet can win at most twice (no whales sweeping the bounty).
+- Catches must be public on X before May 31 23:59 UTC.
+- The token must be live on BSC mainnet and have at least one victim transaction — we're not paying for theoretical scams.
 
 ### Prize table
 
@@ -62,8 +69,8 @@ Every day at **14:00 UTC** we publish one real suspicious BSC token. **First 10 
 | Grand Prize | 1 | 1,500,000 | "Founder's Shield" OG role · lifetime Silver tier · custom NFT |
 | Top 2-6 | 5 | 300,000 each | Lifetime Bronze tier |
 | Top 7-31 | 25 | 50,000 each | OG role |
-| Random draw (provably fair) | 100 | 17,500 each | — |
-| Threat of the Day | 100-140 | 10,000 each | — |
+| Random draw (provably fair) | 140 | 17,500 each | — |
+| Open Bounty (hand-judged) | up to 10 | 10,000 each | — |
 
 ### Anti-sybil + fairness
 
@@ -85,8 +92,8 @@ Every day at **14:00 UTC** we publish one real suspicious BSC token. **First 10 
 | `GET /api/campaign/entries?address=` returns full entry breakdown | `frontend/src/app/api/campaign/entries/route.ts` | Returns `{ socialClaimed, scanCount, guardianConnected, telegramLinked, uniqBalance, tier, referralCount, totalEntries, breakdown }` |
 | Redis schema for: `campaign:social:<wallet>`, `campaign:ref:<wallet>` (referrer), `campaign:ref:list:<referrer>` (set), `campaign:tod:<date>:<rank>` (TOTD winners) | `frontend/src/lib/campaign-store.ts` | Read/write functions exported, in-memory fallback for local |
 | `GET /api/campaign/leaderboard` returns top 50 wallets by entries, cached 60 s | same dir | JSON list ordered desc |
-| `GET /api/campaign/threat-of-the-day` returns today's TOTD token | `frontend/src/app/api/campaign/totd/route.ts` | Reads `campaign:totd:<YYYY-MM-DD>` from Redis |
-| `POST /api/campaign/totd/claim` first-10-only writer with atomic Redis INCR | same | Returns rank or 409 if full |
+| `GET /api/campaign/bounty` returns the current Open Bounty target (if any) | `frontend/src/app/api/campaign/totd/route.ts` | Reads `aegis:campaign:totd:<YYYY-MM-DD>` from Redis, treated as ad-hoc bounty target rather than daily |
+| `POST /api/campaign/totd/claim` recorded "I caught it" claim, manual review | same | Returns rank or 409 if full |
 | `/campaign` page (client component) | `frontend/src/app/campaign/page.tsx` | Hero + entry checklist with live ✓/✗ + leaderboard table + referral copier + countdown |
 | Footer/nav link to `/campaign` | `frontend/src/app/layout.tsx` or nav component | Visible site-wide |
 
@@ -256,16 +263,16 @@ We disqualify in public. That's the marketing.
 
 🖼️ **Image 5 — "7 stackable tiers"** *(see §8.5)*
 
-**Post 4/8 — Daily side game**
+**Post 4/8 — Open Bounty**
 
 ```
-4/ Threat of the Day:
+4/ Open Bounty:
 
-Every day at 14:00 UTC for 10 days, we drop one real suspicious BSC token.
+Real scams don't ship on a schedule. So we're not faking daily "threats."
 
-First 10 wallets to scan it + quote-tweet their result with #AegisCaught earn 10,000 $UNIQ each. Guaranteed.
+Find a real malicious BSC token. Scan it on aegis-protocol.xyz. Quote-tweet your result + #AegisCaught.
 
-100 wallets, 10 days, 1,000,000 $UNIQ paid out just for hunting threats.
+We hand-verify. Each confirmed catch = 10,000 $UNIQ. Cap: 10 winners.
 ```
 
 **Post 5/8 — Prize table**
@@ -276,8 +283,8 @@ First 10 wallets to scan it + quote-tweet their result with #AegisCaught earn 10
 🥇 Grand Prize × 1 → 1,500,000 $UNIQ + Founder's Shield OG role + lifetime Silver
 🥈 Top 2-6 → 300,000 each + lifetime Bronze
 🥉 Top 7-31 → 50,000 each + OG role
-🎟️ 100 random → 17,500 each
-⚔️ Threat of the Day → 10,000 × 100+
+🎟️ 140 random → 17,500 each
+⚔️ Open Bounty → 10,000 × up to 10 confirmed catches
 ```
 
 🖼️ **Image 6 — "Prize stack"** *(see §8.6)*
@@ -342,15 +349,15 @@ How to enter (stackable):
 6. Hold 50k $UNIQ → 10 entries
 7. Hold 100k $UNIQ → 25 entries
 
-🎁 Daily side-game: "Threat of the Day"
-Every day at 14:00 UTC we post one suspicious BSC token. First 10 to scan it + quote-tweet with #AegisCaught win 10,000 $UNIQ.
+🎁 Open Bounty (no daily side-game):
+Find a real malicious BSC token, scan it on aegis-protocol.xyz, quote-tweet your result with #AegisCaught. Each confirmed catch = 10,000 $UNIQ. Cap: 10 winners across the whole campaign. Hand-judged.
 
 Prizes:
 🥇 1 winner — 1,500,000 $UNIQ + Founder's Shield + lifetime Silver
 🥈 5 winners — 300,000 each + lifetime Bronze
 🥉 25 winners — 50,000 each
-🎟️ 100 random — 17,500 each
-⚔️ ~100 Threat winners — 10,000 each
+🎟️ 140 random — 17,500 each
+⚔️ up to 10 Open Bounty winners — 10,000 each
 
 Winners claim via vault deposit (50% day 1, 50% day 14).
 
@@ -422,35 +429,10 @@ aegis-protocol.xyz/campaign
 
 DM @aegis_protocol_bot → /campaign to see your live entry count and leaderboard rank.
 
-Threat of the Day #1 drops at 14:00 UTC. Be ready.
+Open Bounty is live: find a real malicious BSC token, scan it, QT with #AegisCaught. Up to 10 catches × 10k $UNIQ.
 ```
 
-### 🕑 14:00 UTC — **Threat of the Day #1**
-
-> Pre-pick a real suspicious BSC token (use Aegis Scanner internally to find one with risk score ≥ 80). Don't pick something already dead — pick something users would realistically encounter.
-
-#### X · TOTD #1
-
-```
-⚔️ Threat of the Day #1
-
-Token: $XXXXX
-Address: 0xabc...123
-Risk score: 87/100
-
-First 10 wallets to scan this on aegis-protocol.xyz + quote-tweet with #AegisCaught win 10,000 $UNIQ each.
-
-GO.
-```
-
-🖼️ **Image 8 — "Threat of the Day card"** *(template — see §8.8)*
-
-#### Telegram
-
-```
-⚔️ TOTD #1 just dropped on X. Scan + QT. First 10 win 10k $UNIQ each.
-[X link]
-```
+*Day 1 has no scheduled "threat reveal" — the bounty stays open the whole campaign. We're not faking threats on a timer.*
 
 ### 🕖 19:00 UTC — Leaderboard pulse #1
 
@@ -508,17 +490,16 @@ Snipe carefully.
 
 ## 5 · Daily playbook (May 22 - May 30)
 
-> 9 days of repeatable rhythm. Each day requires ~90 minutes of your time spread across 4 touchpoints. Copy-paste templates below — only the numbers and the TOTD token change.
+> 9 days of repeatable rhythm. **No daily Threat-of-the-Day ritual** — the Open Bounty stays passively open the whole window. If we organically spot a real bad token mid-campaign, we can announce it ad-hoc via `POST /api/campaign/totd` (the endpoint stays).
 
 ### Daily rhythm template
 
 | UTC | Action | Effort |
 |---|---|---|
 | 09:00 | Morning post (theme-of-the-day, see § below) | 5 min |
-| 14:00 | Threat of the Day reveal | 10 min |
-| 17:00 | Verify TOTD #N winners (first 10 quote-tweeters who actually scanned) | 15 min |
+| 14:00 | *(skipped — no scheduled threat reveal)* | 0 min |
 | 19:00 | Leaderboard pulse + 1 user spotlight | 10 min |
-| 21:00 | Daily wrap thread (numbers + TOTD winners) | 20 min |
+| 21:00 | Daily wrap (numbers + any bounty catches verified that day) | 20 min |
 | Telegram | 4-6 messages spread organically through the day | 20 min |
 
 ### Themes-of-the-day (drives content variety)
