@@ -14,8 +14,8 @@ export const CAMPAIGN = {
   START_UNIX_MS: Date.parse("2026-05-21T12:00:00Z"),
   END_UNIX_MS:   Date.parse("2026-05-31T12:00:00Z"),
   DRAW_UNIX_MS:  Date.parse("2026-06-01T16:00:00Z"),
-  POOL_UNIQ:     6_000_000,
-  TOTAL_WINNERS: 271,
+  POOL_UNIQ:     25_000_000,
+  TOTAL_WINNERS: 141, // 1 grand + 5 top + 25 silver-rung + 100 random (Open Bounty up to +10, not guaranteed)
 };
 
 // ─── Entry weights ───────────────────────────────────────────
@@ -27,17 +27,17 @@ export const ENTRY_WEIGHTS = {
   SCAN_MAX: 5,
   GUARDIAN: 3,       // Tier 3: connect Guardian Shield
   TELEGRAM: 2,       // Tier 4: link Telegram chat ID
-  HOLD_BRONZE: 5,    // Tier 5: ≥ 10,000 $UNIQ
-  HOLD_SILVER: 15,   // Tier 6: ≥ 100,000 $UNIQ
-  HOLD_GOLD: 35,     // Tier 7: ≥ 1,000,000 $UNIQ
+  HOLD_TIER5: 5,     // Tier 5: ≥ 10,000 $UNIQ
+  HOLD_BRONZE: 10,   // Tier 6: ≥ 50,000 $UNIQ  (Bronze pass)
+  HOLD_SILVER: 25,   // Tier 7: ≥ 100,000 $UNIQ (Silver pass)
   REF_EACH: 5,       // ★ per qualified referral, cap 10
   REF_MAX: 10,
 };
 
 export const HOLD_THRESHOLDS = {
-  BRONZE: 10_000n,
+  TIER5:  10_000n,
+  BRONZE: 50_000n,
   SILVER: 100_000n,
-  GOLD:   1_000_000n,
 };
 
 // ─── Redis keys ──────────────────────────────────────────────

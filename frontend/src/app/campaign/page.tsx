@@ -22,7 +22,7 @@ interface EntriesResponse {
   guardianConnected: boolean;
   telegramLinked: boolean;
   uniqBalance: string;
-  holderTier: "None" | "Bronze" | "Silver" | "Gold";
+  holderTier: "None" | "Tier 5" | "Bronze" | "Silver";
   referralCount: number;
   totalEntries: number;
   breakdown: EntryBreakdown;
@@ -42,8 +42,8 @@ interface TotdResponse {
 const CAMPAIGN_START = Date.parse("2026-05-21T12:00:00Z");
 const CAMPAIGN_END   = Date.parse("2026-05-31T12:00:00Z");
 const CAMPAIGN_DRAW  = Date.parse("2026-06-01T16:00:00Z");
-const POOL_UNIQ = 6_000_000;
-const TOTAL_WINNERS = 271;
+const POOL_UNIQ = 25_000_000;
+const TOTAL_WINNERS = 141; // plus up to 10 Open Bounty
 
 function fmt(n: number, pad = 2): string {
   return String(n).padStart(pad, "0");
@@ -260,8 +260,8 @@ function CampaignPageInner() {
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-bold tracking-tight mb-4">
-          6,000,000 <span style={{ color: "var(--accent)" }}>$UNIQ</span>
-          <br />for 271 protectors.
+          25,000,000 <span style={{ color: "var(--accent)" }}>$UNIQ</span>
+          <br />for up to 151 protectors.
         </h1>
         <p className="text-base sm:text-lg leading-relaxed max-w-2xl mb-8" style={{ color: "var(--text-secondary)" }}>
           The first community hunt for Aegis Protocol — BSC&apos;s autonomous security layer. Earn entries by actually using the protocol. No emoji spam, no copy-paste raids. Sybil wallets are filtered. The vault decides.
@@ -414,7 +414,7 @@ function CampaignPageInner() {
                     done={entries.holderTier !== "None"}
                     title={`5. Hold $UNIQ — ${entries.holderTier === "None" ? "no tier" : entries.holderTier}`}
                     points={`+${entries.breakdown.hold} entries`}
-                    sub={`Balance: ${Number(entries.uniqBalance).toLocaleString(undefined, { maximumFractionDigits: 2 })} $UNIQ · Bronze ≥10K (+5) · Silver ≥100K (+15) · Gold ≥1M (+35)`}
+                    sub={`Balance: ${Number(entries.uniqBalance).toLocaleString(undefined, { maximumFractionDigits: 2 })} $UNIQ · 10K (+5) · 50K (+10) · 100K (+25) — snapshot at draw block`}
                   />
 
                   {/* Referral */}

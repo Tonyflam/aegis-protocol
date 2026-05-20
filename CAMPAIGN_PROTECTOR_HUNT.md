@@ -1,172 +1,126 @@
-# Aegis Protocol · Protector Hunt Campaign Playbook
+# 🛡️ Aegis Protector Hunt — Playbook v2
 
-> The complete day-by-day execution plan. Every post, every image prompt, every metric, every Telegram message. Designed to be run **solo** with zero KOL outreach. Built so that copy-paste is the entire workflow.
+> One file. Day-by-day. Every day has its build tasks, post copy, and image prompts in the same place.
+> Old fragmented version archived in `CAMPAIGN_PROTECTOR_HUNT.md.bak`.
 
 ---
 
-## 0 · Campaign at a glance
+## 0 · The campaign in one screen
 
-| Field | Value |
+| | |
 |---|---|
-| **Name** | Protector Hunt — Aegis Origins |
-| **Tagline** | *Protect a wallet. Earn $UNIQ. The more you protect, the more you earn.* |
-| **Build phase** | Mon May 18 → Wed May 20 (3 days) |
-| **Tease phase** | Mon May 18 → Wed May 20 (overlaps build) |
-| **Campaign live** | Thu May 21, 12:00 UTC → Sat May 31, 12:00 UTC (10 days) |
-| **Draw + winners** | Mon Jun 1, 16:00 UTC |
-| **Total $UNIQ pool** | 6,000,000 (~0.6% of supply) |
-| **Anti-dump** | Winners claim by depositing into Aegis Vault, 50% unlock day 1 / 50% day 14 |
-| **Channels (owned only)** | X (@aegis_protocol), Telegram bot + group, in-product banner, DappBay listing, GitHub README, whitepaper |
-| **Total winners** | up to 281 (1 grand + 5 top + 25 silver-rung + 140 random + up to 10 Open Bounty) |
+| **Name** | Aegis Protector Hunt |
+| **Window** | Thu **May 21** 12:00 UTC → Sat **May 31** 12:00 UTC (10 full days) |
+| **Snapshot block** | One BSC block at draw time — no continuous-hold scanning, no "buy and hold for 10 days" nonsense |
+| **Draw** | Mon **Jun 1** 16:00 UTC · provably fair · open-source script · seeded by a pre-announced BSC block hash |
+| **Prize pool** | **25,000,000 $UNIQ** (was 6M — bumped to reflect real-world value) |
+| **Winners** | up to **151** (1 grand · 5 top · 25 silver-rung · 100 random · up to 10 Open Bounty) |
+| **Anti-dump** | **Merkle claim contract with 25% instant / 75% linear vesting over 14 days.** No "deposit into vault" — vault only accepts BNB/USDT. Contract deploys May 27, address published Day -1. |
+| **Funding source** | Treasury wallet `0xTODO-fill-on-may-26` — transparent on-chain proof posted before launch. |
+| **Channels** | X (@aegis_protocol), Telegram bot + group, in-product banner, DappBay, GitHub README, whitepaper |
+| **Voice** | Serious-but-witty. No WAGMI. No fake hype. Every post passes the two checks in §12. |
 
-### Success bar (what "insane traction" means)
+### What "insane traction" means
 
-| Metric | Today (May 18) | Target by Jun 1 | Multiple |
-|---|---|---|---|
-| Token scans | 379 | **5,000+** | 13× |
-| Guardian wallets monitored | 40 | **800+** | 20× |
-| $UNIQ holders | 160 | **750+** | 4.7× |
-| Telegram group members | unknown | **1,200+** | — |
-| X followers | unknown | **3,500+** | — |
-| Vault TVL (BNB) | track | **+25 BNB net new** | — |
+By draw day we want:
+
+- ✅ Token scans during campaign: **+5,000 net new** (baseline ~380)
+- ✅ New Guardian-Shield wallets: **+500**
+- ✅ New verified $UNIQ holders: **+1,500**
+- ✅ Telegram group: **2× members** vs Day 0
+- ✅ Net BNB into vault: **+50 BNB**
+- ✅ Followers on X: **+10,000**
+
+If we hit half of these, this was the best ROI of any growth move we'll ever make.
 
 ---
 
-## 1 · Entry mechanics (the public rules)
+## 1 · Public rules (this is what entrants see)
 
-7 stackable tiers. A user doing everything earns up to **51 entries**. A pure social farmer gets **1**.
+### 1.1 Seven stackable entry tiers
 
 | # | Action | Entries | How we verify |
 |---|---|---|---|
-| 1 | Follow @aegis_protocol on X + RT pinned + reply with a wallet/token they scanned + tag 2 BSC friends | **1** | Form submission + manual spot-check on top 50 leaderboard wallets only |
-| 2 | Scan a unique BSC token at aegis-protocol.xyz/scanner (cap 5 unique tokens) | **1 each, max 5** | Redis `scan-tracker` by wallet address |
-| 3 | Connect wallet to Guardian Shield with ≥ 0.05 BNB worth of tokens held | **3** | `/api/guardian` snapshot |
+| 1 | Follow @aegis_protocol · RT pinned · reply with a wallet/token you scanned · tag 2 BSC friends | **1** | Form submission + spot-check top 50 leaderboard wallets |
+| 2 | Scan a unique BSC token at aegis-protocol.xyz/scanner (cap 5 unique tokens) | **1 each, max 5** | Redis scan log keyed by wallet |
+| 3 | Connect wallet to Guardian Shield (any non-zero monitored value) | **3** | `/api/guardian` snapshot |
 | 4 | Link Telegram chat ID via @aegis_protocol_bot | **2** | `telegram-store` registry |
-| 5 | Hold ≥ 10,000 $UNIQ at snapshot | **5** | `ERC20.balanceOf` |
-| 6 | Hold ≥ 50,000 $UNIQ (Bronze tier) | **10** | TokenGate contract |
-| 7 | Hold ≥ 100,000 $UNIQ (Silver tier) | **25** | TokenGate contract |
-| ★ | Referral: a wallet you referred completes any 2 paid tiers (cap 10 referrals) | **+5 each** | Redis `aegis:campaign:ref` keyed map |
+| 5 | Hold ≥ 10,000 $UNIQ at draw block | **5** | `ERC20.balanceOf` at snapshot block |
+| 6 | Hold ≥ 50,000 $UNIQ (Bronze) at draw block | **10** | Same |
+| 7 | Hold ≥ 100,000 $UNIQ (Silver) at draw block | **25** | Same |
+| ★ | Referral: a wallet you referred completes any 2 of tiers 2-7 (cap 10 referrals) | **+5 each** | Redis ref map |
 
-### Open Bounty — "Find a real one"
+**Max for one wallet: 51 entries** (1 + 5 + 3 + 2 + 25 + 50 referrals).
 
-We **dropped the daily 14:00 ritual.** Real malicious BSC tokens don't ship on a schedule, and we won't manufacture fake ones for engagement.
+### 1.2 Open Bounty — "Find a real one"
 
-Instead, an **Open Bounty** runs the entire campaign window:
+> No daily ritual. Real scams don't ship on a schedule.
 
-> If you find a verifiably malicious BSC token (rugpull, honeypot, drainer, hidden-mint) that our scanner correctly flags as high-risk, scan it on aegis-protocol.xyz, then quote-tweet your scan-result page with `#AegisCaught` and a one-line breakdown of why it's bad.
->
-> Each confirmed catch earns the wallet **10,000 $UNIQ**. **Hard cap: 10 winners across the campaign.** Hand-judged by the team; decision is final.
+If you find a verifiably malicious BSC token (rugpull, honeypot, drainer, hidden-mint), scan it on aegis-protocol.xyz, then quote-tweet your scan-result page with `#AegisCaught` + a one-line breakdown of why it's bad.
 
-- No daily quota, no FOMO timer, no fake threats.
-- One wallet can win at most twice (no whales sweeping the bounty).
+- Each confirmed catch earns the wallet **50,000 $UNIQ**.
+- **Hard cap: 10 winners across the campaign.** Hand-judged. Decision is final.
 - Catches must be public on X before May 31 23:59 UTC.
-- The token must be live on BSC mainnet and have at least one victim transaction — we're not paying for theoretical scams.
+- The token must be live on BSC mainnet with at least one victim transaction.
 
-### Prize table
+### 1.3 Prize table (25,000,000 $UNIQ)
 
-| Place | Count | $UNIQ | Bonus |
+| Place | Count | $UNIQ each | Bonus |
 |---|---|---|---|
-| Grand Prize | 1 | 1,500,000 | "Founder's Shield" OG role · lifetime Silver tier · custom NFT |
-| Top 2-6 | 5 | 300,000 each | Lifetime Bronze tier |
-| Top 7-31 | 25 | 50,000 each | OG role |
-| Random draw (provably fair) | 140 | 17,500 each | — |
-| Open Bounty (hand-judged) | up to 10 | 10,000 each | — |
+| Grand Prize | 1 | 5,000,000 | **Founder's Shield** soulbound NFT · permanent Silver-tier Aegis Pass · custom 1/1 art |
+| Top 2-6 | 5 | 1,000,000 | Permanent Bronze-tier Aegis Pass |
+| Top 7-31 | 25 | 200,000 | "OG Protector" Telegram role + 40 % fee discount for 1 year |
+| Random draw (provably fair) | 100 | 100,000 | — |
+| Open Bounty (hand-judged) | up to 10 | 50,000 | — |
+| **TOTAL** | **up to 141 + 10** | **25.5M committed** | |
 
-### Anti-sybil + fairness
+> **Permanent tier passes** ship as a soulbound ERC-721 (`AegisPass.sol`, ~50 LOC). `TokenGate` honors the NFT as a tier override regardless of $UNIQ balance. Contract reviewed and deployed Day -1.
 
-1. Wallets that received $UNIQ < 24 h before snapshot **and** dump > 50 % during campaign are auto-disqualified
-2. Every entrant wallet is scanned by Aegis Scanner itself. If it flags (drainer history, sanctioned, honeypot deployer) → out. *This is also the marketing — we openly disqualify bad actors.*
-3. Final randomness = blockhash of BSC block **#PUBLISHED-IN-ADVANCE** ≈ 16:00 UTC Jun 1. Code is open-sourced in `/scripts/draw.ts` before draw day so anyone can re-run it.
-4. Holding tiers require holding **continuously** from snapshot start (lock detected via `Transfer` event scan) — no flash-loan tier-buying.
+### 1.4 Anti-sybil + fairness
 
----
-
-## 2 · Build phase (May 18-20) — what we ship daily
-
-### 🛠 Day -3 · Monday May 18 (today)
-
-**Build target:** the campaign page + entry API.
-
-| Task | File / artifact | DoD |
-|---|---|---|
-| `GET /api/campaign/entries?address=` returns full entry breakdown | `frontend/src/app/api/campaign/entries/route.ts` | Returns `{ socialClaimed, scanCount, guardianConnected, telegramLinked, uniqBalance, tier, referralCount, totalEntries, breakdown }` |
-| Redis schema for: `campaign:social:<wallet>`, `campaign:ref:<wallet>` (referrer), `campaign:ref:list:<referrer>` (set), `campaign:tod:<date>:<rank>` (TOTD winners) | `frontend/src/lib/campaign-store.ts` | Read/write functions exported, in-memory fallback for local |
-| `GET /api/campaign/leaderboard` returns top 50 wallets by entries, cached 60 s | same dir | JSON list ordered desc |
-| `GET /api/campaign/bounty` returns the current Open Bounty target (if any) | `frontend/src/app/api/campaign/totd/route.ts` | Reads `aegis:campaign:totd:<YYYY-MM-DD>` from Redis, treated as ad-hoc bounty target rather than daily |
-| `POST /api/campaign/totd/claim` recorded "I caught it" claim, manual review | same | Returns rank or 409 if full |
-| `/campaign` page (client component) | `frontend/src/app/campaign/page.tsx` | Hero + entry checklist with live ✓/✗ + leaderboard table + referral copier + countdown |
-| Footer/nav link to `/campaign` | `frontend/src/app/layout.tsx` or nav component | Visible site-wide |
-
-**Time budget:** 4-6 hours coding. Test locally, push to `aegis-security-os`, Vercel preview, smoke-test on mainnet.
-
-### 🛠 Day -2 · Tuesday May 19
-
-| Task | DoD |
-|---|---|
-| Twitter form for tier 1 social claim (Tally or Typeform free tier) | Public URL ready, fields: wallet, X handle, RT link, reply link |
-| Wire form → Redis via webhook or manual sync script | `scripts/sync-social-claims.ts` cron-able |
-| Telegram bot `/campaign` command returns user's current entries + leaderboard rank | `frontend/src/app/api/telegram/webhook/route.ts` extended |
-| Pin announcement images (5 total — see § 8 below) generated and saved to `public/campaign/` | All `.webp` < 200 KB each |
-| Whitepaper page gets a "Campaign live" banner | `frontend/src/app/whitepaper/page.tsx` |
-| Landing page hero gets a non-dismissible top strip "🎁 Protector Hunt live — 6M $UNIQ" linking to /campaign | `frontend/src/app/page.tsx` |
-| Anti-sybil scan-self pipeline | `scripts/disqualify-bad-wallets.ts` runs nightly, writes `campaign:disqualified` set |
-
-### 🛠 Day -1 · Wednesday May 20
-
-| Task | DoD |
-|---|---|
-| `scripts/draw.ts` — provably fair winner picker, weighted by entries, deterministic from blockhash | Open-sourced, ready to run |
-| `scripts/distribute-winners.ts` — batch `vault.deposit()` on behalf of winners after they sign tier-up acknowledgement | Dry-run tested |
-| Snapshot script that locks holder balances + scan counts | `scripts/snapshot.ts day0` outputs JSON |
-| Full smoke-test of `/campaign` page on Vercel production with 3 real wallets at different tier mixes | ✅ |
-| Telegram group: pin the campaign rules post (will draft below) | Pinned |
-| Final hype tweet scheduled for D0 12:00 UTC | Scheduled in TweetDeck/Buffer |
+1. Wallets that received $UNIQ < 24 h before snapshot **and** sold > 50 % of received supply during the campaign are auto-disqualified.
+2. Every entrant wallet is scanned by Aegis Scanner itself. If it flags (drainer, sanctioned, honeypot deployer) → out. *That's the marketing — we openly disqualify bad actors.*
+3. Final randomness = hash of BSC block **#PUBLISHED-IN-ADVANCE** at ≈ 16:00 UTC Jun 1. Draw script open-sourced at `/scripts/draw.ts` before draw day.
+4. Holding tier read at **a single snapshot block**, not continuously. Simple, gas-fair, hard to game with continuous-hold heuristics.
 
 ---
 
-## 3 · Pre-launch content (May 18-20)
+## 2 · Daily playbook
 
-> Brand voice: serious-but-witty, no emoji spam, no WAGMI, credibility-first. We are a security protocol — every post must reinforce that we ship.
-
-### 📅 Monday May 18
-
-#### 🕘 09:00 UTC — X · Soft tease (no campaign mention yet)
-
-```
-The most expensive thing in crypto isn't gas.
-
-It's the alert you didn't get because nobody was monitoring your wallet.
-
-Something is coming. Tomorrow.
-
-🛡️ aegis-protocol.xyz
-```
-
-🖼️ **Image 1 — "The cost of silence"** *(see prompt §8.1)*
-
-#### 🕗 20:00 UTC — Telegram (pinned)
-
-```
-gm hunters 👋
-
-This week we launch the biggest community moment Aegis has ever run.
-No airdrop farming. No bots. Real users only.
-
-If you've ever scanned a token with us or held $UNIQ — you're early.
-
-Tomorrow morning, watch the X account 👀
-```
+> Each section below contains: **🛠 Build** (what code/infra ships), **📣 Posts** (X + Telegram copy verbatim), **🖼 Images** (prompts ready for Imagen 4 / Nano Banana). Brand: dark `#0A0A0B`, accent yellow `#FACC15`, type Geist / Inter.
 
 ---
 
-### 📅 Tuesday May 19
+### 🗓 Day -3 · Monday May 18 — Build only, no posts (DONE)
 
-#### 🕘 09:00 UTC — X · Reveal-of-reveal
+**🛠 Build**
+- [x] `frontend/src/lib/campaign-store.ts` — Redis schema + in-memory fallback
+- [x] `/api/campaign/entries`, `/leaderboard`, `/social`, `/totd`, `/totd/claim`
+- [x] `/campaign` page (hero · 7-tier checklist · referral copier · leaderboard · Open Bounty panel)
+- [x] Navbar link to `/campaign`
+- [x] Scanner page passes `&by=<wallet>` so per-wallet scan dedupe works
+
+**Status:** shipped on branch `aegis-security-os` · commits `74e3181` → `bab9bdf`.
+
+---
+
+### 🗓 Day -2 · Tuesday May 19 — Polish + first warm-up post
+
+**🛠 Build (3 tasks only — don't pile on)**
+
+1. **Landing-page top strip** — non-dismissible yellow ribbon on `frontend/src/app/page.tsx`:
+   > 🎁 Protector Hunt launches Thu May 21 · **25,000,000 $UNIQ** · 10 days · zero engagement-farming → /campaign
+2. **Extend Telegram bot `/campaign` command** in `frontend/src/app/api/telegram/webhook/route.ts` — lookup linked wallet via `telegram-store`, fetch `/api/campaign/entries?address=`, reply with tally + leaderboard rank.
+3. **Anti-sybil scan** baked into `/api/campaign/leaderboard` — when computing entries, also call Aegis Scanner on each wallet; if score ≤ 20 (drainer/sanctioned/etc.) call `disqualify()` from campaign-store before scoring. *No separate cron — single pipeline.*
+
+**📣 Posts**
+
+**09:00 UTC · X — Reveal-of-reveal**
 
 ```
 We're giving back to the people who actually use this protocol.
 
-6,000,000 $UNIQ. 271 winners. No engagement-farming bullshit.
+25,000,000 $UNIQ. Up to 151 winners. No engagement-farming. No daily quotas.
 
 Every entry = one real action that makes BSC safer.
 
@@ -174,245 +128,222 @@ Full rules drop tomorrow, 12:00 UTC.
 
 🛡️ aegis-protocol.xyz
 ```
+🖼️ *Use image 2.A below.*
 
-🖼️ **Image 2 — "6,000,000 $UNIQ"** *(see prompt §8.2)*
-
-#### 🕓 16:00 UTC — X · Credibility post
-
-> Hard-numbers post to build pre-launch trust. Pull the latest numbers from `/api/stats` before posting.
+**16:00 UTC · X — Credibility post (pull live numbers from `/api/stats` first)**
 
 ```
-Before we hand out 6,000,000 $UNIQ, here's what Aegis Protocol actually is:
+Quietly, on BSC:
 
-• 5 contracts deployed on BSC Mainnet, Sourcify-verified
-• [X] real token scans run by users
-• [Y] wallets under Guardian Shield monitoring
-• [Z] holders of $UNIQ on-chain
-• AI decisions logged immutably via DecisionLogger
+🔍 [N] tokens scanned by real users
+🛡️ [M] wallets under Guardian protection
+💎 [K] $UNIQ holders
+🤖 [L] autonomous AI decisions logged on-chain
 
-We ship in public.
+Built by a 1-dev team. Live. Auditable.
 
-🛡️ aegis-protocol.xyz
+aegis-protocol.xyz
 ```
+🖼️ *Use image 2.B below.*
 
-🖼️ **Image 3 — "Live numbers card"** *(see prompt §8.3)*
-
-#### 🕖 19:00 UTC — Telegram
+**20:00 UTC · Telegram (pinned)**
 
 ```
-👀 Update for tomorrow:
+gm hunters 👋
 
-12:00 UTC sharp, full Protector Hunt rules drop on X + here.
+Tomorrow 12:00 UTC we drop the full rules of the biggest community moment Aegis has ever run.
 
-If you've ever wanted to be deep-OG in an actual security protocol (not the 47th memecoin) — this is the window.
+25,000,000 $UNIQ. Up to 151 real winners. Zero airdrop farming.
 
-A heads-up only people in this group will get: holding $UNIQ during the campaign multiplies your entries. Highest tier hits a 25× multiplier.
+If you've ever scanned a token with us or held $UNIQ — you're already in. Watch X tomorrow.
+```
 
-Do with that what you will.
+**🖼 Images**
+
+**Image 2.A · "25,000,000 $UNIQ" (square, X reveal)**
+
+```
+Cinematic editorial poster, 1:1 square, IMAX-grade detail. Set inside an obsidian-black void at #0A0A0B with subtle volumetric haze drifting from below. Camera: anamorphic 35mm, shallow depth-of-field, lens flare from a single off-frame golden light source rim-lighting the type from upper-right at 35°. Centerpiece: the number "25,000,000" rendered in heavy custom geometric sans, brushed-gold material #FACC15 with micro-imperfections, slight chromatic separation on the edges, casting a soft warm glow into the surrounding fog. Directly below in matte pure-white 18pt: "$UNIQ". A thin yellow horizontal divider 240px wide below the wordmark, slightly off-center. Below the divider in 13pt dim grey letter-spaced uppercase: "FOR THE PEOPLE WHO ACTUALLY PROTECT WALLETS." Bottom-right corner: small Aegis shield logo in white, half-occluded by the haze. Mood: high-end whisky ad meets Apple keynote. References: Blade Runner 2049 production stills, Apple Vision Pro reveal, Dune 2 typography posters. No emojis, no glow effects, no particles other than the natural atmospheric haze. Aspect ratio 1:1, 4096×4096.
+```
+
+**Image 2.B · "Quietly, on BSC" (16:9, credibility)**
+
+```
+Cinematic dashboard hero, 16:9 landscape. Set in a cavernous dark editorial space, pure black backdrop with depth — distant out-of-focus golden bokeh on the right edge suggesting a city at night. Camera: full-frame, 50mm, dramatic chiaroscuro lighting from a single yellow rim light at upper-left. Four floating glass-morphism stat cards arranged in a single row, each card is 320×420px, semi-transparent #141416 surface with a 1px hairline border that subtly catches the rim light, soft cast shadow underneath, gentle parallax depth between them. Each card contains: tiny uppercase yellow #FACC15 11pt label at top with a small dot indicator ("TOKENS SCANNED" / "GUARDIAN WALLETS" / "UNIQ HOLDERS" / "AI DECISIONS"), then an enormous pure-white 72pt number, then a 13pt dim grey sublabel ("real users only" / "live monitoring" / "on-chain verified" / "logged on-chain"). The cards have a subtle tilt-shift effect — the outer two slightly out of focus. Below the cards, single line of dim grey 16pt letter-spaced: "LIVE ON BSC MAINNET — aegis-protocol.xyz". Top-left in white: small "Aegis Protocol" wordmark. References: Linear product page hero, Vercel Edge product film, Apple Vision Pro stage stills. Aspect ratio 1.91:1.
 ```
 
 ---
 
-### 📅 Wednesday May 20
+### 🗓 Day -1 · Wednesday May 20 — Reveal thread + claim contract ships
 
-#### 🕛 12:00 UTC — X · **THE BIG REVEAL THREAD (8 posts)**
+**🛠 Build (3 tasks)**
 
-> Post as a thread. Replies stitched. Pin the first one. Schedule via TweetDeck for exact 12:00 UTC.
+1. **Deploy `AegisCampaignClaim.sol`** — Merkle-distributor with 25 % instant unlock + 75 % linear vesting over 14 days. Contract is ~120 LOC, well-trodden pattern, fork from Uniswap Merkle Distributor + add vesting. Deploy to BSC mainnet. Address goes in next-day's launch thread.
+2. **Deploy `AegisPass.sol`** — soulbound ERC-721, owner-only `mint(address to, uint8 tier)` where tier ∈ {1=Bronze, 2=Silver}. Update `TokenGate.getHolderTier()` to read pass first and return that tier if held.
+3. **`scripts/snapshot.ts`** + `scripts/draw.ts` — snapshot at draw block reads `balanceOf` for every entrant + computes entries; draw is deterministic from `keccak256(snapshotJSON || blockHash)`. Both committed to repo today.
 
-**Post 1/8 (the hero — image attached)**
+**📣 Posts**
 
+**12:00 UTC · X — THE BIG REVEAL THREAD (6 posts, not 8)**
+
+**1/6**
 ```
-🛡️ Protector Hunt is live in 24 hours.
+🛡️ Protector Hunt is live tomorrow.
 
-6,000,000 $UNIQ to the BSC users who actually protect wallets with Aegis.
+25,000,000 $UNIQ.
+Up to 151 winners.
+10 days. Zero engagement-farming. Zero airdrop bots.
 
-No follow-RT-tag-3-friends garbage. No bots winning.
+Every entry comes from one action that makes BSC safer.
 
-Every entry = one real, verifiable on-chain action.
+Thread 👇
+```
+🖼️ *image 3.A*
 
-10 days. 271 winners. Provably fair on-chain draw.
+**2/6 — Window**
+```
+2/ Window:
 
-🧵👇
+Opens Thu May 21 · 12:00 UTC
+Closes Sat May 31 · 12:00 UTC
+Snapshot taken at one BSC block, announced 24h in advance.
+
+Provably fair draw runs Mon Jun 1 · 16:00 UTC.
+Randomness from a BSC block hash that doesn't exist yet.
+Draw script open-sourced today: github.com/Tonyflam/aegis-protocol/blob/main/scripts/draw.ts
 ```
 
-🖼️ **Image 4 — "Protector Hunt hero"** *(see §8.4)*
-
-**Post 2/8 — Why this is different**
-
+**3/6 — Tiers**
 ```
-2/ Most BSC giveaways reward bots.
-
-We're a security protocol — our giveaway literally screens entrants through our own scanner. If your wallet flags as a drainer, sanctioned, or honeypot deployer, you're out.
-
-We disqualify in public. That's the marketing.
-```
-
-**Post 3/8 — The 7 tiers**
-
-```
-3/ How to enter (stackable — do all 7, get up to 51 entries):
+3/ Seven stackable tiers:
 
 1. Follow + RT + reply w/ a scan link + tag 2 BSC friends → 1
-2. Scan 1-5 unique BSC tokens at aegis-protocol.xyz → 1 each (max 5)
-3. Connect wallet to Guardian Shield → 3
+2. Scan 1-5 unique BSC tokens at aegis-protocol.xyz → 1 each (cap 5)
+3. Connect Guardian Shield → 3
 4. Link Telegram chat ID → 2
-5. Hold 10k $UNIQ at snapshot → 5
+5. Hold 10k $UNIQ → 5
 6. Hold 50k $UNIQ (Bronze) → 10
 7. Hold 100k $UNIQ (Silver) → 25
+
++ Referrals: any wallet you bring who finishes 2 of tiers 2-7 = +5 (cap 10).
+```
+🖼️ *image 3.B*
+
+**4/6 — Open Bounty**
+```
+4/ Open Bounty (no daily side-game):
+
+Real scams don't ship on a schedule. So we won't fake "threats" on a timer.
+
+Find a real malicious BSC token. Scan it on aegis-protocol.xyz. Quote-tweet your scan link + #AegisCaught + a one-line breakdown.
+
+We hand-verify. Each confirmed catch = 50,000 $UNIQ. Cap: 10 winners.
 ```
 
-🖼️ **Image 5 — "7 stackable tiers"** *(see §8.5)*
+**5/6 — The pool**
+```
+5/ The pool — 25,000,000 $UNIQ:
 
-**Post 4/8 — Open Bounty**
+🥇 1 winner — 5,000,000 + Founder's Shield + permanent Silver pass NFT
+🥈 5 winners — 1,000,000 each + permanent Bronze pass NFT
+🥉 25 winners — 200,000 each + OG role + 40 % fee discount 1 year
+🎟️ 100 random — 100,000 each
+⚔️ up to 10 Open Bounty — 50,000 each
+```
+🖼️ *image 3.C*
+
+**6/6 — Anti-dump, anti-sybil, claim mechanic**
+```
+6/ Anti-dump · anti-sybil · how you claim:
+
+🔒 Claim contract deploys today (BSC mainnet, audited Merkle distributor): 0xCLAIM
+   → 25% of your prize claimable immediately at draw
+   → 75% vests linearly over 14 days
+   → you self-custody, no team gatekeeping
+
+🚫 Every entrant gets scanned by our own scanner. Drainer · sanctioned · honeypot-deployer → disqualified. Public list on Day 8.
+
+🛡️ Permanent tier passes ship as soulbound NFTs. No expiry, no cliff.
+
+🎯 Check your live entries: aegis-protocol.xyz/campaign
+```
+🖼️ *image 3.D*
+
+**13:00 UTC · Telegram (pinned, replaces tease)** — same content, condensed to 6 messages.
+
+**19:00 UTC · X · Final tease**
 
 ```
-4/ Open Bounty:
+T-minus 17 hours.
 
-Real scams don't ship on a schedule. So we're not faking daily "threats."
+Claim contract live: 0xCLAIM (verifiable on bscscan)
+Pass NFT live: 0xPASS
+Draw block announced tomorrow 12:00 UTC in the launch tweet.
 
-Find a real malicious BSC token. Scan it on aegis-protocol.xyz. Quote-tweet your result + #AegisCaught.
+If you've ever used Aegis, you start at 1+ entries.
 
-We hand-verify. Each confirmed catch = 10,000 $UNIQ. Cap: 10 winners.
+aegis-protocol.xyz/campaign
 ```
 
-**Post 5/8 — Prize table**
+**🖼 Images**
+
+**Image 3.A · "Protector Hunt is live" (16:9 hero, post 1)**
 
 ```
-5/ The pool:
-
-🥇 Grand Prize × 1 → 1,500,000 $UNIQ + Founder's Shield OG role + lifetime Silver
-🥈 Top 2-6 → 300,000 each + lifetime Bronze
-🥉 Top 7-31 → 50,000 each + OG role
-🎟️ 140 random → 17,500 each
-⚔️ Open Bounty → 10,000 × up to 10 confirmed catches
+Cinematic hero poster, 1.91:1, IMAX-detail. Pure black void #0A0A0B with deep atmospheric haze and faint warm rim light pouring from upper-right at 30°. Left two-thirds of the frame: enormous text block stacked tight in heavy white geometric sans-serif — "PROTECTOR" / "HUNT" / "is live." — the word "live." rendered in molten gold #FACC15 with subtle anisotropic reflection and a single off-frame light source making the type's right edge glow. Subtle particulate dust in the air catching the light. Right third: a single hand-drawn shield silhouette rendered in thick warm yellow stroke, no fill, with ultra-faint geometric guard pattern radiating outward at 4% opacity. Bottom strip, full-width, 14pt letter-spaced dim grey: "25,000,000 $UNIQ · UP TO 151 WINNERS · 10 DAYS · PROVABLY FAIR · BSC MAINNET". Top-right corner: Aegis wordmark small in matte white. Camera: anamorphic 35mm, slight horizontal lens flare across the gold. References: Dune part two posters, Apple Vision Pro reveal, Foundation season 2 key art. Aspect ratio 1.91:1, 4096×2150.
 ```
 
-🖼️ **Image 6 — "Prize stack"** *(see §8.6)*
-
-**Post 6/8 — Anti-dump**
+**Image 3.B · "Seven stackable tiers" (1:1 square, post 3)**
 
 ```
-6/ Anti-dump (this matters):
-
-Winners don't get cash to dump.
-
-You claim by depositing your prize into the Aegis Vault.
-50% unlocks day 1. 50% unlocks day 14.
-
-You earn Venus yield on it the whole time. We protect the chart. You get protected yield. Win-win.
+Editorial infographic poster, 1:1 square, cinematic atmospheric lighting in a pure-black room with soft volumetric haze. Camera: slight 5° tilt-down perspective, mild depth-of-field where lower rows are crisper than upper. A vertical numbered list of 7 floating cards stacked top to bottom, each card is 1100×120 px floating in mid-air with subtle drop shadows and a 1px hairline of brushed gold #FACC15 catching a rim light from upper-right. Each card contains, left-to-right: a circular badge 1-7 (white digit on glowing yellow disk, with faint radial bloom), the row label in pure white 22pt sans ("Follow + RT + reply" / "Scan 1-5 tokens" / "Connect Guardian Shield" / "Link Telegram" / "Hold 10k UNIQ" / "Hold 50k UNIQ" / "Hold 100k UNIQ"), and on the right the entry count in heavy yellow 28pt ("1" / "1-5" / "3" / "2" / "5" / "10" / "25"). Cards are perfectly aligned vertically with 12px gaps. Above them in 13pt letter-spaced dim grey uppercase: "STACK ALL SEVEN → 51 ENTRIES." Below the cards: thin yellow divider then tiny "aegis-protocol.xyz/campaign" in matte white. No emoji, no plastic gloss. References: Linear changelog hero, Stripe Press, Apple HIG. Aspect ratio 1:1, 4096×4096.
 ```
 
-**Post 7/8 — On-chain randomness**
+**Image 3.C · "The 25M pool" (4:5 portrait, post 5)**
 
 ```
-7/ Provably fair:
-
-Final draw randomness = blockhash of a pre-announced BSC block at 16:00 UTC on Jun 1.
-
-Draw script is open-sourced 24h before draw. Anyone can re-run it locally and verify.
-
-No trust required. That's the whole point of this protocol.
+Cinematic prize-table poster, 4:5 portrait, IMAX detail. Set in an obsidian void with deep atmospheric haze and a single warm gold rim light pouring from upper-left at 20°, casting soft falloff across the canvas. Five stacked horizontal cards, each is a #141416 surface with 1px brushed-gold border that catches the rim light, casting a soft warm shadow on the row below. Each card has: a metallic badge on the far left (gold for grand, silver for top 5, bronze for top 25, neutral for random, red-edged tactical for bounty — rendered as small physical 3D objects with realistic reflections), in the center a huge pure-white 56pt number ("5,000,000" / "1,000,000" / "200,000" / "100,000" / "50,000"), the word "$UNIQ" in dim 14pt grey below, and on the right the winner count in yellow 20pt ("× 1" / "× 5" / "× 25" / "× 100" / "× up to 10"). Above the stack in small uppercase letter-spaced grey 13pt: "THE POOL — 25,000,000 $UNIQ". Below the stack: thin yellow divider then 12pt dim grey "draw verified · block announced in advance · script open-source". Bottom-right: small shield logo in white catching faint rim light. References: Apple Vision Pro pricing layout, Tag Heuer editorial spread, IWC watch print campaign. Aspect ratio 4:5, 4096×5120.
 ```
 
-**Post 8/8 — CTA**
+**Image 3.D · "Anti-dump, anti-sybil, claim" (16:9, post 6)**
 
 ```
-8/ Starts tomorrow, Thursday May 21, 12:00 UTC.
-Ends Saturday May 31, 12:00 UTC.
-
-Be early. The leaderboard goes live with the campaign.
-
-🛡️ aegis-protocol.xyz/campaign
-
-RT post 1 to enter tier 1.
-```
-
-#### 🕐 13:00 UTC — Telegram (pinned, replaces previous)
-
-> Copy the thread above into a single Telegram pinned post. Format:
-
-```
-🛡️ PROTECTOR HUNT — full rules
-
-Starts: Thursday May 21, 12:00 UTC
-Ends: Saturday May 31, 12:00 UTC
-Pool: 6,000,000 $UNIQ
-Winners: 271
-Draw: Mon Jun 1, 16:00 UTC (provably fair, on-chain)
-
-How to enter (stackable):
-1. Follow + RT + reply w/ scan link + tag 2 friends → 1 entry
-2. Scan 1-5 unique BSC tokens at aegis-protocol.xyz/scanner → 1 each (max 5)
-3. Connect Guardian Shield → 3 entries
-4. Link Telegram chat ID → 2 entries
-5. Hold 10k $UNIQ → 5 entries
-6. Hold 50k $UNIQ → 10 entries
-7. Hold 100k $UNIQ → 25 entries
-
-🎁 Open Bounty (no daily side-game):
-Find a real malicious BSC token, scan it on aegis-protocol.xyz, quote-tweet your result with #AegisCaught. Each confirmed catch = 10,000 $UNIQ. Cap: 10 winners across the whole campaign. Hand-judged.
-
-Prizes:
-🥇 1 winner — 1,500,000 $UNIQ + Founder's Shield + lifetime Silver
-🥈 5 winners — 300,000 each + lifetime Bronze
-🥉 25 winners — 50,000 each
-🎟️ 140 random — 17,500 each
-⚔️ up to 10 Open Bounty winners — 10,000 each
-
-Winners claim via vault deposit (50% day 1, 50% day 14).
-
-Track entries live: aegis-protocol.xyz/campaign
-Type /campaign here for your live tally.
-
-Good luck hunters.
-```
-
-#### 🕖 19:00 UTC — X · Final tease
-
-```
-24 hours.
-
-Holders, scanners, Guardian users — your existing actions already count as entries when we snapshot tomorrow.
-
-You don't have to start from zero.
-
-aegis-protocol.xyz/campaign goes live 12:00 UTC.
+Cinematic split-frame, 1.91:1 landscape, IMAX detail, pure black void. Three vertical translucent panels separated by faint gold dividers, each panel reads top-to-bottom: panel 1 has a glowing yellow padlock icon at top (hand-rendered minimalist line art), label "VESTING" in 22pt white below, sublabel "25% INSTANT / 75% 14-DAY LINEAR" in 13pt dim grey; panel 2 has a small radar-sweep graphic in yellow at top, label "ANTI-SYBIL" in 22pt white, sublabel "EVERY ENTRANT SCANNED · DISQUALIFIED LIST PUBLISHED MAY 28" in 13pt dim grey; panel 3 has a hand-drawn shield outline in yellow at top, label "PERMANENT PASS" in 22pt white, sublabel "SOULBOUND ERC-721 · NO EXPIRY" in 13pt dim grey. Each panel is lit by its own subtle off-frame light source for depth. Bottom strip: dim grey 13pt centered "aegis-protocol.xyz/campaign". Mood: serious, engineering-grade, premium. References: Stripe security page hero, Linear product film, Apple Privacy page editorial. Aspect ratio 1.91:1.
 ```
 
 ---
 
-## 4 · Launch day · Thursday May 21
+### 🚀 Day 0 · Thursday May 21 — LAUNCH
 
-> Treat this like a product launch, not a tweet. You'll be hands-on for 6 hours.
+**🛠 Build (pre-flight only — no new code)**
 
-### 🕙 10:00 UTC — Pre-flight (your checklist)
+- [ ] `npm run build` clean, Vercel production green
+- [ ] Visit `/campaign` logged-out → countdown gone, "LIVE" state shows
+- [ ] Run `node scripts/snapshot.ts day0` → commit `snapshots/day0.json`
+- [ ] Confirm Telegram bot `/campaign` returns numbers for a test wallet
+- [ ] Treasury wallet funded with ≥ 25.5M $UNIQ (visible on bscscan, tweet it)
+- [ ] Claim contract + Pass contract verified on bscscan with sources
 
-- [ ] Run `npm run build` locally, push if anything pending
-- [ ] Confirm Vercel production deploy is green on commit X
-- [ ] Visit `/campaign` from a logged-out wallet — confirm copy + countdown
-- [ ] Visit `/campaign` from your wallet — confirm entry counter ✓
-- [ ] Run `node scripts/snapshot.ts day0` and commit `snapshots/day0.json`
-- [ ] Verify Telegram bot `/campaign` command returns numbers
-- [ ] Today's TOTD token loaded into Redis: `SET campaign:totd:2026-05-21 0x...`
-- [ ] Threat-of-the-Day image generated for today
+**📣 Posts**
 
-### 🕛 12:00 UTC — **LAUNCH**
-
-#### X · Launch post (standalone, NOT a thread reply)
+**12:00 UTC · X (standalone, NOT a thread reply)**
 
 ```
 The hunt is live.
 
-6,000,000 $UNIQ. 271 winners. 10 days. Zero engagement-farming.
+25,000,000 $UNIQ. Up to 151 winners. 10 days. Zero engagement-farming.
 
 Check your live entries → aegis-protocol.xyz/campaign
 
 If you've ever scanned a token or held $UNIQ, you already have entries.
+
+Draw block: BSC #[ANNOUNCE BLOCK NUMBER, ~JUN 1 16:00 UTC]
+Claim contract: bscscan.com/address/0xCLAIM
+Treasury proof: bscscan.com/address/0xTREASURY (25.5M $UNIQ visible)
 ```
+🖼️ *image 0.A*
 
-🖼️ **Image 7 — "Hunt is live"** *(see §8.7)*
-
-#### X · Pinned (quote-tweet the reveal thread)
+**12:05 UTC · X (pinned — quote-tweet the reveal thread)**
 
 ```
 ↑ Full rules.
@@ -420,687 +351,535 @@ Pinning this for 10 days.
 Type /campaign in our Telegram for your live entry count.
 ```
 
-#### Telegram · Drop in main group
+**12:10 UTC · Telegram (main group)**
 
 ```
 🟢 LIVE.
 
 aegis-protocol.xyz/campaign
 
-DM @aegis_protocol_bot → /campaign to see your live entry count and leaderboard rank.
+DM @aegis_protocol_bot → /campaign for your live entry count and leaderboard rank.
 
-Open Bounty is live: find a real malicious BSC token, scan it, QT with #AegisCaught. Up to 10 catches × 10k $UNIQ.
+Open Bounty is open. Find a real one, QT with #AegisCaught. Up to 10 catches × 50k $UNIQ.
 ```
 
-*Day 1 has no scheduled "threat reveal" — the bounty stays open the whole campaign. We're not faking threats on a timer.*
-
-### 🕖 19:00 UTC — Leaderboard pulse #1
-
-> Pull live numbers from `/api/campaign/leaderboard` 7h into the campaign.
-
-#### X
+**19:00 UTC · X — 7-hour pulse**
 
 ```
 7 hours in.
 
 [N] hunters entered.
 [M] tokens scanned today.
-[K] guardian shields activated.
+[K] Guardian shields activated.
 
-Current top wallet: 0xabcd...wxyz with [E] entries.
+Current top wallet: 0xabcd…wxyz with [E] entries.
 
-Leaderboard updates live: aegis-protocol.xyz/campaign
-
+aegis-protocol.xyz/campaign — leaderboard updates every 60s.
 It's day 1. Plenty of room.
 ```
 
-#### Telegram
-
-```
-🟢 7 hours in:
-
-✓ [N] hunters
-✓ [M] scans today
-✓ [K] Guardian shields up
-
-Top wallet: 0xabcd...wxyz ([E] entries).
-
-You're not too late. /campaign for your number.
-```
-
-### 🕘 21:00 UTC — Daily wrap (X only)
+**21:00 UTC · X — daily wrap**
 
 ```
 Day 1 done.
 
-TOTD #1 winners (10 wallets, 10,000 $UNIQ each, paid Jun 1):
-1. 0xabc...
-2. 0xdef...
-...
-10. 0xjkl...
+[N] hunters entered.
+[M] BSC tokens scanned by Aegis users today.
+[K] new Guardian shields.
 
-Day 2 TOTD drops tomorrow 14:00 UTC.
+Open Bounty live the whole window. Find a real one, QT with #AegisCaught.
 
-Snipe carefully.
+Day 2 starts in ~12h.
 ```
 
-🖼️ **Image 9 — "TOTD winners card"** *(see §8.9)*
+**🖼 Images**
+
+**Image 0.A · "The hunt is live" (16:9 launch hero)**
+
+```
+Cinematic launch still, 1.91:1 landscape, IMAX hyper-detail. Pure obsidian void with deep volumetric haze and a single anamorphic gold light streak across the upper-third. Center-left: three-line text block stacked tight — "the hunt" in pure-white 110pt thin geometric sans / a tiny floating "is" in 28pt grey on its own line / "live." in molten yellow #FACC15 160pt heavy sans with subtle metallic micro-reflection and a faint warm bloom into the haze. To the immediate right of "live." a single pulsing solid yellow disk 16px with a subtle radial glow suggesting heartbeat. Bottom-left: small URL "aegis-protocol.xyz/campaign" in matte white 16pt. Bottom-right: Aegis shield small in white catching faint rim light. Mood: declarative, calm, irreversibly underway. References: Dune part two key art, Apple Vision Pro launch stills, Foundation s2 finale poster. Aspect ratio 1.91:1, 4096×2150.
+```
 
 ---
 
-## 5 · Daily playbook (May 22 - May 30)
+### 🗓 Day 1 · Friday May 22 — "Why Guardian Shield"
 
-> 9 days of repeatable rhythm. **No daily Threat-of-the-Day ritual** — the Open Bounty stays passively open the whole window. If we organically spot a real bad token mid-campaign, we can announce it ad-hoc via `POST /api/campaign/totd` (the endpoint stays).
+**🛠 Build:** none (campaign runs itself today).
 
-### Daily rhythm template
+**📣 Posts**
 
-| UTC | Action | Effort |
-|---|---|---|
-| 09:00 | Morning post (theme-of-the-day, see § below) | 5 min |
-| 14:00 | *(skipped — no scheduled threat reveal)* | 0 min |
-| 19:00 | Leaderboard pulse + 1 user spotlight | 10 min |
-| 21:00 | Daily wrap (numbers + any bounty catches verified that day) | 20 min |
-| Telegram | 4-6 messages spread organically through the day | 20 min |
-
-### Themes-of-the-day (drives content variety)
-
-| Day | Date | Theme | Morning angle |
-|---|---|---|---|
-| 2 | Fri May 22 | **Why Guardian Shield** | Demo: a real rugpull alert Telegram screenshot |
-| 3 | Sat May 23 | **Why $UNIQ tiers matter** | Compare Bronze/Silver/Gold benefits, weekend spike |
-| 4 | Sun May 24 | **Hunter spotlight** | Interview the current #1 wallet (or pseudonymous) |
-| 5 | Mon May 25 | **Halfway! Big numbers reveal** | Pulse: total scans / shields / followers vs Day 0 |
-| 6 | Tue May 26 | **Vault yield math** | Show real Venus APY + how winners stack yield |
-| 7 | Wed May 27 | **Threat post-mortems** | Recap the worst tokens caught so far |
-| 8 | Thu May 28 | **Anti-sybil announcement** | Drop the disqualified-wallet list. Public. Brutal. |
-| 9 | Fri May 29 | **Last weekend warning** | Holding-tier snapshot is Saturday — buy now or lose multiplier |
-| 10 | Sat May 30 | **Final 24h countdown** | Hourly leaderboard updates |
-
-### Morning post templates
-
-#### Day 2 (Fri May 22) · "Why Guardian Shield"
+**09:00 UTC · X**
 
 ```
-24 hours ago, wallet 0x...xxxx held a token that lost 40% in 6 hours.
+24 hours ago, a wallet held 4 BNB worth of $XYZ.
+That token's contract was upgraded mid-trade and lost 41% in 6 hours.
 
-Guardian Shield pinged them via Telegram before the dump. They exited at -3%.
+If they had Guardian Shield on, they'd have gotten a Telegram ping the moment the upgrade hit. Most don't.
 
-That's the product.
+Free. 3 entries to Protector Hunt.
+aegis-protocol.xyz/guardian
+```
+🖼️ *image 1.A — see below*
 
-Connect your wallet → aegis-protocol.xyz/guardian
-+3 entries to Protector Hunt.
+**14:00 / 19:00 / 21:00** — leaderboard pulse template (see end of §2).
+
+**🖼 Image 1.A · "Guardian alert ping"**
+
+```
+Cinematic dark device mockup, 4:5 portrait, IMAX hyper-detail. A single iPhone-style device floating in obsidian black at a 15° tilt, screen-on, showing a Telegram chat interface with one alert bubble visible. The bubble is from "@aegis_protocol_bot" and reads in pure white 14pt: "⚠️ ALERT — Token in your wallet just had its contract upgraded. Risk score jumped 23→81. Suggested: exit position." Below the bubble, a small yellow timestamp "07:42 UTC". The device is lit by warm gold rim light from upper-right and cool blue fill from lower-left, screen glow softly illuminating a thin atmospheric haze around it. Around the device, in the void, faint floating ticker text in mono dim grey showing partial token addresses and decreasing price percentages, slightly out of focus. Bottom strip: dim grey 14pt "Guardian Shield — free. Live. aegis-protocol.xyz/guardian". Top-left tiny Aegis logo. References: Apple iPhone launch stills, Bloomberg Terminal cinematic, Severance show stills. Aspect ratio 4:5.
 ```
 
-🖼️ Image: real Telegram alert screenshot (mask wallet) — see §8.10
+---
 
-#### Day 3 (Sat May 23) · "$UNIQ tiers"
+### 🗓 Day 2 · Saturday May 23 — "Why $UNIQ tiers matter"
+
+**📣 09:00 UTC · X**
 
 ```
-The single best leverage in Protector Hunt isn't activity. It's the holding multiplier.
+Best leverage in Protector Hunt isn't activity. It's the multiplier.
 
-10,000 $UNIQ → 5 entries
-50,000 $UNIQ (Bronze) → 10 entries + AI Gold scans + fee discount
-100,000 $UNIQ (Silver) → 25 entries + Telegram alerts + 40% fee discount
+10k $UNIQ → 5 entries
+50k $UNIQ (Bronze pass) → 10 entries + AI Gold scans + fee discount
+100k $UNIQ (Silver pass) → 25 entries + Telegram priority alerts + 40% fee discount
 
-Snapshot ends Saturday May 30. Eight days to compound.
+Snapshot is one block, announced 24h ahead. Weekend's a good time to compound.
+aegis-protocol.xyz/campaign
+```
+🖼️ *image 2.C below*
 
+**🖼 Image 2.C · "Tier ladder"**
+
+```
+Editorial 3-step ladder visualization, 1:1 square, IMAX detail. Pure black void with warm gold rim light from upper-right. Three floating physical tiers rendered as thick glass-and-metal plinths receding into shallow depth — bronze on the left (lowest, copper-warm material), silver in the middle (cool brushed material, slightly taller), gold on the right (tallest, warm molten material catching the most light). Each plinth has its label floating above in 18pt white sans ("10K" / "50K · BRONZE PASS" / "100K · SILVER PASS") and entry-count number on the plinth face in molten yellow 36pt ("5" / "10" / "25"). Subtle atmospheric haze around the bases. References: Olympic medal photography, IWC editorial campaign, F1 podium stills. Aspect ratio 1:1.
+```
+
+---
+
+### 🗓 Day 3 · Sunday May 24 — "Hunter spotlight"
+
+**📣 09:00 UTC · X (pull from leaderboard at 08:55 UTC)**
+
+```
+Hunter Spotlight: 0xab…cd
+
+✓ 4 unique tokens scanned (one had risk score 87)
+✓ Guardian Shield on 12 holdings
+✓ 51,000 $UNIQ held (Bronze pass)
+✓ Currently 19 entries · #4 on leaderboard
+
+This is exactly who we built this for.
 aegis-protocol.xyz/campaign
 ```
 
-#### Day 4 (Sun May 24) · "Hunter spotlight"
+**Image:** generated from a real wallet card screenshot — no fresh prompt needed.
 
-```
-Hunter Spotlight: 0xab...cd
+---
 
-• 4 unique tokens scanned (including a $87 risk-score one)
-• Guardian Shield active on 12 holdings
-• 51,000 $UNIQ held
-• Currently 19 entries · #4 on leaderboard
+### 🗓 Day 4 · Monday May 25 — Halfway pulse + claim contract reminder
 
-This is exactly the user we built this for.
+**🛠 Build:** quick smoke-test of `AegisCampaignClaim.sol` on testnet with 3 test wallets (catch any vesting math bugs while there's still time).
 
-aegis-protocol.xyz/campaign
-```
-
-#### Day 5 (Mon May 25) · "Halfway numbers"
-
-> Pull from `/api/stats` and `/api/campaign/leaderboard` at 08:55 UTC.
+**📣 09:00 UTC · X**
 
 ```
 Halfway pulse:
 
 📊 [X] hunters entered
-🔍 [Y] tokens scanned during campaign
+🔍 [Y] tokens scanned during campaign (vs baseline +[Δ])
 🛡️ [Z] new Guardian wallets
-💎 [W] $UNIQ holders gained
+💎 [W] new $UNIQ holders
 🪙 [V] BNB net new in vault
 
-Five days left. The leaderboard's top 6 is still moving every hour.
-
+Five days left. Top 6 spots are still moving every hour.
 aegis-protocol.xyz/campaign
 ```
+🖼️ *image 4.A*
 
-🖼️ **Image 10 — "Halfway pulse card"** *(see §8.10)*
-
-#### Day 6 (Tue May 26) · "Vault yield math"
-
-```
-Why Protector Hunt winners claim through the vault:
-
-• Venus supply APY today: ~[X]%
-• Your prize earns yield from day 1
-• 50% unlocks day 1, 50% unlocks day 14
-• AI guards your position the whole time
-
-A 100,000 $UNIQ prize doesn't just sit. It compounds.
-
-aegis-protocol.xyz/vault
-```
-
-#### Day 7 (Wed May 27) · "Threat post-mortems"
+**21:00 UTC · X (quote-tweet your launch thread)**
 
 ```
-The 5 worst tokens Aegis caught this week:
-
-1. $XXX — risk 94/100 · honeypot pattern matched
-2. $YYY — risk 91/100 · LP rug 6h after launch
-3. $ZZZ — risk 88/100 · ownership not renounced
-4. $AAA — risk 87/100 · 41% supply in deployer wallet
-5. $BBB — risk 85/100 · contract upgraded mid-trade
-
-Scan before you ape. aegis-protocol.xyz
+Reminder: every prize ships through our open-source Merkle claim contract.
+25% claimable instantly at draw. 75% vests linearly over 14 days.
+No team gatekeeping. No "deposit into a vault you don't control."
+0xCLAIM — verified on bscscan.
 ```
 
-🖼️ Image: a 5-row leaderboard of red-flagged tokens — see §8.11
+**🖼 Image 4.A · "Halfway pulse"**
 
-#### Day 8 (Thu May 28) · "Anti-sybil"
+```
+Cinematic statistical poster, 1:1 square, IMAX detail. Pure black void with deep atmospheric haze and warm gold rim light from upper-left. A 2×2 grid of four floating glass-morphism cards, each card #141416 surface with 1px brushed-gold hairline, soft drop shadow, gentle parallax depth between them. Each card contains: a large arrow-up icon in molten yellow #FACC15 36pt in top-left, a small uppercase 12pt grey letter-spaced label below the arrow ("SCANS" / "GUARDIAN WALLETS" / "UNIQ HOLDERS" / "BNB IN VAULT"), and an enormous pure-white 72pt delta number at bottom ("+1,247" / "+312" / "+486" / "+38"). Below the grid in centered 16pt dim grey letter-spaced: "HALFWAY PULSE — DAY 5 OF 10". Top-left small Aegis wordmark white. References: Linear product page hero, Vercel analytics film stills, Apple keynote slide. Aspect ratio 1:1.
+```
+
+---
+
+### 🗓 Day 5 · Tuesday May 26 — "The claim mechanic explained"
+
+**🛠 Build:** ship `AegisCampaignClaim.sol` to **mainnet**. Verify source. Tweet address.
+
+**📣 09:00 UTC · X**
+
+```
+How prizes ship (mechanically):
+
+1. Mon Jun 1 16:00 UTC — we run scripts/draw.ts live
+2. winners.json + Merkle root → committed to repo
+3. Each winner gets a personalized claim URL: aegis-protocol.xyz/campaign/claim?w=…
+4. Sign once → 25% lands in your wallet immediately
+5. 75% unlocks linearly over 14 days through 0xCLAIM
+
+You self-custody the whole way. No team key, no admin pause.
+```
+
+**21:00 UTC · X**
+
+```
+Claim contract live on mainnet:
+bscscan.com/address/0xCLAIM
+
+Source verified. 119 lines. Standard Merkle distributor + linear vesting.
+Audited internally. We're a 1-dev team — you should diff it before draw day.
+```
+
+---
+
+### 🗓 Day 6 · Wednesday May 27 — "Threats we caught this week"
+
+**📣 09:00 UTC · X**
+
+```
+The 5 worst tokens Aegis Scanner caught this week:
+
+1. $XXX — risk 94 · honeypot pattern matched
+2. $YYY — risk 91 · LP rugged 6h after launch
+3. $ZZZ — risk 88 · ownership renounced to dead address but proxy upgradeable
+4. $AAA — risk 87 · 41% supply in one wallet
+5. $BBB — risk 85 · contract upgraded mid-trade
+
+Scan before you ape.
+aegis-protocol.xyz
+```
+🖼️ *image 6.A*
+
+**🖼 Image 6.A · "Caught threats" (4:5)**
+
+```
+Cinematic dark leaderboard, 4:5 portrait, IMAX detail. Pure black void with subtle blood-red rim light from upper-right at 15° (very subdued, not horror — surgical). Centered title at top in small uppercase letter-spaced yellow 14pt: "FIVE WORST TOKENS AEGIS CAUGHT THIS WEEK". Below, five thin horizontal cards stacked, each is #141416 with a 1px gold hairline that catches the rim light. Each card row, left-to-right: a metallic rank badge 1-5 in yellow, the token symbol in pure white 26pt ($XXX, $YYY, …), one-line dim-grey reason in 13pt directly below the symbol ("honeypot pattern matched", etc.), and on the right a large red 22pt risk score "94/100" with a small red warning triangle icon. The triangles have a faint red glow into the surrounding haze. Bottom strip: dim grey 14pt "scan before you ape — aegis-protocol.xyz". References: Bloomberg Terminal cinematic, Severance corporate UI, Mr. Robot interface stills. Aspect ratio 4:5.
+```
+
+---
+
+### 🗓 Day 7 · Thursday May 28 — "Disqualified" (the brutal-honesty post)
+
+**🛠 Build:** export current disqualified set to `public/campaign/disqualified-may28.json` and link.
+
+**📣 09:00 UTC · X**
 
 ```
 Public housekeeping.
 
 The following [N] wallets are disqualified from Protector Hunt:
 
-[list of wallet addresses + reason: "drainer history", "honeypot deployer", "<24h funded + dumped 80%"]
+[wallet 1] — drainer history
+[wallet 2] — honeypot deployer
+[wallet 3] — sub-24h funded + dumped 80%
+[wallet 4] — sybil cluster
+[…]
 
 We scan our entrants with our own scanner. We built this to filter exactly this.
-
-Real users only.
+Real users only. Full list: aegis-protocol.xyz/campaign/disqualified
 ```
+🖼️ *image 7.A*
 
-🖼️ Image: a clean redaction-style screenshot of the disqualified list — see §8.12
-
-#### Day 9 (Fri May 29) · "Last weekend"
+**🖼 Image 7.A · "Disqualified list"**
 
 ```
-Holding-tier snapshot starts in 24h.
-
-If you want the 5× / 10× / 25× entry multiplier on your $UNIQ, buy and HODL through Saturday May 30, 12:00 UTC.
-
-Flash buys won't count — we snapshot Transfer events.
-
-aegis-protocol.xyz/campaign
+Cinematic brutal-honesty editorial poster, 1.91:1 landscape, IMAX detail. Pure black void with subtle cold-grey atmospheric haze, no warm tones. Centered title in small uppercase letter-spaced yellow 14pt: "DISQUALIFIED — [N] WALLETS". Below, vertical list of 6-8 wallet rows. Each row: monospace wallet address truncated middle ("0xabcd…wxyz") in 18pt cool-grey white, on the right a small uppercase red 12pt tag in a thin red-bordered pill ("DRAINER HISTORY" / "HONEYPOT DEPLOYER" / "SUB-24H DUMP" / "SYBIL CLUSTER" / "SANCTIONED"). Rows separated by 1px hairline #2A2A2D. Subtle red rim glow on the tags but no other warmth. Bottom dim grey 13pt italic: "we scan our entrants with our own scanner. that's the standard." Top-right small shield logo. References: declassified document aesthetic, Severance corporate notice, brutalist editorial. Aspect ratio 1.91:1.
 ```
-
-#### Day 10 (Sat May 30) · "Final 24h"
-
-```
-24 hours left.
-
-Top of the leaderboard right now:
-🥇 0xa...x · [E] entries
-🥈 0xb...y · [E] entries
-🥉 0xc...z · [E] entries
-
-Top 6 win 300k+ $UNIQ each. Two are within reach if you act today.
-
-aegis-protocol.xyz/campaign
-```
-
-> Then post leaderboard updates **every 3 hours** on Day 10 (15:00, 18:00, 21:00, 00:00, 03:00, 06:00, 09:00). Same template, different numbers. This is the urgency engine.
-
-### Daily wrap template (every night 21:00 UTC)
-
-```
-Day [N] of 10 done.
-
-Today's numbers:
-✓ [X] new scans
-✓ [Y] new Guardian wallets
-✓ [Z] new TG members
-✓ [W] new holders
-
-TOTD #[N] winners (10k $UNIQ each):
-1. 0x...
-2. 0x...
-…
-10. 0x...
-
-Leaderboard top 3:
-🥇 0x...x · [E] entries
-🥈 0x...y · [E] entries
-🥉 0x...z · [E] entries
-
-aegis-protocol.xyz/campaign
-```
-
-### Threat of the Day template (every day 14:00 UTC, May 21-30)
-
-> 10 TOTDs to ship. Pre-pick all 10 on Day -1 (May 20) and keep them in a private note. Each must have risk score ≥ 75/100 and at least mild trading activity (so participants actually see a real result).
-
-```
-⚔️ Threat of the Day #[N]
-
-Token: $[SYMBOL]
-Address: 0x...
-Risk score: [X]/100
-
-First 10 wallets to scan + quote-tweet with #AegisCaught win 10,000 $UNIQ each.
-
-aegis-protocol.xyz/scan/0x...
-
-GO.
-```
-
-### Telegram daily cadence (organic, throughout day)
-
-Spread 4-6 messages per day. Examples to rotate:
-
-- *gm hunters · [N] entries already in today*
-- *anyone else seeing TOTD #[N] is going to be brutal? scan it carefully, the contract is sneaky*
-- *current top 3 in protector hunt: [list] · gap to #1 is only [X] entries*
-- *quick reminder: holding 50k $UNIQ = 10 entries. that's not nothing.*
-- *just disqualified 3 wallets for sybil — see today's X post*
-- *leaderboard moved hard in the last hour. open /campaign in the bot to check yourself.*
-- *vault is now at [X] BNB TVL. winners will earn Venus yield on prizes from day 1.*
 
 ---
 
-## 6 · Final day · Saturday May 31
+### 🗓 Day 8 · Friday May 29 — "Last weekend, snapshot countdown"
 
-### 🕛 12:00 UTC — Snapshot closes
-
-#### Action (your hands)
-1. Run `node scripts/snapshot.ts final` → outputs `snapshots/final.json` with all 7 tier states locked
-2. Run `node scripts/disqualify-bad-wallets.ts` one final pass
-3. Commit & push: `git add snapshots/ && git commit -m "campaign: final snapshot" && git push`
-
-#### X · Snapshot tweet
+**📣 09:00 UTC · X**
 
 ```
-Snapshot taken.
+Snapshot block is in 48h.
 
-[N] eligible wallets · [E] total entries · top 6 within 8 entries of each other.
+If you want the 5× / 10× / 25× multiplier on your $UNIQ, hold through the snapshot block (announced 12h ahead, on May 30 21:00 UTC).
 
-Provably fair draw runs Monday Jun 1, 16:00 UTC.
-Block #[ANNOUNCE] will provide randomness.
-Draw script open-sourced now: github.com/Tonyflam/aegis-protocol/blob/main/scripts/draw.ts
+We read balanceOf at one block. Single-block snapshot. No "continuously held for 10 days" gotcha — but also no flash-buy at minute -1.
 
-48 hours until winners.
+aegis-protocol.xyz/campaign
 ```
 
-🖼️ **Image 13 — "Snapshot taken"** *(see §8.13)*
+---
 
-#### Telegram (pinned, replaces rules pin)
+### 🗓 Day 9 · Saturday May 30 — "Final 24h — leaderboard ticks every 3h"
+
+**🛠 Build:** at **21:00 UTC sharp**, post the snapshot block number (use `getBlockNumber()` + ~10800 = expected block at May 31 12:00 UTC).
+
+**📣 Post the leaderboard every 3 hours starting 15:00 UTC.**
+
+**Template:**
+```
+[H] hours left.
+
+🥇 0xa…x · [E] entries
+🥈 0xb…y · [E] entries
+🥉 0xc…z · [E] entries
+[next 3 wallets]
+
+Top 6 wins ≥ 1,000,000 $UNIQ each. Two are within reach if you act in the next [H] hours.
+aegis-protocol.xyz/campaign
+```
+
+**21:00 UTC · X & Telegram pinned**
 
 ```
-📸 Snapshot taken.
+Snapshot block: BSC #[X]
+Expected timestamp: May 31 · 12:00 UTC ± 30s
 
-[N] eligible wallets.
-[E] total entries.
+Holdings checked at that block.
+You can verify by querying bscscan at that block height.
 
-Provably fair draw: Monday Jun 1, 16:00 UTC
-Randomness source: BSC block #[ANNOUNCED-IN-ADVANCE] hash
+Final hours.
+```
+
+---
+
+### 🏁 Day 10 · Saturday May 31 — Snapshot closes
+
+**🛠 Build**
+
+- [ ] At expected block — run `node scripts/snapshot.ts final --block <X>` → commits `snapshots/final.json`
+- [ ] Run final disqualification pass
+- [ ] Compute Merkle root → commit
+- [ ] Push to GitHub
+
+**📣 12:00 UTC · X**
+
+```
+Snapshot taken at BSC #[X].
+
+[N] eligible wallets · [E] total entries · top 6 within [Δ] entries of each other.
+
+Provably fair draw runs Mon Jun 1 · 16:00 UTC.
+Block #[ANNOUNCE] provides randomness.
 Draw script: github.com/Tonyflam/aegis-protocol/blob/main/scripts/draw.ts
+Snapshot: github.com/Tonyflam/aegis-protocol/blob/main/snapshots/final.json
+Merkle root: 0xMERKLE
 
-You can clone the script now and confirm the algorithm yourself.
-
-Winners post in this group + on X at 17:00 UTC Monday.
+48 hours.
 ```
+🖼️ *image 10.A*
 
-### 🕕 18:00 UTC — Hype build
+**🖼 Image 10.A · "Snapshot locked"**
 
 ```
-36 hours.
-
-Run the draw script locally if you want to be early:
-git clone github.com/Tonyflam/aegis-protocol
-cd aegis-protocol/scripts
-ts-node draw.ts --snapshot ../snapshots/final.json --block [#]
-
-The block hash doesn't exist yet — but the algorithm does. That's the whole point.
+Cinematic still, 16:9 landscape, IMAX detail. Pure obsidian black void with quiet atmospheric haze and a single warm gold key light from upper-center revealing dust particles in the air. Centered single line in pure-white heavy geometric sans 96pt: "snapshot taken." Below in 20pt dim grey letter-spaced: "[N] eligible wallets · [E] total entries · top 6 within [Δ] entries". A thin gold horizontal divider 280px below. Below the divider in 14pt letter-spaced uppercase yellow: "DRAW · MON JUN 1 · 16:00 UTC · BLOCK #[X]". Bottom corners: tiny shield logo lower-left, "aegis-protocol.xyz/campaign" lower-right in 12pt dim grey. Mood: locked, irreversible, premium. References: Dune part two ending stills, Foundation s2 finale poster. Aspect ratio 1.91:1.
 ```
 
 ---
 
-## 7 · Draw day · Monday Jun 1
+### 🏆 Draw Day · Monday June 1 — 16:00 UTC
 
-### 🕓 16:00 UTC — Draw
+**🛠 Build**
 
-#### Action
-1. Wait for BSC block #[ANNOUNCED] to be finalized
-2. Run `ts-node scripts/draw.ts --snapshot snapshots/final.json --block [#]` live (record screen)
-3. Output `winners.json` and commit
-4. Begin `scripts/distribute-winners.ts` dry-run, then real run
+1. Wait for BSC block `#[ANNOUNCED]` finalized → confirm hash on bscscan
+2. **Record screen.** Run `ts-node scripts/draw.ts --snapshot snapshots/final.json --block <X>`
+3. Commit `winners.json` + Merkle proof per winner
+4. Update claim contract Merkle root via owner tx (one-time)
+5. Personal Telegram DMs go out (bot iterates winners.json)
 
-#### X · Live draw thread (10 posts)
+**📣 16:00 UTC · X — live thread (8 posts, condensed from 10)**
 
-**1/10**
+**1/8**
 ```
 🛡️ The Protector Hunt draw is live.
 
-Block #[X] finalized at 16:00 UTC.
-Hash: 0x[FULL_HASH]
+Block #[X] finalized. Hash: 0x[FULL].
+Running scripts/draw.ts now — screen recording linked in final post.
 
-Running scripts/draw.ts now. Screen recording linked at end.
-
-Winners thread 🧵👇
+Winners 🧵👇
 ```
 
-**2/10 — Grand Prize**
+**2/8 — Grand**
 ```
-🥇 GRAND PRIZE — 1,500,000 $UNIQ + Founder's Shield + lifetime Silver
+🥇 GRAND PRIZE — 5,000,000 $UNIQ + Founder's Shield + permanent Silver pass
 
 Winner: 0x[ADDRESS]
 Entries: [E]
-
-Verify: tx [link to block explorer]
+Verify: [bscscan link to balance]
 
 Welcome to the founders' table.
 ```
 
-**3/10 — Top 6**
+**3/8 — Top 6**
 ```
-🥈 TOP 6 — 300,000 $UNIQ + lifetime Bronze each
+🥈 TOP 6 — 1,000,000 $UNIQ each + permanent Bronze pass
 
 2. 0x[ADDR]
 3. 0x[ADDR]
 4. 0x[ADDR]
 5. 0x[ADDR]
 6. 0x[ADDR]
-
-Five winners just earned lifetime fee discounts.
 ```
 
-**4/10 — Top 31 (the 25 silver-rung)**
+**4/8 — Top 31**
 ```
-🥉 PLACES 7-31 — 50,000 $UNIQ each
+🥉 PLACES 7-31 — 200,000 $UNIQ each + OG role + 40% fee discount for 1 year
 
-[list of 25 wallets]
-
-These are the consistent hunters. Every one of them scanned tokens, ran guardian, and held.
+[25 wallets]
 ```
 
-**5/10 — Random 100 (split in 2 tweets)**
+**5/8 + 6/8 — Random 100 (50 + 50)**
 ```
-🎟️ RANDOM DRAW (1-50) — 17,500 $UNIQ each
-
+🎟️ RANDOM 1-50 — 100,000 $UNIQ each
+[50 wallets]
+```
+```
+🎟️ RANDOM 51-100 — 100,000 $UNIQ each
 [50 wallets]
 ```
 
-**6/10**
+**7/8 — Open Bounty + disqualified**
 ```
-🎟️ RANDOM DRAW (51-100) — 17,500 $UNIQ each
+⚔️ OPEN BOUNTY WINNERS — 50,000 $UNIQ each
 
-[50 wallets]
-```
+[up to 10 wallets, each linked to the catch QT]
 
-**7/10 — TOTD winners aggregate**
-```
-⚔️ THREAT OF THE DAY WINNERS
-
-100 wallets earned 10,000 $UNIQ each across 10 days of hunts.
-
-Full list: aegis-protocol.xyz/campaign/winners
+🚫 [N] disqualified — list: aegis-protocol.xyz/campaign/disqualified
 ```
 
-**8/10 — Distribution mechanics**
+**8/8 — Claim + wrap**
 ```
-🪙 How prizes ship:
+🪙 Claim is live: aegis-protocol.xyz/campaign/claim?w=<your wallet>
 
-Each winner gets a one-time signed claim page at aegis-protocol.xyz/campaign/claim?w=[wallet].
-
-Sign once → 50% of prize deposits into your vault position immediately, 50% locks for 14 days, both earn Venus yield from block 1.
-
-Claim window: 7 days.
-```
-
-**9/10 — Disqualified**
-```
-🚫 Disqualified wallets (transparent log):
-
-[N] wallets removed for: drainer history, honeypot deployer history, sub-24h funding + dump > 50%.
-
-Full list with reasons: aegis-protocol.xyz/campaign/disqualified
-
-This is the standard. No tantrum DMs.
-```
-
-**10/10 — Wrap + next**
-```
-🛡️ Protector Hunt closed.
+25% drops to your wallet on first signature.
+75% vests linearly over 14 days through 0xCLAIM.
+7-day claim window.
 
 Final numbers vs Day 0:
-• [X] new scans
-• [Y] new Guardian wallets
-• [Z] new $UNIQ holders
-• [W] BNB TVL added
-• [V] new Telegram members
+• [X] new scans · [Y] Guardian wallets · [Z] holders · [W] BNB into vault · [V] new TG members
 
-This was the warm-up. The next move ships in 30 days.
-
+This was the warm-up.
 Stay sharp.
 ```
+🖼️ *image D.A*
 
-#### Telegram
-
-```
-🛡️ WINNERS POSTED ON X.
-
-Grand prize: 0x[ADDR] — 1,500,000 $UNIQ + Founder's Shield 👑
-
-Top 6: see thread.
-Top 31: see thread.
-Random 100: see thread.
-TOTD 100: see thread.
-
-Every winner gets a DM here with a personal claim link in the next hour.
-
-GG hunters.
-```
-
-### 🕔 17:00 UTC — Personal DMs (Telegram bot)
-
-> Build into bot: iterate winners.json, send personal message to each linked chat_id:
+**🖼 Image D.A · "Up to 151 winners"**
 
 ```
-gm 0xABCD...WXYZ
-
-You won [PLACE] in Aegis Protector Hunt.
-
-Prize: [AMOUNT] $UNIQ
-Claim: aegis-protocol.xyz/campaign/claim?w=[WALLET]&t=[SIGNED_TOKEN]
-
-You have 7 days. After claim, 50% drops into your vault position immediately, 50% locks for 14 days. Both earn yield from block 1.
-
-Welcome to the inside.
+Cinematic winners poster, 1.91:1, IMAX hyper-detail. Pure obsidian void with warm rim light from below the horizon, like sunrise just outside the frame, casting soft gold glow up into the haze. Top centered in small uppercase yellow letter-spaced 14pt: "PROTECTOR HUNT · WINNERS". Below in 140pt pure-white heavy geometric sans: "151." Below in 22pt dim grey: "real users · real scans · real protected wallets". A thin yellow horizontal divider 280px below. Below the divider in 14pt letter-spaced grey: "draw verified · block #[X] · script open-source · contract self-custody". Bottom-left tiny shield logo. Bottom-right: "aegis-protocol.xyz/campaign/winners" in 12pt dim grey. References: Dune part two final stills, Apple Vision Pro launch, Foundation finale. Aspect ratio 1.91:1.
 ```
 
 ---
 
-## 8 · Image prompt library (for Google's best image model — Imagen 4 / Nano Banana)
+## 3 · Repeatable templates
 
-> Aegis brand:
-> - Dark theme: pure black background `#0A0A0B`
-> - Primary text: near-white `#F5F5F7`
-> - Accent: warm yellow `#FACC15`
-> - Card surface: `#141416`
-> - Type: clean geometric sans (think Geist / Inter)
-> - Style direction: editorial minimalism, generous negative space, never crypto-bro neon
-
-### 8.1 · "The cost of silence" (May 18 tease)
+### 3.1 Daily wrap (every 21:00 UTC, Day 1-9)
 
 ```
-Editorial dark-mode poster, 16:9. Pure black background. A single tiny pixel-perfect padlock icon centered, drawn in warm yellow (#FACC15), rendered as if half-erased — left edge slightly fading into the black void. Above the lock in light grey text, a single word: "silence." Below the lock in smaller dim text: "is the most expensive thing in crypto." Bottom-right corner: tiny "aegis" wordmark in white. No other elements. Mood: still, ominous, premium. Style references: Apple keynote stills, Linear product pages, Stripe Press book covers. Aspect ratio 16:9.
+Day [N] of 10 done.
+
+✓ [X] new scans today
+✓ [Y] new Guardian wallets
+✓ [Z] new TG members
+✓ [W] new holders
+
+Leaderboard top 3:
+🥇 0x…x · [E]
+🥈 0x…y · [E]
+🥉 0x…z · [E]
+
+aegis-protocol.xyz/campaign
 ```
 
-### 8.2 · "6,000,000 $UNIQ" (May 19 reveal)
+### 3.2 Telegram cadence (4-6 messages/day, rotate)
 
-```
-Bold minimalist poster, 1:1 square. Pure black background. Center: the number "6,000,000" rendered enormous in solid warm yellow (#FACC15), heavy geometric sans-serif, slight letter-spacing. Directly below in smaller pure-white text: "$UNIQ". Bottom of the canvas, in 14pt dim grey: "for the BSC users who actually protect wallets." Top-left corner: small Aegis shield logo in white, max 32px tall. No gradients, no glow, no particle effects. Pure typography. Aspect ratio 1:1.
-```
-
-### 8.3 · "Live numbers card" (May 19 credibility)
-
-```
-Dark editorial dashboard card mockup, 1.91:1. Pure black background (#0A0A0B). Four equal stat tiles arranged in a single row, each tile is a flat #141416 card with 1px hairline border in #2A2A2D, padding 24px. Each tile contains: small uppercase label in dim grey 11pt at top ("TOKEN SCANS" / "GUARDIAN WALLETS" / "UNIQ HOLDERS" / "VERIFIED CONTRACTS"), large pure-white number 48pt below ("379" / "40" / "160" / "5"), and a tiny yellow dot indicator. Below the row, single line of dim grey 14pt text: "Live on BSC Mainnet." Top-left small "Aegis Protocol" wordmark in white. Style references: Vercel dashboard, Linear status page. No charts, no decoration. Just numbers. Aspect ratio 1.91:1.
-```
-
-### 8.4 · "Protector Hunt hero" (May 20 thread post 1)
-
-```
-Cinematic dark editorial poster, 1.91:1 landscape. Pure black background. Left two-thirds: enormous text block in pure white geometric sans, three lines stacked tight: "PROTECTOR" / "HUNT" / "is live." The word "live." is in warm yellow (#FACC15). Right one-third: a vertical stack of four small flat dark cards, each showing a tier as text only — "1×" / "3×" / "10×" / "25×" with tiny labels under each ("scan" / "guardian" / "bronze" / "silver"). Bottom strip, full-width, dim grey 14pt: "6,000,000 $UNIQ · 271 winners · 10 days · provably fair." Top-right corner: Aegis shield logo small in white. Style: Apple TV+ show poster, Linear changelog hero. No emoji, no glow. Aspect ratio 1.91:1.
-```
-
-### 8.5 · "7 stackable tiers" (May 20 thread post 3)
-
-```
-Minimalist infographic poster, 1:1 square, pure black background (#0A0A0B). A vertical numbered list of 7 rows from top to bottom. Each row is a thin flat horizontal card #141416 with 1px hairline border, padding 16px, containing on the left: a circular number badge 1-7 (white digit on yellow #FACC15 circle, 32px), in the middle: row label in white 14pt ("Follow + RT + reply" / "Scan 1-5 tokens" / "Connect Guardian Shield" / "Link Telegram" / "Hold 10k UNIQ" / "Hold 50k UNIQ" / "Hold 100k UNIQ"), on the right: entry count in yellow 18pt ("1" / "1-5" / "3" / "2" / "5" / "10" / "25"). Rows separated by 8px gap. Above the rows in small uppercase dim text: "STACKABLE ENTRIES — DO ALL 7 FOR 51 ENTRIES." Bottom: tiny "aegis-protocol.xyz/campaign" wordmark. Aspect ratio 1:1.
-```
-
-### 8.6 · "Prize stack" (May 20 thread post 5)
-
-```
-Dark editorial prize-table poster, 4:5 portrait. Pure black background. Five horizontal rows stacked, each is a #141416 flat card 1px border in #2A2A2D, padding 18px, containing on the far left a medal emoji or simple yellow gradient indicator (🥇 gold / 🥈 silver / 🥉 bronze / 🎟️ neutral / ⚔️ red-edged), in the center a number in large white 24pt ("1,500,000" / "300,000" / "50,000" / "17,500" / "10,000"), the word "$UNIQ" in dim grey 12pt below, and on the right the winner count in yellow 14pt ("× 1" / "× 5" / "× 25" / "× 100" / "× ~100"). Top of canvas in small uppercase grey: "THE POOL — 6,000,000 $UNIQ TOTAL". Bottom: tiny shield logo. No gloss, no particles, no shine. Aspect ratio 4:5.
-```
-
-### 8.7 · "Hunt is live" (May 21 launch)
-
-```
-Dark cinematic announcement, 16:9. Pure black background. Centered three-line text block: "the hunt" in white 80pt thin sans / "is" tiny 24pt grey on its own line / "live." in warm yellow #FACC15 120pt heavy sans. To the right of "live.", a tiny pulsing dot in yellow (single solid circle 12px). Bottom-left: small URL "aegis-protocol.xyz/campaign" in 14pt white. Bottom-right: shield logo small in white. No other elements. Mood: declarative, calm, premium. Aspect ratio 16:9.
-```
-
-### 8.8 · "Threat of the Day card" (template, regenerate daily May 21-30)
-
-```
-Dark threat-detection card mockup, 1.91:1. Pure black background. Single centered flat card #141416 1px border #2A2A2D, 800px wide. Top-left of card: small uppercase yellow tag "THREAT OF THE DAY #[N]". Below in large white 36pt: "$[SYMBOL]" token name. Below in mono dim grey 14pt: "0x[REDACTED ADDRESS]". Below in red text 18pt: "RISK SCORE [X]/100" with a small red triangle warning icon. Bottom of card, single-line uppercase grey 11pt: "FIRST 10 TO SCAN + QT WITH #AegisCaught WIN 10,000 $UNIQ". Outside card top-right corner of canvas: tiny shield logo white. Aspect ratio 1.91:1.
-```
-
-> Regenerate this template with new [N], [SYMBOL], [ADDRESS], [X] each day. Save as `public/campaign/totd-day-[N].webp`.
-
-### 8.9 · "TOTD winners card" (template, daily 21:00 UTC)
-
-```
-Dark editorial leaderboard card, 1.91:1. Pure black background. Top-left of canvas in small uppercase yellow: "TOTD #[N] WINNERS". Vertical numbered list of 10 rows. Each row is a thin horizontal strip with: circular number badge 1-10 (white on dark grey circle, 24px), wallet address truncated middle "0xabcd…wxyz" in mono white 16pt, time-of-claim in dim grey mono 12pt on far right. Rows separated by 1px hairline #2A2A2D. Bottom of canvas: text in dim grey 12pt: "10 × 10,000 $UNIQ paid out Jun 1." Top-right corner: shield logo small white. Aspect ratio 1.91:1.
-```
-
-### 8.10 · "Halfway pulse card" (May 25)
-
-```
-Dark editorial statistics poster, 1:1 square, pure black background. Centered grid 2×2 of four flat dark cards #141416, 1px border #2A2A2D, padding 28px. Each card contains: a large arrow-up icon in yellow #FACC15 32px in top-left corner, a small uppercase label in dim grey 11pt below the arrow ("SCANS" / "GUARDIAN WALLETS" / "UNIQ HOLDERS" / "BNB IN VAULT"), and a huge number in pure white 56pt at the bottom showing the delta (e.g. "+1,247"). Below the 2x2 grid: single line uppercase grey 14pt "HALFWAY PULSE — DAY 5 OF 10". Top-left corner of full canvas: small "Aegis Protocol" wordmark white. Aspect ratio 1:1.
-```
-
-### 8.11 · "Top 5 caught threats" (May 27)
-
-```
-Dark editorial leaderboard, 4:5 portrait, pure black background. Title at top in small uppercase yellow: "FIVE WORST TOKENS AEGIS CAUGHT THIS WEEK". Below, five thin horizontal cards stacked, each with: rank number 1-5 in yellow circle on the left, token symbol in white 22pt next to it ($XXX), risk score on the right in red 18pt with red warning triangle (94/100, 91/100, 88/100, 87/100, 85/100), and one-line reason in dim grey 12pt below the symbol ("honeypot pattern matched", "LP rug 6h after launch", "ownership not renounced", "41% supply in deployer wallet", "contract upgraded mid-trade"). Rows separated by 8px gap. Bottom: dim grey wordmark "scan before you ape · aegis-protocol.xyz". Aspect ratio 4:5.
-```
-
-### 8.12 · "Disqualified list" (May 28)
-
-```
-Dark editorial brutal-honesty poster, 1.91:1. Pure black background. Centered title in small uppercase yellow: "DISQUALIFIED — [N] WALLETS". Below, a vertical list of 6-8 wallet rows in mono grey, each truncated middle "0xabcd…wxyz", with a small uppercase red-text reason tag right of each address ("DRAINER HISTORY" / "HONEYPOT DEPLOYER" / "SUB-24H DUMP" / "SYBIL CLUSTER"). Rows separated by 1px hairline. Bottom dim grey 12pt: "we scan our entrants with our own scanner. that's the standard." Top-right shield logo. Aspect ratio 1.91:1.
-```
-
-### 8.13 · "Snapshot taken" (May 31)
-
-```
-Dark cinematic still, 16:9. Pure black background. Centered single line in pure-white 80pt geometric sans: "snapshot taken." Below in 18pt dim grey: "[N] eligible wallets · [E] total entries · top 6 within 8 entries." Bottom of canvas in small uppercase yellow: "DRAW — MONDAY JUN 1 · 16:00 UTC · BLOCK #[X]". Top-left tiny shield logo. No other elements. Mood: locked, irreversible, premium. Aspect ratio 16:9.
-```
-
-### 8.14 · "Winners" (Jun 1)
-
-```
-Dark editorial winners poster, 1.91:1. Pure black background. Top centered: small uppercase yellow "PROTECTOR HUNT · WINNERS". Below in 80pt pure white: "271." Below in 18pt dim grey: "real users. real scans. real protected wallets." Below that, a thin yellow horizontal divider 200px wide. Below the divider in 14pt grey: "draw verified · block #[X] · script open-sourced". Bottom-left shield logo white. Bottom-right: "aegis-protocol.xyz/campaign/winners" in 12pt dim grey. Aspect ratio 1.91:1.
-```
-
-### 8.15 · Optional bonus — "Founder's Shield NFT" (Jun 1 grand prize)
-
-```
-Premium token-art piece, 1:1 square, 2048×2048 hi-res. Pure black background. Centered: a single hand-drawn shield outline rendered in warm yellow (#FACC15) thick stroke, no fill, with the word "FOUNDER" in tiny serif white inside the top of the shield and a sequence number "#001" in mono grey at the bottom. Around the shield, ultra-faint geometric circles forming a guard pattern, barely visible 5% opacity white. Below shield in 18pt grey: "Aegis Protector Hunt · May 2026". Style references: certificate of authenticity, vintage stock certificate, minimalist NFT poster. Aspect ratio 1:1.
-```
+- *gm hunters · [N] entries already in today*
+- *current top 3: [list] · gap to #1 is only [X] entries*
+- *quick reminder: holding 50k $UNIQ at snapshot = 10 entries. that's not nothing.*
+- *just disqualified 3 wallets for sybil — see today's X*
+- *leaderboard moved hard in the last hour. /campaign in the bot for your number.*
+- *vault TVL update: [X] BNB. you can deposit BNB for Venus yield — separate from the campaign.*
 
 ---
 
-## 9 · Resource checklist (what you need on hand)
+## 4 · Resources you need on hand
 
-### 🧰 Tools
-- [ ] X (Twitter) account with scheduled-posts feature (TweetDeck native or Buffer/Typefully free tier)
-- [ ] Image generator: Google Imagen 4 or Nano Banana via Gemini app (prompts above are tuned for Imagen 4)
-- [ ] Tally.so or Typeform (free tier) — single form for tier 1 social claim submissions
-- [ ] Screen recorder (OBS or QuickTime) — to record the draw live on Jun 1
-- [ ] Telegram bot already wired (@aegis_protocol_bot)
-- [ ] Redis (already configured)
-- [ ] Vercel CLI for production deploys
+### Tools
+- X account with scheduled posts (TweetDeck or Buffer/Typefully free tier)
+- Imagen 4 / Nano Banana via Gemini app — prompts above are tuned for it
+- Screen recorder (OBS / QuickTime) for the live draw on Jun 1
+- Telegram bot already wired
+- Redis already configured
+- Vercel CLI
 
-### 🔗 URLs to lock in advance
-- [ ] `aegis-protocol.xyz/campaign` — main hub
-- [ ] `aegis-protocol.xyz/campaign/claim?w=...` — winner claim page
-- [ ] `aegis-protocol.xyz/campaign/winners` — public winners ledger
-- [ ] `aegis-protocol.xyz/campaign/disqualified` — public sybil ledger
-- [ ] `github.com/Tonyflam/aegis-protocol/blob/main/scripts/draw.ts` — open-source randomness
+### URLs to lock in advance
+- `aegis-protocol.xyz/campaign` — hub
+- `aegis-protocol.xyz/campaign/claim?w=…` — winner claim
+- `aegis-protocol.xyz/campaign/winners` — public ledger
+- `aegis-protocol.xyz/campaign/disqualified` — public sybil ledger
+- `github.com/Tonyflam/aegis-protocol/blob/main/scripts/draw.ts`
+- `bscscan.com/address/0xCLAIM` — claim contract (set Day -1)
+- `bscscan.com/address/0xPASS` — soulbound pass contract (set Day -1)
+- `bscscan.com/address/0xTREASURY` — funded with 25.5M $UNIQ (set Day 0)
 
-### 📁 Local artifacts to commit
-- [ ] `snapshots/day0.json` (May 21)
-- [ ] `snapshots/day5.json` (May 25) — for halfway pulse credibility
-- [ ] `snapshots/final.json` (May 31)
-- [ ] `winners.json` (Jun 1)
-- [ ] `public/campaign/totd-day-1.webp` through `totd-day-10.webp`
-- [ ] `public/campaign/hero.webp`, `prize-stack.webp`, `tiers.webp`, `winners.webp`
+### Local artifacts to commit
+- `snapshots/day0.json` (May 21)
+- `snapshots/day5.json` (May 25)
+- `snapshots/final.json` (May 31)
+- `winners.json` (Jun 1)
 
-### 📝 Pre-pick on May 20 (block out 1 hour)
-- [ ] 10 real BSC tokens with risk score ≥ 75/100 for TOTD #1-10 (store in private note + commit to private file)
-- [ ] The BSC block number that will provide draw randomness (~Jun 1 16:00 UTC, that's roughly block `[CURRENT + ~430,000]`) — announce in launch thread
-- [ ] Founder's Shield NFT artwork (or commit "art TBD by Jun 8")
+### Pre-pick on Day -1 (block out 30 min)
+- 3-5 candidate BSC tokens you suspect will get reported during the campaign (so you can fast-verify the first Open Bounty submissions)
+- The BSC block number that will provide draw randomness (~Jun 1 16:00 UTC, ≈ current block + 430,000) — announce in launch thread
+- Founder's Shield NFT artwork (or commit "art TBD, mints by Jun 8")
 
-### 🔐 Security pre-flight
-- [ ] Treasury wallet for distribution has ≥ 6,500,000 $UNIQ (6M prizes + 500k buffer for gas/edge cases)
-- [ ] Multi-sig the treasury so no single key risk during the campaign
-- [ ] `scripts/distribute-winners.ts` runs in dry-run mode by default; flip with `--execute` only on Jun 1
-- [ ] All endpoints rate-limited to prevent scraping leaderboard
+### Security pre-flight
+- Treasury has ≥ 25,500,000 $UNIQ (25M prizes + 500k buffer for gas/edge)
+- Treasury multi-sig'd before campaign opens
+- `scripts/distribute-winners.ts` runs dry-run by default; live run only after draw
+- Rate-limit `/api/campaign/leaderboard` to prevent scraping
 
 ---
 
-## 10 · Risk register (and what to do)
+## 5 · Risk register
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Sybil farm builds 50 wallets, each hits social tier | High | Medium | Anti-sybil scan + manual top-50 vetting · social tier is only 1 entry, so 50 sybils = 50 entries = barely meaningful next to a Silver holder's 25 |
-| $UNIQ price pumps then dumps during campaign | Medium | Medium | Anti-dump claim mechanism (vault-locked 14d) keeps winner sell pressure off · communicate the lock loudly in every prize-related post |
-| Vercel cron miss → leaderboard stale | Low | Medium | `/api/campaign/entries` is computed-on-read, not stored · leaderboard cache 60s · degrades gracefully |
-| Off-chain agent dies mid-campaign | Medium | High (trust-killing) | Agent heartbeat already surfaced in `/api/vault` since last commit · if it goes red we communicate immediately, never hide it |
-| Draw randomness block reorganizes | Very low | High | Use a block confirmed > 60 confirmations · BSC has never had a reorg deeper than 15 blocks in production |
-| Winner doesn't claim within 7 days | Medium | Low | Tokens roll to a "second chance" pool · announce day 8 |
-| RPC outage during snapshot | Low | High | Multi-RPC with fallback in `scripts/snapshot.ts` (use bsc-dataseed1, bsc-dataseed2, ankr) |
-| Some viral hater says it's a scam | Medium | Low | Code is open · draw script is verifiable · ignore noise, let on-chain math reply |
+| Sybil farm of 50 wallets each hits social tier | High | Medium | Anti-sybil scanner + manual top-50 vet · social tier is only 1 entry, so 50 sybils = 50 entries (≈ 2 Silver holders) |
+| $UNIQ price pumps then dumps during campaign | Medium | Medium | Merkle claim contract enforces 75% / 14-day vesting · communicated loudly · onchain-enforced, not vibes |
+| Vercel cron miss → stale leaderboard | Low | Medium | `/api/campaign/entries` is computed-on-read · 60s cache · degrades gracefully |
+| AI agent dies mid-campaign | Medium | High (trust-killing) | Heartbeat already on `/api/vault` · if red, communicate immediately, never hide |
+| Draw block reorgs | Very low | High | Wait > 60 confirmations · BSC has never reorg'd deeper than ~15 blocks |
+| Winner doesn't claim within 7 days | Medium | Low | Unclaimed rolls to a "second chance" pool announced Jun 8 |
+| RPC outage during snapshot | Low | High | `scripts/snapshot.ts` uses 3-RPC fallback (bsc-dataseed1, bsc-dataseed2, ankr) |
+| Someone calls it a scam on X | Medium | Low | Claim contract is open + self-custody · draw script open-source · ignore noise, let math reply |
+| Claim contract bug | Low | Catastrophic | Diff against Uniswap Merkle distributor · testnet smoke-test on Day 4 · internal review before Day 5 mainnet ship |
+| Founder's Shield art isn't ready by Jun 1 | Medium | Low | Commit "art ships by Jun 8" in the launch thread — placeholder PFP given immediately |
 
 ---
 
-## 11 · Post-campaign (Jun 2 onwards)
+## 6 · Post-campaign (Jun 2 onwards)
 
 | Day | Action |
 |---|---|
-| Jun 2 | Compile testimonials from 5 winners (DM ask) for next-campaign social proof |
-| Jun 3 | Public "campaign retrospective" thread — what worked, what didn't, what's next |
-| Jun 4 | Newsletter / blog post version of the retrospective (LinkedIn or Mirror.xyz) |
+| Jun 2 | DM 5 winners — ask for one-line testimonial each, save for season 2 |
+| Jun 3 | Retrospective thread on X — what worked, what didn't, what's next |
+| Jun 4 | Blog/Mirror post version of the retrospective |
 | Jun 5-7 | Buffer week. Do not launch anything. Let the wins compound. |
-| Jun 8 | Announce Phase 2: either a feature drop or a Protector Hunt season 2 with raised bar |
+| Jun 8 | Announce Phase 2 — either a feature drop or Protector Hunt season 2 |
+| Jun 15 | Final vesting payout completes (14 days from claim) — celebratory wrap tweet |
 
 ---
 
-## 12 · The one rule
+## 7 · The one rule
 
 Every post we ship during this campaign must pass two checks:
-1. **Would a security professional respect this?** (no shilling, no engagement-bait language, no fake hype)
+
+1. **Would a security professional respect this?** (no shilling, no engagement-bait, no fake hype)
 2. **Does the action it asks for make BSC safer for someone?** (scan, monitor, hold, learn)
 
 If yes to both → post. If no to either → rewrite or kill.

@@ -39,7 +39,7 @@ interface EntriesResponse {
   telegramLinked: boolean;
   uniqBalance: string;          // human-readable, e.g. "12345.67"
   uniqBalanceWei: string;       // raw wei as string
-  holderTier: "None" | "Bronze" | "Silver" | "Gold";
+  holderTier: "None" | "Tier 5" | "Bronze" | "Silver";
   referralCount: number;        // qualified referrals
   paidTiersCompleted: number;   // how many of the 4 paid (non-social) tiers user did — used by referrer-qualify logic
   totalEntries: number;
@@ -58,9 +58,9 @@ async function getUniqBalance(wallet: string): Promise<bigint> {
 }
 
 function tierFor(balanceWhole: bigint): { name: EntriesResponse["holderTier"]; entries: number } {
-  if (balanceWhole >= HOLD_THRESHOLDS.GOLD)   return { name: "Gold",   entries: ENTRY_WEIGHTS.HOLD_GOLD };
   if (balanceWhole >= HOLD_THRESHOLDS.SILVER) return { name: "Silver", entries: ENTRY_WEIGHTS.HOLD_SILVER };
   if (balanceWhole >= HOLD_THRESHOLDS.BRONZE) return { name: "Bronze", entries: ENTRY_WEIGHTS.HOLD_BRONZE };
+  if (balanceWhole >= HOLD_THRESHOLDS.TIER5)  return { name: "Tier 5", entries: ENTRY_WEIGHTS.HOLD_TIER5 };
   return { name: "None", entries: 0 };
 }
 
