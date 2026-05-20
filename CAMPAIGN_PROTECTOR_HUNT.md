@@ -17,7 +17,7 @@
 | **Winners** | up to **151** (1 grand · 5 top · 25 silver-rung · 100 random · up to 10 Open Bounty) |
 | **Anti-dump** | **Merkle claim contract with 25% instant / 75% linear vesting over 14 days.** No "deposit into vault" — vault only accepts BNB/USDT. Contract deploys May 27, address published Day -1. |
 | **Funding source** | Treasury wallet `0xTODO-fill-on-may-26` — transparent on-chain proof posted before launch. |
-| **Channels** | X (@aegis_protocol), Telegram bot + group, in-product banner, DappBay, GitHub README, whitepaper |
+| **Channels** | X (@uniq_minds), Telegram bot + group, in-product banner, DappBay, GitHub README, whitepaper |
 | **Voice** | Serious-but-witty. No WAGMI. No fake hype. Every post passes the two checks in §12. |
 
 ### What "insane traction" means
@@ -41,7 +41,7 @@ If we hit half of these, this was the best ROI of any growth move we'll ever mak
 
 | # | Action | Entries | How we verify |
 |---|---|---|---|
-| 1 | Follow @aegis_protocol · RT pinned · reply with a wallet/token you scanned · tag 2 BSC friends | **1** | Form submission + spot-check top 50 leaderboard wallets |
+| 1 | Follow @uniq_minds · RT pinned · reply with a wallet/token you scanned · tag 2 BSC friends | **1** | Form submission + spot-check top 50 leaderboard wallets |
 | 2 | Scan a unique BSC token at aegisguardian.xyz/scanner (cap 5 unique tokens) | **1 each, max 5** | Redis scan log keyed by wallet |
 | 3 | Connect wallet to Guardian Shield (any non-zero monitored value) | **3** | `/api/guardian` snapshot |
 | 4 | Link Telegram chat ID via @aegis_protocol_bot | **2** | `telegram-store` registry |
@@ -176,11 +176,11 @@ Cinematic dashboard hero, 16:9 landscape. Set in a cavernous dark editorial spac
 
 ### 🗓 Day -1 · Wednesday May 20 — Reveal thread + claim contract ships
 
-**🛠 Build (3 tasks)**
+**🛠 Build (3 tasks) — ✅ code shipped, deployment pending operator**
 
-1. **Deploy `AegisCampaignClaim.sol`** — Merkle-distributor with 25 % instant unlock + 75 % linear vesting over 14 days. Contract is ~120 LOC, well-trodden pattern, fork from Uniswap Merkle Distributor + add vesting. Deploy to BSC mainnet. Address goes in next-day's launch thread.
-2. **Deploy `AegisPass.sol`** — soulbound ERC-721, owner-only `mint(address to, uint8 tier)` where tier ∈ {1=Bronze, 2=Silver}. Update `TokenGate.getHolderTier()` to read pass first and return that tier if held.
-3. **`scripts/snapshot.ts`** + `scripts/draw.ts` — snapshot at draw block reads `balanceOf` for every entrant + computes entries; draw is deterministic from `keccak256(snapshotJSON || blockHash)`. Both committed to repo today.
+1. ✅ **`AegisCampaignClaim.sol` written** (`contracts/AegisCampaignClaim.sol`) — Merkle distributor, 25 % instant + 75 % linear vest over 14 d, 90 d claim window, owner cannot pause/drain pre-window. Deploy via `npx hardhat run scripts/deploy-campaign.ts --network bsc-mainnet`. After deploy: transfer 25M $UNIQ from treasury + set `NEXT_PUBLIC_CAMPAIGN_CLAIM_ADDRESS` in Vercel.
+2. ✅ **`AegisPass.sol` written** (`contracts/AegisPass.sol`) — soulbound ERC-721, owner-only `mint(address, uint8 tier)` with tier ∈ {1 Bronze, 2 Silver}, upgrade-only (no double-issue), all transfer paths revert. Frontend reads `highestTierOf(address)` and treats it as a tier floor — winners keep perks after selling $UNIQ. (Live `TokenGate` stays untouched; pass is honored off-chain at the API layer.)
+3. ✅ **`scripts/snapshot.ts` + `scripts/draw.ts` shipped.** Snapshot pulls leaderboard ZSET + on-chain $UNIQ balances at a fixed block, re-derives entries from `ENTRY_WEIGHTS`, writes `snapshots/<label>.json`. Draw seeds xorshift128+ from `keccak(snapshotBlockHash ‖ drawBlockHash)`, picks 1 grand → 5 top → 25 silver-rung → 100 random with no-replacement weighted sampling, builds Merkle tree (sorted-pair OZ-compatible), writes both `draws/<label>.json` (audit trail) and `frontend/public/winners.json` (claim-API input). Byte-deterministic given the same two block hashes.
 
 **📣 Posts**
 

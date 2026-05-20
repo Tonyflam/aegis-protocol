@@ -266,7 +266,7 @@
 
 ## Hashtag Strategy
 
-**Primary:** #AegisProtocol #BNBChain #DeFiSecurity
+**Primary:** #uniq_minds #BNBChain #DeFiSecurity
 **Secondary:** #BSC #CryptoSafety #RugPull #Honeypot #Web3Security
 **For scanner posts:** #TokenScanner #DYOR #AntiRug
 **For Chinese community:** #BNB链 #DeFi安全 #代币扫描

@@ -352,7 +352,7 @@ function CampaignPageInner() {
                     done={entries.socialClaimed}
                     title="1. Follow + RT + Reply"
                     points="+1 entry"
-                    sub="Follow @AegisProtocol, retweet the pinned hunt post, reply with your favorite token to scan."
+                    sub="Follow @uniq_minds, retweet the pinned hunt post, reply with your favorite token to scan."
                     action={!entries.socialClaimed && (
                       <div className="space-y-2">
                         <input type="text" placeholder="@your_x_handle" value={handle} onChange={(e) => setHandle(e.target.value)}
