@@ -34,7 +34,7 @@ const config: HardhatUserConfig = {
       url: "https://bsc-dataseed1.binance.org",
       chainId: 56,
       accounts: [PRIVATE_KEY],
-      gasPrice: 3000000000,
+      gasPrice: 1000000000,
     },
     opBNBTestnet: {
       url: "https://opbnb-testnet-rpc.bnbchain.org",

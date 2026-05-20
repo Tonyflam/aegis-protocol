@@ -72,6 +72,13 @@ interface DrawFile {
   drawTimestamp: number;
   rngSeed: string;
   totalTicketsBeforeDraw: number;
+  // Low-turnout transparency: how many prize slots could not be awarded
+  // because we ran out of unique eligible wallets — that $UNIQ goes back
+  // to treasury via AegisCampaignClaim.sweep() after the 90-day window.
+  prizeSlotsTotal: number;
+  prizeSlotsFilled: number;
+  prizeSlotsUnfilled: number;
+  uniqReturnedToTreasury: number;
   merkleRoot: string;
   winners: Winner[];
 }
@@ -186,17 +193,46 @@ async function main() {
   }
 
   // ─── Draw winners tier-by-tier, no duplicates ─────────────
+  // Low-turnout policy: if eligible wallets < total prize slots (131),
+  // we cap each tier at what's actually available. Unused prize $UNIQ
+  // simply stays in the claim contract and is swept back to treasury
+  // by AegisCampaignClaim.sweep() after the 90-day claim window expires.
+  const TOTAL_PRIZE_SLOTS = PRIZE_TABLE.reduce((s, t) => s + t.count, 0);
+  const fullyParticipated = eligible.length >= TOTAL_PRIZE_SLOTS;
+  console.log(`   prize slots:      ${TOTAL_PRIZE_SLOTS}`);
+  console.log(`   turnout:          ${fullyParticipated ? "FULL" : `LOW (${eligible.length}/${TOTAL_PRIZE_SLOTS}) — surplus returns to treasury via sweep()`}`);
+
   const winners: Winner[] = [];
   const taken = new Set<number>();
   let rollIndex = 0;
+  let skippedSlots = 0;
+  let skippedUniq = 0;
   for (const tier of PRIZE_TABLE) {
     for (let i = 0; i < tier.count; ++i) {
+      // If everyone eligible already won, stop awarding this tier.
+      if (taken.size >= eligible.length) {
+        skippedSlots++;
+        skippedUniq += tier.uniq;
+        continue;
+      }
       // Re-roll on collision (rare — needs total wallets >> total winners)
       let idx = pickTicket();
       let guard = 0;
       while (taken.has(idx)) {
         idx = pickTicket();
-        if (++guard > 10_000) throw new Error("Cannot find unique winner — pool too thin");
+        if (++guard > 50_000) {
+          // pool too thin — fall back to scanning for the next unused index
+          idx = -1;
+          for (let k = 0; k < eligible.length; ++k) {
+            if (!taken.has(k)) { idx = k; break; }
+          }
+          if (idx === -1) break;
+        }
+      }
+      if (idx === -1) {
+        skippedSlots++;
+        skippedUniq += tier.uniq;
+        continue;
       }
       taken.add(idx);
       const w = eligible[idx];
@@ -209,6 +245,9 @@ async function main() {
         rollIndex: rollIndex++,
       });
     }
+  }
+  if (skippedSlots > 0) {
+    console.log(`   ⚠️  ${skippedSlots} prize slots unfilled (${skippedUniq.toLocaleString()} $UNIQ) — returns to treasury at sweep()`);
   }
 
   // ─── Build Merkle tree (sorted by lowercase address — must match API + contract) ─
@@ -231,6 +270,10 @@ async function main() {
     drawTimestamp: Number(drawBlock.timestamp),
     rngSeed: seedHex,
     totalTicketsBeforeDraw: Number(totalTickets),
+    prizeSlotsTotal: TOTAL_PRIZE_SLOTS,
+    prizeSlotsFilled: winners.length,
+    prizeSlotsUnfilled: skippedSlots,
+    uniqReturnedToTreasury: skippedUniq,
     merkleRoot: root,
     winners,
   };

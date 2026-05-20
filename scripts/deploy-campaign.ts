@@ -9,7 +9,7 @@
  *      - Minted to top-6 winners on Jun 1 (1 Silver + 5 Bronze)
  *
  * Usage:
- *   npx hardhat run scripts/deploy-campaign.ts --network bsc-mainnet
+ *   npx hardhat run scripts/deploy-campaign.ts --network bscMainnet
  *
  * Required env:
  *   PRIVATE_KEY — deployer key with ~0.05 BNB
@@ -45,8 +45,8 @@ async function main() {
   console.log("  Pass baseURI:", PASS_BASE_URI);
   console.log("═".repeat(60));
 
-  if (balance < ethers.parseEther("0.02")) {
-    throw new Error("Need ≥ 0.02 BNB for deployment");
+  if (balance < ethers.parseEther("0.005")) {
+    throw new Error("Need ≥ 0.005 BNB for deployment");
   }
 
   // ─── 1. AegisCampaignClaim ────────────────────────────────
@@ -75,8 +75,8 @@ async function main() {
   console.log("  Next steps (manual):");
   console.log(`  1. Transfer 25,000,000 $UNIQ from treasury → ${claimAddr}`);
   console.log(`  2. Verify on bscscan:`);
-  console.log(`     npx hardhat verify --network bsc-mainnet ${claimAddr} ${UNIQ_TOKEN}`);
-  console.log(`     npx hardhat verify --network bsc-mainnet ${passAddr} "${PASS_BASE_URI}"`);
+  console.log(`     npx hardhat verify --network bscMainnet ${claimAddr} ${UNIQ_TOKEN}`);
+  console.log(`     npx hardhat verify --network bscMainnet ${passAddr} "${PASS_BASE_URI}"`);
   console.log(`  3. Tweet launch thread with addresses (see CAMPAIGN_PROTECTOR_HUNT.md Day -1)`);
   console.log("═".repeat(60));
 }

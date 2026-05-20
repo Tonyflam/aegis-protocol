@@ -176,11 +176,18 @@ Cinematic dashboard hero, 16:9 landscape. Set in a cavernous dark editorial spac
 
 ### 🗓 Day -1 · Wednesday May 20 — Reveal thread + claim contract ships
 
-**🛠 Build (3 tasks) — ✅ code shipped, deployment pending operator**
+**🛠 Build (3 tasks) — ✅ shipped + deployed to BSC mainnet**
 
-1. ✅ **`AegisCampaignClaim.sol` written** (`contracts/AegisCampaignClaim.sol`) — Merkle distributor, 25 % instant + 75 % linear vest over 14 d, 90 d claim window, owner cannot pause/drain pre-window. Deploy via `npx hardhat run scripts/deploy-campaign.ts --network bsc-mainnet`. After deploy: transfer 25M $UNIQ from treasury + set `NEXT_PUBLIC_CAMPAIGN_CLAIM_ADDRESS` in Vercel.
-2. ✅ **`AegisPass.sol` written** (`contracts/AegisPass.sol`) — soulbound ERC-721, owner-only `mint(address, uint8 tier)` with tier ∈ {1 Bronze, 2 Silver}, upgrade-only (no double-issue), all transfer paths revert. Frontend reads `highestTierOf(address)` and treats it as a tier floor — winners keep perks after selling $UNIQ. (Live `TokenGate` stays untouched; pass is honored off-chain at the API layer.)
-3. ✅ **`scripts/snapshot.ts` + `scripts/draw.ts` shipped.** Snapshot pulls leaderboard ZSET + on-chain $UNIQ balances at a fixed block, re-derives entries from `ENTRY_WEIGHTS`, writes `snapshots/<label>.json`. Draw seeds xorshift128+ from `keccak(snapshotBlockHash ‖ drawBlockHash)`, picks 1 grand → 5 top → 25 silver-rung → 100 random with no-replacement weighted sampling, builds Merkle tree (sorted-pair OZ-compatible), writes both `draws/<label>.json` (audit trail) and `frontend/public/winners.json` (claim-API input). Byte-deterministic given the same two block hashes.
+| Contract | Address | Status |
+|---|---|---|
+| `AegisCampaignClaim` | [`0x3C99cD49f54bF7B03B403d70ACC06f665Be03bC3`](https://bscscan.com/address/0x3C99cD49f54bF7B03B403d70ACC06f665Be03bC3) | ✅ Deployed + funded with 25,000,000 $UNIQ ([funding tx](https://bscscan.com/tx/0x69270aa613f2b2f3f1337960ede52a9f8645a4a3d9b2abba26328e1df202563e)) |
+| `AegisPass`          | [`0x464ea8255892cA0544633F196e8C07b54BfB0562`](https://bscscan.com/address/0x464ea8255892cA0544633F196e8C07b54BfB0562) | ✅ Deployed, ready for Day 0 mint |
+
+**Low-turnout policy (new):** the draw script (`scripts/draw.ts`) gracefully scales down if fewer than 131 wallets qualify — only fills as many prize slots as there are unique eligible participants. The remainder stays in `AegisCampaignClaim` and is returned to the treasury via `sweep()` after the 90-day claim window expires. No prize is paid to a non-participant; no $UNIQ is burned. Every wallet that actually participated wins something (capped by the prize-tier slot count).
+
+1. ✅ **`AegisCampaignClaim.sol` written + deployed** (`contracts/AegisCampaignClaim.sol`) — Merkle distributor, 25 % instant + 75 % linear vest over 14 d, 90 d claim window, owner cannot pause/drain pre-window. Funded with full 25M $UNIQ pool. Merkle root set on Jun 1 from `scripts/draw.ts` output.
+2. ✅ **`AegisPass.sol` written + deployed** (`contracts/AegisPass.sol`) — soulbound ERC-721, owner-only `mint(address, uint8 tier)` with tier ∈ {1 Bronze, 2 Silver}, upgrade-only (no double-issue), all transfer paths revert. Frontend reads `highestTierOf(address)` and treats it as a tier floor — winners keep perks after selling $UNIQ. (Live `TokenGate` stays untouched; pass is honored off-chain at the API layer.)
+3. ✅ **`scripts/snapshot.ts` + `scripts/draw.ts` shipped.** Snapshot pulls leaderboard ZSET + on-chain $UNIQ balances at a fixed block, re-derives entries from `ENTRY_WEIGHTS`, writes `snapshots/<label>.json`. Draw seeds xorshift128+ from `keccak(snapshotBlockHash ‖ drawBlockHash)`, picks 1 grand → 5 top → 25 silver-rung → 100 random with no-replacement weighted sampling, builds Merkle tree (sorted-pair OZ-compatible), writes both `draws/<label>.json` (audit trail) and `frontend/public/winners.json` (claim-API input). Byte-deterministic given the same two block hashes. Audit JSON now records `prizeSlotsUnfilled` + `uniqReturnedToTreasury` for the public.
 
 **📣 Posts**
 
