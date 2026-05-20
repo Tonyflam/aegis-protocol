@@ -1,0 +1,7 @@
+{
+  "_comment": "Populated on Jun 1 2026 by scripts/draw.ts. Until then this is empty and the claim panel shows pre-draw state.",
+  "drawnAtBlock": null,
+  "drawnAtTimestamp": null,
+  "merkleRoot": null,
+  "winners": []
+}

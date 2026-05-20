@@ -19,6 +19,9 @@ export const CONTRACTS = {
   SCANNER: process.env.NEXT_PUBLIC_SCANNER_ADDRESS || (IS_MAINNET ? "" : "0x8fa659D8edeffF0bBdEC37cB2c16C2f85491C840"),
   VENUS_VBNB: process.env.NEXT_PUBLIC_VENUS_ADDRESS || (IS_MAINNET ? MAINNET_PROTOCOLS.VENUS_VBNB : "0xb3798541B08916528e37457259Eb723DB662d77E"),
   USDT: process.env.NEXT_PUBLIC_USDT_ADDRESS || (IS_MAINNET ? MAINNET_PROTOCOLS.USDT : "0x6a3654cb5ae1D1377831714aA2fBF30794e836BE"),
+  // Set on Day -1 (May 21) after AegisCampaignClaim.sol is deployed.
+  // Empty string = "not deployed yet" → frontend shows pre-launch state.
+  CAMPAIGN_CLAIM: process.env.NEXT_PUBLIC_CAMPAIGN_CLAIM_ADDRESS || "",
 };
 
 // $UNIQ Holder Tiers

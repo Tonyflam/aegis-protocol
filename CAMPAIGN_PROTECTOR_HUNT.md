@@ -42,7 +42,7 @@ If we hit half of these, this was the best ROI of any growth move we'll ever mak
 | # | Action | Entries | How we verify |
 |---|---|---|---|
 | 1 | Follow @aegis_protocol · RT pinned · reply with a wallet/token you scanned · tag 2 BSC friends | **1** | Form submission + spot-check top 50 leaderboard wallets |
-| 2 | Scan a unique BSC token at aegis-protocol.xyz/scanner (cap 5 unique tokens) | **1 each, max 5** | Redis scan log keyed by wallet |
+| 2 | Scan a unique BSC token at aegisguardian.xyz/scanner (cap 5 unique tokens) | **1 each, max 5** | Redis scan log keyed by wallet |
 | 3 | Connect wallet to Guardian Shield (any non-zero monitored value) | **3** | `/api/guardian` snapshot |
 | 4 | Link Telegram chat ID via @aegis_protocol_bot | **2** | `telegram-store` registry |
 | 5 | Hold ≥ 10,000 $UNIQ at draw block | **5** | `ERC20.balanceOf` at snapshot block |
@@ -56,7 +56,7 @@ If we hit half of these, this was the best ROI of any growth move we'll ever mak
 
 > No daily ritual. Real scams don't ship on a schedule.
 
-If you find a verifiably malicious BSC token (rugpull, honeypot, drainer, hidden-mint), scan it on aegis-protocol.xyz, then quote-tweet your scan-result page with `#AegisCaught` + a one-line breakdown of why it's bad.
+If you find a verifiably malicious BSC token (rugpull, honeypot, drainer, hidden-mint), scan it on aegisguardian.xyz, then quote-tweet your scan-result page with `#AegisCaught` + a one-line breakdown of why it's bad.
 
 - Each confirmed catch earns the wallet **50,000 $UNIQ**.
 - **Hard cap: 10 winners across the campaign.** Hand-judged. Decision is final.
@@ -126,7 +126,7 @@ Every entry = one real action that makes BSC safer.
 
 Full rules drop tomorrow, 12:00 UTC.
 
-🛡️ aegis-protocol.xyz
+🛡️ aegisguardian.xyz
 ```
 🖼️ *Use image 2.A below.*
 
@@ -142,7 +142,7 @@ Quietly, on BSC:
 
 Built by a 1-dev team. Live. Auditable.
 
-aegis-protocol.xyz
+aegisguardian.xyz
 ```
 🖼️ *Use image 2.B below.*
 
@@ -169,7 +169,7 @@ Cinematic editorial poster, 1:1 square, IMAX-grade detail. Set inside an obsidia
 **Image 2.B · "Quietly, on BSC" (16:9, credibility)**
 
 ```
-Cinematic dashboard hero, 16:9 landscape. Set in a cavernous dark editorial space, pure black backdrop with depth — distant out-of-focus golden bokeh on the right edge suggesting a city at night. Camera: full-frame, 50mm, dramatic chiaroscuro lighting from a single yellow rim light at upper-left. Four floating glass-morphism stat cards arranged in a single row, each card is 320×420px, semi-transparent #141416 surface with a 1px hairline border that subtly catches the rim light, soft cast shadow underneath, gentle parallax depth between them. Each card contains: tiny uppercase yellow #FACC15 11pt label at top with a small dot indicator ("TOKENS SCANNED" / "GUARDIAN WALLETS" / "UNIQ HOLDERS" / "AI DECISIONS"), then an enormous pure-white 72pt number, then a 13pt dim grey sublabel ("real users only" / "live monitoring" / "on-chain verified" / "logged on-chain"). The cards have a subtle tilt-shift effect — the outer two slightly out of focus. Below the cards, single line of dim grey 16pt letter-spaced: "LIVE ON BSC MAINNET — aegis-protocol.xyz". Top-left in white: small "Aegis Protocol" wordmark. References: Linear product page hero, Vercel Edge product film, Apple Vision Pro stage stills. Aspect ratio 1.91:1.
+Cinematic dashboard hero, 16:9 landscape. Set in a cavernous dark editorial space, pure black backdrop with depth — distant out-of-focus golden bokeh on the right edge suggesting a city at night. Camera: full-frame, 50mm, dramatic chiaroscuro lighting from a single yellow rim light at upper-left. Four floating glass-morphism stat cards arranged in a single row, each card is 320×420px, semi-transparent #141416 surface with a 1px hairline border that subtly catches the rim light, soft cast shadow underneath, gentle parallax depth between them. Each card contains: tiny uppercase yellow #FACC15 11pt label at top with a small dot indicator ("TOKENS SCANNED" / "GUARDIAN WALLETS" / "UNIQ HOLDERS" / "AI DECISIONS"), then an enormous pure-white 72pt number, then a 13pt dim grey sublabel ("real users only" / "live monitoring" / "on-chain verified" / "logged on-chain"). The cards have a subtle tilt-shift effect — the outer two slightly out of focus. Below the cards, single line of dim grey 16pt letter-spaced: "LIVE ON BSC MAINNET — aegisguardian.xyz". Top-left in white: small "Aegis Protocol" wordmark. References: Linear product page hero, Vercel Edge product film, Apple Vision Pro stage stills. Aspect ratio 1.91:1.
 ```
 
 ---
@@ -218,7 +218,7 @@ Draw script open-sourced today: github.com/Tonyflam/aegis-protocol/blob/main/scr
 3/ Seven stackable tiers:
 
 1. Follow + RT + reply w/ a scan link + tag 2 BSC friends → 1
-2. Scan 1-5 unique BSC tokens at aegis-protocol.xyz → 1 each (cap 5)
+2. Scan 1-5 unique BSC tokens at aegisguardian.xyz → 1 each (cap 5)
 3. Connect Guardian Shield → 3
 4. Link Telegram chat ID → 2
 5. Hold 10k $UNIQ → 5
@@ -235,7 +235,7 @@ Draw script open-sourced today: github.com/Tonyflam/aegis-protocol/blob/main/scr
 
 Real scams don't ship on a schedule. So we won't fake "threats" on a timer.
 
-Find a real malicious BSC token. Scan it on aegis-protocol.xyz. Quote-tweet your scan link + #AegisCaught + a one-line breakdown.
+Find a real malicious BSC token. Scan it on aegisguardian.xyz. Quote-tweet your scan link + #AegisCaught + a one-line breakdown.
 
 We hand-verify. Each confirmed catch = 50,000 $UNIQ. Cap: 10 winners.
 ```
@@ -265,7 +265,7 @@ We hand-verify. Each confirmed catch = 50,000 $UNIQ. Cap: 10 winners.
 
 🛡️ Permanent tier passes ship as soulbound NFTs. No expiry, no cliff.
 
-🎯 Check your live entries: aegis-protocol.xyz/campaign
+🎯 Check your live entries: aegisguardian.xyz/campaign
 ```
 🖼️ *image 3.D*
 
@@ -282,7 +282,7 @@ Draw block announced tomorrow 12:00 UTC in the launch tweet.
 
 If you've ever used Aegis, you start at 1+ entries.
 
-aegis-protocol.xyz/campaign
+aegisguardian.xyz/campaign
 ```
 
 **🖼 Images**
@@ -296,7 +296,7 @@ Cinematic hero poster, 1.91:1, IMAX-detail. Pure black void #0A0A0B with deep at
 **Image 3.B · "Seven stackable tiers" (1:1 square, post 3)**
 
 ```
-Editorial infographic poster, 1:1 square, cinematic atmospheric lighting in a pure-black room with soft volumetric haze. Camera: slight 5° tilt-down perspective, mild depth-of-field where lower rows are crisper than upper. A vertical numbered list of 7 floating cards stacked top to bottom, each card is 1100×120 px floating in mid-air with subtle drop shadows and a 1px hairline of brushed gold #FACC15 catching a rim light from upper-right. Each card contains, left-to-right: a circular badge 1-7 (white digit on glowing yellow disk, with faint radial bloom), the row label in pure white 22pt sans ("Follow + RT + reply" / "Scan 1-5 tokens" / "Connect Guardian Shield" / "Link Telegram" / "Hold 10k UNIQ" / "Hold 50k UNIQ" / "Hold 100k UNIQ"), and on the right the entry count in heavy yellow 28pt ("1" / "1-5" / "3" / "2" / "5" / "10" / "25"). Cards are perfectly aligned vertically with 12px gaps. Above them in 13pt letter-spaced dim grey uppercase: "STACK ALL SEVEN → 51 ENTRIES." Below the cards: thin yellow divider then tiny "aegis-protocol.xyz/campaign" in matte white. No emoji, no plastic gloss. References: Linear changelog hero, Stripe Press, Apple HIG. Aspect ratio 1:1, 4096×4096.
+Editorial infographic poster, 1:1 square, cinematic atmospheric lighting in a pure-black room with soft volumetric haze. Camera: slight 5° tilt-down perspective, mild depth-of-field where lower rows are crisper than upper. A vertical numbered list of 7 floating cards stacked top to bottom, each card is 1100×120 px floating in mid-air with subtle drop shadows and a 1px hairline of brushed gold #FACC15 catching a rim light from upper-right. Each card contains, left-to-right: a circular badge 1-7 (white digit on glowing yellow disk, with faint radial bloom), the row label in pure white 22pt sans ("Follow + RT + reply" / "Scan 1-5 tokens" / "Connect Guardian Shield" / "Link Telegram" / "Hold 10k UNIQ" / "Hold 50k UNIQ" / "Hold 100k UNIQ"), and on the right the entry count in heavy yellow 28pt ("1" / "1-5" / "3" / "2" / "5" / "10" / "25"). Cards are perfectly aligned vertically with 12px gaps. Above them in 13pt letter-spaced dim grey uppercase: "STACK ALL SEVEN → 51 ENTRIES." Below the cards: thin yellow divider then tiny "aegisguardian.xyz/campaign" in matte white. No emoji, no plastic gloss. References: Linear changelog hero, Stripe Press, Apple HIG. Aspect ratio 1:1, 4096×4096.
 ```
 
 **Image 3.C · "The 25M pool" (4:5 portrait, post 5)**
@@ -308,7 +308,7 @@ Cinematic prize-table poster, 4:5 portrait, IMAX detail. Set in an obsidian void
 **Image 3.D · "Anti-dump, anti-sybil, claim" (16:9, post 6)**
 
 ```
-Cinematic split-frame, 1.91:1 landscape, IMAX detail, pure black void. Three vertical translucent panels separated by faint gold dividers, each panel reads top-to-bottom: panel 1 has a glowing yellow padlock icon at top (hand-rendered minimalist line art), label "VESTING" in 22pt white below, sublabel "25% INSTANT / 75% 14-DAY LINEAR" in 13pt dim grey; panel 2 has a small radar-sweep graphic in yellow at top, label "ANTI-SYBIL" in 22pt white, sublabel "EVERY ENTRANT SCANNED · DISQUALIFIED LIST PUBLISHED MAY 28" in 13pt dim grey; panel 3 has a hand-drawn shield outline in yellow at top, label "PERMANENT PASS" in 22pt white, sublabel "SOULBOUND ERC-721 · NO EXPIRY" in 13pt dim grey. Each panel is lit by its own subtle off-frame light source for depth. Bottom strip: dim grey 13pt centered "aegis-protocol.xyz/campaign". Mood: serious, engineering-grade, premium. References: Stripe security page hero, Linear product film, Apple Privacy page editorial. Aspect ratio 1.91:1.
+Cinematic split-frame, 1.91:1 landscape, IMAX detail, pure black void. Three vertical translucent panels separated by faint gold dividers, each panel reads top-to-bottom: panel 1 has a glowing yellow padlock icon at top (hand-rendered minimalist line art), label "VESTING" in 22pt white below, sublabel "25% INSTANT / 75% 14-DAY LINEAR" in 13pt dim grey; panel 2 has a small radar-sweep graphic in yellow at top, label "ANTI-SYBIL" in 22pt white, sublabel "EVERY ENTRANT SCANNED · DISQUALIFIED LIST PUBLISHED MAY 28" in 13pt dim grey; panel 3 has a hand-drawn shield outline in yellow at top, label "PERMANENT PASS" in 22pt white, sublabel "SOULBOUND ERC-721 · NO EXPIRY" in 13pt dim grey. Each panel is lit by its own subtle off-frame light source for depth. Bottom strip: dim grey 13pt centered "aegisguardian.xyz/campaign". Mood: serious, engineering-grade, premium. References: Stripe security page hero, Linear product film, Apple Privacy page editorial. Aspect ratio 1.91:1.
 ```
 
 ---
@@ -333,7 +333,7 @@ The hunt is live.
 
 25,000,000 $UNIQ. Up to 151 winners. 10 days. Zero engagement-farming.
 
-Check your live entries → aegis-protocol.xyz/campaign
+Check your live entries → aegisguardian.xyz/campaign
 
 If you've ever scanned a token or held $UNIQ, you already have entries.
 
@@ -356,7 +356,7 @@ Type /campaign in our Telegram for your live entry count.
 ```
 🟢 LIVE.
 
-aegis-protocol.xyz/campaign
+aegisguardian.xyz/campaign
 
 DM @aegis_protocol_bot → /campaign for your live entry count and leaderboard rank.
 
@@ -374,7 +374,7 @@ Open Bounty is open. Find a real one, QT with #AegisCaught. Up to 10 catches × 
 
 Current top wallet: 0xabcd…wxyz with [E] entries.
 
-aegis-protocol.xyz/campaign — leaderboard updates every 60s.
+aegisguardian.xyz/campaign — leaderboard updates every 60s.
 It's day 1. Plenty of room.
 ```
 
@@ -397,7 +397,7 @@ Day 2 starts in ~12h.
 **Image 0.A · "The hunt is live" (16:9 launch hero)**
 
 ```
-Cinematic launch still, 1.91:1 landscape, IMAX hyper-detail. Pure obsidian void with deep volumetric haze and a single anamorphic gold light streak across the upper-third. Center-left: three-line text block stacked tight — "the hunt" in pure-white 110pt thin geometric sans / a tiny floating "is" in 28pt grey on its own line / "live." in molten yellow #FACC15 160pt heavy sans with subtle metallic micro-reflection and a faint warm bloom into the haze. To the immediate right of "live." a single pulsing solid yellow disk 16px with a subtle radial glow suggesting heartbeat. Bottom-left: small URL "aegis-protocol.xyz/campaign" in matte white 16pt. Bottom-right: Aegis shield small in white catching faint rim light. Mood: declarative, calm, irreversibly underway. References: Dune part two key art, Apple Vision Pro launch stills, Foundation s2 finale poster. Aspect ratio 1.91:1, 4096×2150.
+Cinematic launch still, 1.91:1 landscape, IMAX hyper-detail. Pure obsidian void with deep volumetric haze and a single anamorphic gold light streak across the upper-third. Center-left: three-line text block stacked tight — "the hunt" in pure-white 110pt thin geometric sans / a tiny floating "is" in 28pt grey on its own line / "live." in molten yellow #FACC15 160pt heavy sans with subtle metallic micro-reflection and a faint warm bloom into the haze. To the immediate right of "live." a single pulsing solid yellow disk 16px with a subtle radial glow suggesting heartbeat. Bottom-left: small URL "aegisguardian.xyz/campaign" in matte white 16pt. Bottom-right: Aegis shield small in white catching faint rim light. Mood: declarative, calm, irreversibly underway. References: Dune part two key art, Apple Vision Pro launch stills, Foundation s2 finale poster. Aspect ratio 1.91:1, 4096×2150.
 ```
 
 ---
@@ -417,7 +417,7 @@ That token's contract was upgraded mid-trade and lost 41% in 6 hours.
 If they had Guardian Shield on, they'd have gotten a Telegram ping the moment the upgrade hit. Most don't.
 
 Free. 3 entries to Protector Hunt.
-aegis-protocol.xyz/guardian
+aegisguardian.xyz/guardian
 ```
 🖼️ *image 1.A — see below*
 
@@ -426,7 +426,7 @@ aegis-protocol.xyz/guardian
 **🖼 Image 1.A · "Guardian alert ping"**
 
 ```
-Cinematic dark device mockup, 4:5 portrait, IMAX hyper-detail. A single iPhone-style device floating in obsidian black at a 15° tilt, screen-on, showing a Telegram chat interface with one alert bubble visible. The bubble is from "@aegis_protocol_bot" and reads in pure white 14pt: "⚠️ ALERT — Token in your wallet just had its contract upgraded. Risk score jumped 23→81. Suggested: exit position." Below the bubble, a small yellow timestamp "07:42 UTC". The device is lit by warm gold rim light from upper-right and cool blue fill from lower-left, screen glow softly illuminating a thin atmospheric haze around it. Around the device, in the void, faint floating ticker text in mono dim grey showing partial token addresses and decreasing price percentages, slightly out of focus. Bottom strip: dim grey 14pt "Guardian Shield — free. Live. aegis-protocol.xyz/guardian". Top-left tiny Aegis logo. References: Apple iPhone launch stills, Bloomberg Terminal cinematic, Severance show stills. Aspect ratio 4:5.
+Cinematic dark device mockup, 4:5 portrait, IMAX hyper-detail. A single iPhone-style device floating in obsidian black at a 15° tilt, screen-on, showing a Telegram chat interface with one alert bubble visible. The bubble is from "@aegis_protocol_bot" and reads in pure white 14pt: "⚠️ ALERT — Token in your wallet just had its contract upgraded. Risk score jumped 23→81. Suggested: exit position." Below the bubble, a small yellow timestamp "07:42 UTC". The device is lit by warm gold rim light from upper-right and cool blue fill from lower-left, screen glow softly illuminating a thin atmospheric haze around it. Around the device, in the void, faint floating ticker text in mono dim grey showing partial token addresses and decreasing price percentages, slightly out of focus. Bottom strip: dim grey 14pt "Guardian Shield — free. Live. aegisguardian.xyz/guardian". Top-left tiny Aegis logo. References: Apple iPhone launch stills, Bloomberg Terminal cinematic, Severance show stills. Aspect ratio 4:5.
 ```
 
 ---
@@ -443,7 +443,7 @@ Best leverage in Protector Hunt isn't activity. It's the multiplier.
 100k $UNIQ (Silver pass) → 25 entries + Telegram priority alerts + 40% fee discount
 
 Snapshot is one block, announced 24h ahead. Weekend's a good time to compound.
-aegis-protocol.xyz/campaign
+aegisguardian.xyz/campaign
 ```
 🖼️ *image 2.C below*
 
@@ -468,7 +468,7 @@ Hunter Spotlight: 0xab…cd
 ✓ Currently 19 entries · #4 on leaderboard
 
 This is exactly who we built this for.
-aegis-protocol.xyz/campaign
+aegisguardian.xyz/campaign
 ```
 
 **Image:** generated from a real wallet card screenshot — no fresh prompt needed.
@@ -491,7 +491,7 @@ Halfway pulse:
 🪙 [V] BNB net new in vault
 
 Five days left. Top 6 spots are still moving every hour.
-aegis-protocol.xyz/campaign
+aegisguardian.xyz/campaign
 ```
 🖼️ *image 4.A*
 
@@ -523,7 +523,7 @@ How prizes ship (mechanically):
 
 1. Mon Jun 1 16:00 UTC — we run scripts/draw.ts live
 2. winners.json + Merkle root → committed to repo
-3. Each winner gets a personalized claim URL: aegis-protocol.xyz/campaign/claim?w=…
+3. Each winner gets a personalized claim URL: aegisguardian.xyz/campaign/claim?w=…
 4. Sign once → 25% lands in your wallet immediately
 5. 75% unlocks linearly over 14 days through 0xCLAIM
 
@@ -556,14 +556,14 @@ The 5 worst tokens Aegis Scanner caught this week:
 5. $BBB — risk 85 · contract upgraded mid-trade
 
 Scan before you ape.
-aegis-protocol.xyz
+aegisguardian.xyz
 ```
 🖼️ *image 6.A*
 
 **🖼 Image 6.A · "Caught threats" (4:5)**
 
 ```
-Cinematic dark leaderboard, 4:5 portrait, IMAX detail. Pure black void with subtle blood-red rim light from upper-right at 15° (very subdued, not horror — surgical). Centered title at top in small uppercase letter-spaced yellow 14pt: "FIVE WORST TOKENS AEGIS CAUGHT THIS WEEK". Below, five thin horizontal cards stacked, each is #141416 with a 1px gold hairline that catches the rim light. Each card row, left-to-right: a metallic rank badge 1-5 in yellow, the token symbol in pure white 26pt ($XXX, $YYY, …), one-line dim-grey reason in 13pt directly below the symbol ("honeypot pattern matched", etc.), and on the right a large red 22pt risk score "94/100" with a small red warning triangle icon. The triangles have a faint red glow into the surrounding haze. Bottom strip: dim grey 14pt "scan before you ape — aegis-protocol.xyz". References: Bloomberg Terminal cinematic, Severance corporate UI, Mr. Robot interface stills. Aspect ratio 4:5.
+Cinematic dark leaderboard, 4:5 portrait, IMAX detail. Pure black void with subtle blood-red rim light from upper-right at 15° (very subdued, not horror — surgical). Centered title at top in small uppercase letter-spaced yellow 14pt: "FIVE WORST TOKENS AEGIS CAUGHT THIS WEEK". Below, five thin horizontal cards stacked, each is #141416 with a 1px gold hairline that catches the rim light. Each card row, left-to-right: a metallic rank badge 1-5 in yellow, the token symbol in pure white 26pt ($XXX, $YYY, …), one-line dim-grey reason in 13pt directly below the symbol ("honeypot pattern matched", etc.), and on the right a large red 22pt risk score "94/100" with a small red warning triangle icon. The triangles have a faint red glow into the surrounding haze. Bottom strip: dim grey 14pt "scan before you ape — aegisguardian.xyz". References: Bloomberg Terminal cinematic, Severance corporate UI, Mr. Robot interface stills. Aspect ratio 4:5.
 ```
 
 ---
@@ -586,7 +586,7 @@ The following [N] wallets are disqualified from Protector Hunt:
 […]
 
 We scan our entrants with our own scanner. We built this to filter exactly this.
-Real users only. Full list: aegis-protocol.xyz/campaign/disqualified
+Real users only. Full list: aegisguardian.xyz/campaign/disqualified
 ```
 🖼️ *image 7.A*
 
@@ -609,7 +609,7 @@ If you want the 5× / 10× / 25× multiplier on your $UNIQ, hold through the sna
 
 We read balanceOf at one block. Single-block snapshot. No "continuously held for 10 days" gotcha — but also no flash-buy at minute -1.
 
-aegis-protocol.xyz/campaign
+aegisguardian.xyz/campaign
 ```
 
 ---
@@ -630,7 +630,7 @@ aegis-protocol.xyz/campaign
 [next 3 wallets]
 
 Top 6 wins ≥ 1,000,000 $UNIQ each. Two are within reach if you act in the next [H] hours.
-aegis-protocol.xyz/campaign
+aegisguardian.xyz/campaign
 ```
 
 **21:00 UTC · X & Telegram pinned**
@@ -676,7 +676,7 @@ Merkle root: 0xMERKLE
 **🖼 Image 10.A · "Snapshot locked"**
 
 ```
-Cinematic still, 16:9 landscape, IMAX detail. Pure obsidian black void with quiet atmospheric haze and a single warm gold key light from upper-center revealing dust particles in the air. Centered single line in pure-white heavy geometric sans 96pt: "snapshot taken." Below in 20pt dim grey letter-spaced: "[N] eligible wallets · [E] total entries · top 6 within [Δ] entries". A thin gold horizontal divider 280px below. Below the divider in 14pt letter-spaced uppercase yellow: "DRAW · MON JUN 1 · 16:00 UTC · BLOCK #[X]". Bottom corners: tiny shield logo lower-left, "aegis-protocol.xyz/campaign" lower-right in 12pt dim grey. Mood: locked, irreversible, premium. References: Dune part two ending stills, Foundation s2 finale poster. Aspect ratio 1.91:1.
+Cinematic still, 16:9 landscape, IMAX detail. Pure obsidian black void with quiet atmospheric haze and a single warm gold key light from upper-center revealing dust particles in the air. Centered single line in pure-white heavy geometric sans 96pt: "snapshot taken." Below in 20pt dim grey letter-spaced: "[N] eligible wallets · [E] total entries · top 6 within [Δ] entries". A thin gold horizontal divider 280px below. Below the divider in 14pt letter-spaced uppercase yellow: "DRAW · MON JUN 1 · 16:00 UTC · BLOCK #[X]". Bottom corners: tiny shield logo lower-left, "aegisguardian.xyz/campaign" lower-right in 12pt dim grey. Mood: locked, irreversible, premium. References: Dune part two ending stills, Foundation s2 finale poster. Aspect ratio 1.91:1.
 ```
 
 ---
@@ -748,12 +748,12 @@ Welcome to the founders' table.
 
 [up to 10 wallets, each linked to the catch QT]
 
-🚫 [N] disqualified — list: aegis-protocol.xyz/campaign/disqualified
+🚫 [N] disqualified — list: aegisguardian.xyz/campaign/disqualified
 ```
 
 **8/8 — Claim + wrap**
 ```
-🪙 Claim is live: aegis-protocol.xyz/campaign/claim?w=<your wallet>
+🪙 Claim is live: aegisguardian.xyz/campaign/claim?w=<your wallet>
 
 25% drops to your wallet on first signature.
 75% vests linearly over 14 days through 0xCLAIM.
@@ -770,7 +770,7 @@ Stay sharp.
 **🖼 Image D.A · "Up to 151 winners"**
 
 ```
-Cinematic winners poster, 1.91:1, IMAX hyper-detail. Pure obsidian void with warm rim light from below the horizon, like sunrise just outside the frame, casting soft gold glow up into the haze. Top centered in small uppercase yellow letter-spaced 14pt: "PROTECTOR HUNT · WINNERS". Below in 140pt pure-white heavy geometric sans: "151." Below in 22pt dim grey: "real users · real scans · real protected wallets". A thin yellow horizontal divider 280px below. Below the divider in 14pt letter-spaced grey: "draw verified · block #[X] · script open-source · contract self-custody". Bottom-left tiny shield logo. Bottom-right: "aegis-protocol.xyz/campaign/winners" in 12pt dim grey. References: Dune part two final stills, Apple Vision Pro launch, Foundation finale. Aspect ratio 1.91:1.
+Cinematic winners poster, 1.91:1, IMAX hyper-detail. Pure obsidian void with warm rim light from below the horizon, like sunrise just outside the frame, casting soft gold glow up into the haze. Top centered in small uppercase yellow letter-spaced 14pt: "PROTECTOR HUNT · WINNERS". Below in 140pt pure-white heavy geometric sans: "151." Below in 22pt dim grey: "real users · real scans · real protected wallets". A thin yellow horizontal divider 280px below. Below the divider in 14pt letter-spaced grey: "draw verified · block #[X] · script open-source · contract self-custody". Bottom-left tiny shield logo. Bottom-right: "aegisguardian.xyz/campaign/winners" in 12pt dim grey. References: Dune part two final stills, Apple Vision Pro launch, Foundation finale. Aspect ratio 1.91:1.
 ```
 
 ---
@@ -792,7 +792,7 @@ Leaderboard top 3:
 🥈 0x…y · [E]
 🥉 0x…z · [E]
 
-aegis-protocol.xyz/campaign
+aegisguardian.xyz/campaign
 ```
 
 ### 3.2 Telegram cadence (4-6 messages/day, rotate)
@@ -817,10 +817,10 @@ aegis-protocol.xyz/campaign
 - Vercel CLI
 
 ### URLs to lock in advance
-- `aegis-protocol.xyz/campaign` — hub
-- `aegis-protocol.xyz/campaign/claim?w=…` — winner claim
-- `aegis-protocol.xyz/campaign/winners` — public ledger
-- `aegis-protocol.xyz/campaign/disqualified` — public sybil ledger
+- `aegisguardian.xyz/campaign` — hub
+- `aegisguardian.xyz/campaign/claim?w=…` — winner claim
+- `aegisguardian.xyz/campaign/winners` — public ledger
+- `aegisguardian.xyz/campaign/disqualified` — public sybil ledger
 - `github.com/Tonyflam/aegis-protocol/blob/main/scripts/draw.ts`
 - `bscscan.com/address/0xCLAIM` — claim contract (set Day -1)
 - `bscscan.com/address/0xPASS` — soulbound pass contract (set Day -1)

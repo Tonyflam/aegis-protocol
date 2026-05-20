@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useWalletContext } from "../../lib/WalletContext";
 import { useSearchParams } from "next/navigation";
+import ClaimPanel from "./ClaimPanel";
 
 interface EntryBreakdown {
   social: number;
@@ -517,6 +518,9 @@ function CampaignPageInner() {
           </div>
         )}
       </section>
+
+      {/* ─── Claim panel ─── */}
+      <ClaimPanel />
 
       {/* ─── Rules footer ─── */}
       <section className="px-6 sm:px-10 max-w-6xl mx-auto pb-16">

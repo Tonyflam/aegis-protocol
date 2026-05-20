@@ -99,3 +99,16 @@ export const SCANNER_ABI = [
   "function getRecentScans(uint256 count) view returns (tuple(address token, uint256 riskScore, uint256 liquidity, uint256 holderCount, uint256 topHolderPercent, uint256 buyTax, uint256 sellTax, bool isHoneypot, bool ownerCanMint, bool ownerCanPause, bool ownerCanBlacklist, bool isContractRenounced, bool isLiquidityLocked, bool isVerified, uint256 scanTimestamp, address scannedBy, string flags)[])",
   "function getScannerStats() view returns (uint256 totalScans, uint256 totalHoneypots, uint256 totalRugRisks, uint256 totalTokens)",
 ];
+
+// AegisCampaignClaim — Merkle distributor with 25% instant / 75% linear vest over 14 days
+export const CAMPAIGN_CLAIM_ABI = [
+  "function merkleRoot() view returns (bytes32)",
+  "function rootFinalized() view returns (bool)",
+  "function claimed(address) view returns (bool)",
+  "function vesting(address) view returns (uint128 lockedTotal, uint128 released, uint64 startTs)",
+  "function releasable(address) view returns (uint256)",
+  "function claim(uint256 amount, bytes32[] proof)",
+  "function release()",
+  "event Claimed(address indexed winner, uint256 totalAmount, uint256 instant, uint256 locked)",
+  "event Released(address indexed winner, uint256 amount)",
+];
