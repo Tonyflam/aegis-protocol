@@ -67,6 +67,7 @@ interface MemState {
   disqualified: Set<string>;
   leaderboard: Map<string, number>;
   seenWallets: Set<string>;
+  sybilChecked: Set<string>;
 }
 const mem: MemState = {
   scans: new Map(),
@@ -79,6 +80,7 @@ const mem: MemState = {
   disqualified: new Set(),
   leaderboard: new Map(),
   seenWallets: new Set(),
+  sybilChecked: new Set(),
 };
 
 export function isCampaignRedisConfigured(): boolean {
@@ -342,6 +344,27 @@ export async function isDisqualified(wallet: string): Promise<boolean> {
     return r === 1;
   }
   return mem.disqualified.has(w);
+}
+
+// Has this wallet already been through the live anti-sybil pass?
+// Used to dedupe expensive on-chain reads per wallet across page-loads.
+const SYBIL_CHECKED_KEY = "aegis:campaign:sybilchecked";
+export async function isSybilChecked(wallet: string): Promise<boolean> {
+  const w = wallet.toLowerCase();
+  if (isCampaignRedisConfigured()) {
+    const r = await redis<number>(["SISMEMBER", SYBIL_CHECKED_KEY, w]);
+    return r === 1;
+  }
+  return mem.sybilChecked.has(w);
+}
+export async function markSybilChecked(wallet: string): Promise<void> {
+  const w = wallet.toLowerCase();
+  if (isCampaignRedisConfigured()) {
+    await redis(["SADD", SYBIL_CHECKED_KEY, w]);
+    return;
+  }
+  if (!mem.sybilChecked) mem.sybilChecked = new Set();
+  mem.sybilChecked.add(w);
 }
 
 // ─── Seen wallets (for cron resilience) ──────────────────────

@@ -264,7 +264,7 @@ function CampaignPageInner() {
           <br />for up to 151 protectors.
         </h1>
         <p className="text-base sm:text-lg leading-relaxed max-w-2xl mb-8" style={{ color: "var(--text-secondary)" }}>
-          The first community hunt for Aegis Protocol — BSC&apos;s autonomous security layer. Earn entries by actually using the protocol. No emoji spam, no copy-paste raids. Sybil wallets are filtered. The vault decides.
+          The first community hunt for Aegis Protocol — BSC&apos;s autonomous security layer. Earn entries by actually using the protocol. No emoji spam, no copy-paste raids. Sybil wallets are filtered with our own scanner and disqualified publicly. Prizes ship through an open-source Merkle claim contract: 25% instant, 75% linear vest over 14 days.
         </p>
 
         {/* Countdown card */}
@@ -283,10 +283,10 @@ function CampaignPageInner() {
         {/* Live stats strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Pool", value: `${(POOL_UNIQ / 1_000_000).toFixed(1)}M $UNIQ` },
-            { label: "Winners", value: TOTAL_WINNERS.toString() },
+            { label: "Pool", value: `${(POOL_UNIQ / 1_000_000).toFixed(0)}M $UNIQ` },
+            { label: "Winners", value: `up to ${TOTAL_WINNERS + 10}` },
             { label: "Min entry", value: "1 social" },
-            { label: "Max stack", value: "96 entries" },
+            { label: "Max stack", value: "51 entries" },
           ].map((s, i) => (
             <div key={i} className="p-3 rounded-lg" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}>
               <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>{s.label}</div>
@@ -447,14 +447,14 @@ function CampaignPageInner() {
                 style={{ background: "var(--bg-raised)", border: "1px solid var(--border-subtle)" }}>
                 <div className="flex items-baseline justify-between mb-2">
                   <h3 className="text-lg font-bold">Open Bounty</h3>
-                  <div className="text-xs uppercase tracking-wider" style={{ color: "var(--accent)" }}>10k $UNIQ · cap 10</div>
+                  <div className="text-xs uppercase tracking-wider" style={{ color: "var(--accent)" }}>50k $UNIQ · cap 10</div>
                 </div>
                 {totd?.token ? (
                   <>
                     <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>We just flagged a live one</div>
                     <div className="font-mono text-xs break-all mb-3" style={{ color: "var(--accent)" }}>{totd.token}</div>
                     <div className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>
-                      Scan this token, then quote-tweet your result with <span style={{ color: "var(--accent)" }}>#AegisCaught</span>. First 10 verified catches earn 10,000 $UNIQ each.
+                      Scan this token, then quote-tweet your result with <span style={{ color: "var(--accent)" }}>#AegisCaught</span>. First 10 verified catches earn 50,000 $UNIQ each.
                       <br /><strong>{totd.claimsRemaining}/10 spots left.</strong>
                     </div>
                     <Link href={`/scanner?address=${totd.token}`} className="inline-block text-xs px-3 py-1.5 rounded mb-3"
@@ -483,7 +483,7 @@ function CampaignPageInner() {
                       <strong>If you find a malicious BSC token in the wild</strong> (rugpull, honeypot, drainer, hidden-mint), scan it on Aegis and quote-tweet your scan link with <span style={{ color: "var(--accent)" }}>#AegisCaught</span>.
                     </p>
                     <p style={{ color: "var(--text-muted)" }}>
-                      Hand-judged. Each confirmed catch = 10,000 $UNIQ. Cap: 10 winners across the campaign.
+                      Hand-judged. Each confirmed catch = 50,000 $UNIQ. Cap: 10 winners across the campaign.
                     </p>
                   </div>
                 )}
@@ -522,12 +522,12 @@ function CampaignPageInner() {
       <section className="px-6 sm:px-10 max-w-6xl mx-auto pb-16">
         <div className="p-5 rounded-xl text-xs leading-relaxed"
           style={{ background: "var(--bg-raised)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}>
-          <strong className="block mb-2" style={{ color: "var(--text-primary)" }}>Rules · Audit · Anti-sybil</strong>
-          • Snapshot freezes on May 31, 12:00 UTC. Winners drawn on June 1, 16:00 UTC.<br />
-          • Sybil filter: wallets created &lt;7d before campaign start, with no on-chain history, or sharing funding sources with &gt;3 other entrants are removed.<br />
-          • Wash filter: scans/guardian connections that aren&apos;t kept for ≥24h aren&apos;t counted.<br />
-          • Holder tier reads $UNIQ balance at snapshot block. Sells before snapshot drop your tier.<br />
-          • Referrer fees and the rewards pool come from the Aegis vault &mdash; no team allocation, no dilution.<br />
+          <strong className="block mb-2" style={{ color: "var(--text-primary)" }}>Rules · Audit · Anti-sybil · Anti-dump</strong>
+          • Snapshot freezes at a single BSC block, announced 24h ahead. Winners drawn Jun 1, 16:00 UTC from a future block hash.<br />
+          • Anti-sybil: every entrant wallet is scanned by Aegis itself. Drainer / sanctioned / honeypot-deployer wallets are disqualified. Full list published May 28.<br />
+          • Anti-dump: 25% of each prize claimable instantly at draw time, 75% vests linearly over 14 days through the open-source <a href="https://github.com/Tonyflam/aegis-protocol/blob/main/contracts/AegisCampaignClaim.sol" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>AegisCampaignClaim</a> contract. Self-custody, no team key.<br />
+          • Holder tier reads $UNIQ balance at the snapshot block only. No continuous-holding scan, no last-minute cap.<br />
+          • Pool funded from the Aegis treasury — transparent on-chain proof posted before launch. No team allocation, no dilution.<br />
           • Disputes: open a ticket in our Telegram before June 3.
         </div>
       </section>

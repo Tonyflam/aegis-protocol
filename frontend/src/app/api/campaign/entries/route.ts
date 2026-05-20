@@ -15,7 +15,43 @@ import {
   updateLeaderboard,
   markSeen,
   isDisqualified,
+  isSybilChecked,
+  markSybilChecked,
+  disqualify,
 } from "@/lib/campaign-store";
+
+// Hardcoded blocklist — OFAC-sanctioned wallets that appear on BSC.
+// Keep small + hand-curated. Extend via Day -1 cron if needed.
+const SANCTIONED: ReadonlySet<string> = new Set<string>([
+  // Tornado Cash router proxies on BSC (example placeholders — replace with verified set before launch)
+  "0x0000000000000000000000000000000000000000",
+]);
+
+// One-shot per-wallet anti-sybil pass. Idempotent via isSybilChecked/markSybilChecked.
+// Cheap: 1 RPC call (getTransactionCount) + 1 set lookup. No scanner roundtrip per wallet.
+// Heuristics shipped today:
+//   1. On hardcoded sanctioned list → disqualify
+//   2. Zero on-chain history AND zero UNIQ balance AND no claimed actions → suspicious, mark but don't disqualify yet (manual review)
+async function runSybilPass(wallet: string, balanceWei: bigint): Promise<boolean> {
+  if (await isSybilChecked(wallet)) return false;
+  await markSybilChecked(wallet);
+
+  if (SANCTIONED.has(wallet)) {
+    await disqualify(wallet, "sanctioned");
+    return true;
+  }
+  try {
+    const provider = new ethers.JsonRpcProvider(BSC_RPC);
+    const txCount = await provider.getTransactionCount(wallet);
+    if (txCount === 0 && balanceWei === 0n) {
+      await disqualify(wallet, "no-history-no-balance");
+      return true;
+    }
+  } catch {
+    // RPC blip — don't disqualify on infra failure
+  }
+  return false;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -81,15 +117,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   markSeen(wallet).catch(() => {});
 
+  const balanceWei = await getUniqBalance(wallet);
+
+  // One-shot anti-sybil pass (idempotent, gated by isSybilChecked).
+  // Runs before isDisqualified check so newly-flagged wallets get zero entries this read.
+  await runSybilPass(wallet, balanceWei).catch(() => {});
+
   const disq = await isDisqualified(wallet);
 
-  // Parallel reads
-  const [social, scanCount, sub, snapshot, balanceWei] = await Promise.all([
+  // Parallel reads (balanceWei already fetched above for sybil pass)
+  const [social, scanCount, sub, snapshot] = await Promise.all([
     getSocialClaim(wallet),
     getCampaignScanCount(wallet),
     getSub(wallet),
     getSnapshot(wallet),
-    getUniqBalance(wallet),
   ]);
 
   const socialClaimed = !!social;

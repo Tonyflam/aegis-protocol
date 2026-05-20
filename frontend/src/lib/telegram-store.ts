@@ -81,3 +81,13 @@ export async function getSubCount(): Promise<number> {
   const subs = await loadAll();
   return subs.size;
 }
+
+// Reverse lookup: given a Telegram chatId, find the wallet linked to it.
+// Used by the bot's /campaign command. O(n) but n is small (≤ a few thousand).
+export async function getWalletByChatId(chatId: string): Promise<string | undefined> {
+  const subs = await loadAll();
+  for (const [wallet, sub] of subs.entries()) {
+    if (sub.chatId === chatId) return wallet;
+  }
+  return undefined;
+}

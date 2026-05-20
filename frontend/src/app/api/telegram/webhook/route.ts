@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getWalletByChatId } from "@/lib/telegram-store";
 
-// Telegram webhook handler — responds to /start, /myid, /help, /status
+// Telegram webhook handler — responds to /start, /myid, /help, /status, /campaign
 // Set webhook with: scripts/setup-telegram-bot.ts
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
@@ -89,6 +90,7 @@ export async function POST(request: NextRequest) {
         `/start, Get your Chat ID and setup link`,
         `/myid, Show your Chat ID`,
         `/status, Check your alert subscription`,
+        `/campaign, See your Protector Hunt entries`,
         `/help, Show this message`,
         ``,
         `<b>About Aegis:</b>`,
@@ -110,10 +112,72 @@ export async function POST(request: NextRequest) {
         `To check if your wallet is linked, visit <a href="https://aegisguardian.xyz/guardian">aegisguardian.xyz/guardian</a> and look at the Telegram section.`,
       ].join("\n"),
     );
+  } else if (text === "/campaign" || text === "/hunt") {
+    const wallet = await getWalletByChatId(String(chatId));
+    if (!wallet) {
+      await sendMessage(
+        chatId,
+        [
+          `🛡️ <b>Protector Hunt</b>`,
+          ``,
+          `No wallet is linked to this Telegram yet.`,
+          ``,
+          `1. Visit <a href="https://aegisguardian.xyz/guardian">aegisguardian.xyz/guardian</a>`,
+          `2. Connect your wallet`,
+          `3. Paste your Chat ID: <code>${chatId}</code>`,
+          ``,
+          `Then run /campaign here again to see your live entry count.`,
+        ].join("\n"),
+      );
+    } else {
+      try {
+        const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://aegisguardian.xyz";
+        const [entriesRes, lbRes] = await Promise.all([
+          fetch(`${origin}/api/campaign/entries?address=${wallet}`, { cache: "no-store" }),
+          fetch(`${origin}/api/campaign/leaderboard`, { cache: "no-store" }),
+        ]);
+        const entries = entriesRes.ok ? await entriesRes.json() : null;
+        const lb = lbRes.ok ? await lbRes.json() : null;
+        const myRank = lb?.leaders?.find(
+          (l: { wallet: string; rank: number }) =>
+            l.wallet.toLowerCase().startsWith(wallet.slice(0, 6).toLowerCase()),
+        )?.rank;
+        if (!entries) {
+          await sendMessage(chatId, `Couldn't fetch your campaign data right now. Try again in a minute.`);
+        } else if (entries.disqualified) {
+          await sendMessage(
+            chatId,
+            `🚫 This wallet has been disqualified from Protector Hunt. See aegisguardian.xyz/campaign/disqualified for the reason.`,
+          );
+        } else {
+          await sendMessage(
+            chatId,
+            [
+              `🛡️ <b>Protector Hunt — your entries</b>`,
+              ``,
+              `Wallet: <code>${wallet.slice(0, 6)}…${wallet.slice(-4)}</code>`,
+              `<b>Total entries: ${entries.totalEntries}</b>${myRank ? ` · rank #${myRank}` : ""}`,
+              ``,
+              `• Social: ${entries.breakdown.social}`,
+              `• Scans: ${entries.breakdown.scan} (${entries.scanCount}/5 unique)`,
+              `• Guardian: ${entries.breakdown.guardian}`,
+              `• Telegram: ${entries.breakdown.telegram}`,
+              `• Holder (${entries.holderTier}): ${entries.breakdown.hold}`,
+              `• Referrals: ${entries.breakdown.referral} (${entries.referralCount}/10 qualified)`,
+              ``,
+              `🎯 Pool: 25,000,000 $UNIQ · up to 151 winners`,
+              `🔗 <a href="https://aegisguardian.xyz/campaign">aegisguardian.xyz/campaign</a>`,
+            ].join("\n"),
+          );
+        }
+      } catch {
+        await sendMessage(chatId, `Couldn't fetch your campaign data right now. Try again in a minute.`);
+      }
+    }
   } else {
     await sendMessage(
       chatId,
-      `I only respond to commands. Try /start, /myid, or /help.\n\nVisit <a href="https://aegisguardian.xyz">aegisguardian.xyz</a> to use the full app.`,
+      `I only respond to commands. Try /start, /myid, /campaign, or /help.\n\nVisit <a href="https://aegisguardian.xyz">aegisguardian.xyz</a> to use the full app.`,
     );
   }
 

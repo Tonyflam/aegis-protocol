@@ -69,6 +69,15 @@ export default function Home() {
   return (
     <div className="min-h-screen relative z-10 flex flex-col overflow-hidden">
       {/* ──────────────────────────────────────────────
+          PROTECTOR HUNT ribbon (non-dismissible until launch)
+          ────────────────────────────────────────────── */}
+      <Link href="/campaign"
+        className="block w-full text-center text-xs sm:text-sm font-semibold py-2 px-4 hover:opacity-90 transition-opacity"
+        style={{ background: "var(--accent)", color: "var(--bg-base)" }}>
+        🎁 Protector Hunt launches Thu May 21 · 25,000,000 $UNIQ · 10 days · zero engagement-farming → /campaign
+      </Link>
+
+      {/* ──────────────────────────────────────────────
           HERO SECTION
           ────────────────────────────────────────────── */}
       <section className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-20 sm:pt-28 pb-20 w-full">
