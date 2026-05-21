@@ -841,7 +841,8 @@ aegisguardian.xyz/campaign
 
 ### Pre-pick on Day -1 (block out 30 min)
 - 3-5 candidate BSC tokens you suspect will get reported during the campaign (so you can fast-verify the first Open Bounty submissions)
-- The BSC block number that will provide draw randomness (~Jun 1 16:00 UTC, ≈ current block + 430,000) — announce in launch thread
+- ✅ **Draw block locked: BSC `#99,835,783`** (target Jun 1 16:00 UTC, computed @ block 99,503,096 on May 21 02:45 UTC, +332,687 blocks @ 3 s) — announce in launch tweet
+- ✅ **Snapshot baseline: `snapshots/day0.json`** — 2 wallets, 35 entries already on the board
 - Founder's Shield NFT artwork (or commit "art TBD, mints by Jun 8")
 
 ### Security pre-flight

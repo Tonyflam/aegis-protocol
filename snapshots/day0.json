@@ -1,0 +1,30 @@
+{
+  "label": "day0",
+  "snapshotBlock": 99503096,
+  "snapshotBlockHash": "0x2bf5c6d84345b8ef1d218bbfbf9c0e19895dde1176d3a55b4bbcfb0a20ec4561",
+  "snapshotTimestamp": 1779331537,
+  "uniqToken": "0xdd5f3e8c2cfc8444fac46744d0a4a85df03d7777",
+  "totalWallets": 2,
+  "totalEligibleWallets": 2,
+  "totalEntries": 35,
+  "entries": [
+    {
+      "wallet": "0x1e3eacb2bbb8ef727e440d186fb54e39fbfc3404",
+      "offchainEntries": 8,
+      "uniqBalance": "0",
+      "uniqWhole": "0",
+      "holdEntries": 0,
+      "totalEntries": 8,
+      "disqualified": false
+    },
+    {
+      "wallet": "0xf910fc2fd395128a894e9754be56479f05b54121",
+      "offchainEntries": 27,
+      "uniqBalance": "0",
+      "uniqWhole": "0",
+      "holdEntries": 0,
+      "totalEntries": 27,
+      "disqualified": false
+    }
+  ]
+}
